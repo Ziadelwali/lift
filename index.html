@@ -2,6 +2,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <title>Lift</title>
+<meta name="build" content="01c1f10ff4">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
@@ -230,7 +231,9 @@ function setSyncLine(txt,live){
  var si=$('#syncinfo');if(si)si.textContent=txt;
 }
 function fsFetch(method,qs,body){
- return fetch(SYNC.url+qs,{method:method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+ var ac=('AbortController' in window)?new AbortController():null,t=ac&&setTimeout(function(){ac.abort();},12000);
+ return fetch(SYNC.url+qs,{method:method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,signal:ac?ac.signal:undefined})
+  .then(function(r){clearTimeout(t);return r;},function(e){clearTimeout(t);throw e;});
 }
 /* push the local diff */
 function flush(){
@@ -625,7 +628,7 @@ function renderProfile(){
  h+='<div class="card"><h2>Training days</h2><p class="xs" style="margin:4px 0 6px">Three days with a rest day between is the default. The start time anchors your meals.</p>'+
   [1,2,3,4,5,6,0].map(function(d){return '<div class="row" style="min-height:44px"><label class="check" style="flex:1"><input type="checkbox" data-day="'+d+'"'+(sched[d]!=null?' checked':'')+'><span>'+DOW[d]+'</span></label><input type="time" class="rir" style="width:110px" data-time="'+d+'" value="'+(sched[d]||'16:00')+'"'+(sched[d]!=null?'':' disabled')+'></div>';}).join('')+
   '<div class="grid2"><label class="field"><span class="l">Wake</span><input type="time" data-p="wake" value="'+(p.wake||'06:30')+'"></label><label class="field"><span class="l">Bed</span><input type="time" data-p="bed" value="'+(p.bed||'22:30')+'"></label></div></div>';
- h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+$('#syncline').textContent+'</p><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="forget">Change passphrase</button><button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div></div>';
+ h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+$('#syncline').textContent+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+'</p><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button><button class="btn small ghost" data-act="forget">Change passphrase</button><button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div></div>';
  h+='<p class="xs" style="padding:0 4px 10px">Exercise photos and descriptions: free-exercise-db (public domain). Training and nutrition rules: Pelland 2025, Robinson 2024, Schoenfeld, ISSN position stands. This is a tool, not medical advice.</p>';
  $('#v-profile').innerHTML=h;
 }
@@ -652,6 +655,7 @@ document.addEventListener('click',function(ev){
   save();stopRest();keepAwake(false);show('today');return;}
  if(act==='abandon'){if(!ses)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[todayISO()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='adj'){state.profile.kcalAdj=(state.profile.kcalAdj||0)+ +b.dataset.adj;save();renderEat();toast('Calories adjusted');return;}
+ if(act==='update'){if(!('serviceWorker' in navigator)){location.reload();return;}toast('Checking…');navigator.serviceWorker.getRegistration().then(function(r){return r?r.update():null;}).then(function(){setTimeout(function(){location.reload();},1500);});return;}
  if(act==='forget'){try{localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}
  if(act==='export'){var blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'}),u=URL.createObjectURL(blob),a2=document.createElement('a');a2.href=u;a2.download='lift-'+todayISO()+'.json';document.body.appendChild(a2);a2.click();a2.remove();return;}
  if(act==='wipe'){if(!confirm('Remove all data from this device? The synced copy stays in the cloud.'))return;try{localStorage.removeItem(LS);localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}

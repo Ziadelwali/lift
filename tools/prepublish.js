@@ -11,5 +11,8 @@ if(bad.length){console.error('LEAK: plaintext API key in '+bad.join(', ')+'. Not
 if(files.includes('firebase-config.json')){console.error('LEAK: firebase-config.json would be committed. Nothing published.');process.exit(1);}
 if(!fs.existsSync(p.join(root,'fbconfig.js'))){console.error('fbconfig.js missing. Run: node tools\seal-config.js "<passphrase>"');process.exit(1);}
 const f=p.join(root,'sw.js');
-fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(/const VERSION = '[^']*';/,"const VERSION = 'v-"+c.randomBytes(5).toString('hex')+"';"));
-console.log('leak scan OK, fbconfig.js present, sw.js stamped');
+const ver='v-'+c.randomBytes(5).toString('hex');
+fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(/const VERSION = '[^']*';/,"const VERSION = '"+ver+"';"));
+const ix=p.join(root,'index.html');
+fs.writeFileSync(ix,fs.readFileSync(ix,'utf8').replace(/<meta name="build" content="[^"]*">/,'<meta name="build" content="'+ver.slice(2)+'">'));
+console.log('leak scan OK, fbconfig.js present, build '+ver.slice(2));
