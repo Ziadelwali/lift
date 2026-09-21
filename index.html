@@ -205,58 +205,81 @@ function niceDate(iso){var d=E.parseISO(iso);return DOW[d.getDay()]+' '+d.getDat
 function toast(t){var el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){el.classList.remove('on');},1800);}
 function fmtSec(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60);}
 
-/* ---------------- persistent state (same scheme as the trip page) ----------------
-   Local first: every change lands in localStorage immediately, then is merged
-   field by field into one shared Firestore document whose id is derived from
-   the passphrase. Firestore queues writes offline and flushes them later. */
-var FB_SDK='https://www.gstatic.com/firebasejs/10.14.1/';
-var LS='lift.v1', PK='lift.pp';
+/* ---------------- persistent state ----------------
+   Local first: every change lands in localStorage immediately, then the
+   changed fields are PATCHed into one shared Firestore document (plain REST -
+   the SDK's realtime channel is rejected for this project). The document id
+   is derived from the passphrase. Offline, the diff simply waits in
+   localStorage and is sent when the network is back; other devices' changes
+   are picked up by polling while the app is open. */
+var LS='lift.v1', PK='lift.pp', LSB='lift.base';
 var SYNC_SECTIONS=['profile','sessions','weight','daily','settings'];
 var state={profile:{},sessions:{},weight:{},daily:{},settings:{}};
-var dbRef=null,saveT=null,lastSynced=null,FV=null;
+var saveT=null,lastSynced=null;   /* lastSynced = the state as the server last saw it from this device */
+var SYNC={url:null,ready:false,busy:false,updateTime:null,again:false};
 try{var raw=localStorage.getItem(LS);if(raw){var parsed=JSON.parse(raw);SYNC_SECTIONS.forEach(function(s){if(parsed[s])state[s]=parsed[s];});}}catch(e){}
-function sameVal(a,b){return JSON.stringify(a===undefined?null:a)===JSON.stringify(b===undefined?null:b);}
-function syncPatch(){
- var patch={},any=false,base=lastSynced||{};
- SYNC_SECTIONS.forEach(function(sec){
-  var cur=state[sec]||{},old=base[sec]||{},p={};
-  Object.keys(cur).forEach(function(k){if(!sameVal(cur[k],old[k])){p[k]=cur[k];any=true;}});
-  Object.keys(old).forEach(function(k){if(!(k in cur)){p[k]=FV.delete();any=true;}});
-  if(Object.keys(p).length)patch[sec]=p;
- });
- return any?patch:null;
-}
+try{var rawb=localStorage.getItem(LSB);if(rawb)lastSynced=JSON.parse(rawb);}catch(e){}
 function snapshotState(){return JSON.parse(JSON.stringify(state));}
+function setBase(b){lastSynced=b;try{localStorage.setItem(LSB,JSON.stringify(b));}catch(e){}}
 function save(){
  try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}
- clearTimeout(saveT);
- saveT=setTimeout(function(){
-  if(!dbRef)return;
-  var patch=syncPatch();if(!patch)return;
-  var snap=snapshotState();
-  dbRef.set({v:1,at:new Date().toISOString(),data:patch},{merge:true}).then(function(){lastSynced=snap;},function(){});
-  lastSynced=snap;
- },600);
+ clearTimeout(saveT);saveT=setTimeout(flush,600);
 }
 function setSyncLine(txt,live){
  $('#syncline').textContent=txt;var d=$('#syncdot');d.className=live===true?'live':live===false?'off':'';
+ var si=$('#syncinfo');if(si)si.textContent=txt;
 }
-/* Firestore merge:true merges nested maps, so a session's array of exercises
-   is replaced whole (arrays are values) while profile fields merge per key. */
+function fsFetch(method,qs,body){
+ return fetch(SYNC.url+qs,{method:method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
+}
+/* push the local diff */
+function flush(){
+ if(!SYNC.ready||!navigator.onLine)return;
+ if(SYNC.busy){SYNC.again=true;return;}
+ var patch=E.restPatch(state,lastSynced||{},SYNC_SECTIONS);
+ if(!patch){setSyncLine('Live sync on',true);return;}
+ var snap=snapshotState();SYNC.busy=true;
+ var qs='?key='+encodeURIComponent(SYNC.key)+patch.mask.map(function(m){return '&updateMask.fieldPaths='+encodeURIComponent(m);}).join('');
+ fsFetch('PATCH',qs,{fields:patch.fields}).then(function(r){
+  if(r.ok)return r.json().then(function(doc){setBase(snap);SYNC.updateTime=doc.updateTime;setSyncLine('Live sync on',true);});
+  return r.text().then(function(t){setSyncLine('Sync rejected ('+r.status+') — saved here',false);console.warn('sync patch',r.status,t.slice(0,300));});
+ }).catch(function(){setSyncLine('Offline — syncs later',false);})
+ .then(function(){SYNC.busy=false;if(SYNC.again){SYNC.again=false;flush();}});
+}
+/* take the server copy, keeping local changes that have not been pushed yet */
 function adoptRemote(remote){
- var pendingLocal=(dbRef&&lastSynced)?syncPatch():null;
+ var pending=E.restPatch(state,lastSynced||{},SYNC_SECTIONS);
  var fresh={profile:{},sessions:{},weight:{},daily:{},settings:{}};
  SYNC_SECTIONS.forEach(function(sec){if(remote[sec])fresh[sec]=JSON.parse(JSON.stringify(remote[sec]));});
- if(pendingLocal)SYNC_SECTIONS.forEach(function(sec){
-  var ps=pendingLocal[sec];if(!ps)return;
-  Object.keys(ps).forEach(function(k){
-   if(ps[k]&&typeof ps[k]==='object'&&ps[k].constructor!==Object&&!Array.isArray(ps[k]))delete fresh[sec][k];
-   else fresh[sec][k]=ps[k];});});
+ if(pending)pending.mask.forEach(function(m){
+  var parts=m.split('.');if(parts[0]!=='data')return;
+  var sec=parts[1],k=parts.slice(2).join('.').replace(/^`|`$/g,'').replace(/\\(.)/g,'$1');
+  if(k in (state[sec]||{}))fresh[sec][k]=state[sec][k];else delete fresh[sec][k];
+ });
  state=fresh;
  try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}
- render();
+ var a=document.activeElement;
+ if(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))a.addEventListener('blur',function(){render();},{once:true});else render();
 }
-function loadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.async=true;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+/* fetch the server copy; first time on a device the two are merged (server wins per field) */
+function pull(){
+ if(!SYNC.ready||!navigator.onLine||SYNC.busy)return;
+ SYNC.busy=true;
+ fsFetch('GET','?key='+encodeURIComponent(SYNC.key)).then(function(r){
+  if(r.status===404){if(!lastSynced)setBase({});SYNC.updateTime=null;return;}
+  if(!r.ok)return r.text().then(function(t){setSyncLine('Sync rejected ('+r.status+') — saved here',false);console.warn('sync get',r.status,t.slice(0,300));});
+  return r.json().then(function(doc){
+   var remote=(doc.fields&&doc.fields.data)?E.fromFs(doc.fields.data)||{}:{};
+   if(!lastSynced){
+    var local=snapshotState(),merged={};
+    SYNC_SECTIONS.forEach(function(sec){merged[sec]=Object.assign({},local[sec]||{},remote[sec]||{});});
+    setBase(remote);state=merged;try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}render();
+   }else if(doc.updateTime!==SYNC.updateTime){adoptRemote(remote);setBase(remote);}
+   SYNC.updateTime=doc.updateTime;setSyncLine('Live sync on',true);
+  });
+ }).catch(function(){setSyncLine('Offline — syncs later',false);})
+ .then(function(){SYNC.busy=false;flush();});
+}
 function sha256hex(txt){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt)).then(function(buf){return Array.prototype.map.call(new Uint8Array(buf),function(b){return('0'+b.toString(16)).slice(-2);}).join('');});}
 function norm(s){return String(s||'').toLowerCase().replace(/[^a-z]+/g,' ').trim();}
 function b2a(s){var r=atob(s),u=new Uint8Array(r.length);for(var i=0;i<r.length;i++)u[i]=r.charCodeAt(i);return u;}
@@ -273,33 +296,16 @@ function startSync(){
  var pass=null;try{pass=localStorage.getItem(PK);}catch(e){}
  if(!pass||pass==='-'||!(window.crypto&&crypto.subtle)){setSyncLine('Saved on this device only',null);return;}
  setSyncLine('Connecting…',null);
- unseal(pass).catch(function(){setSyncLine('Passphrase does not match this build — saved here',false);throw new Error('unseal');})
- .then(function(cfg){return Promise.all([cfg,loadScript(FB_SDK+'firebase-app-compat.js').then(function(){return loadScript(FB_SDK+'firebase-firestore-compat.js');}),sha256hex('lift-sync:'+pass)]);})
- .then(function(r){
-  var docId=r[2];
-  firebase.initializeApp(r[0]);
-  var db=firebase.firestore();FV=firebase.firestore.FieldValue;
-  return db.enablePersistence({synchronizeTabs:true}).catch(function(){}).then(function(){
-   dbRef=db.collection('lift').doc(docId);
-   var first=true;
-   dbRef.onSnapshot({includeMetadataChanges:true},function(s){
-    var pending=s.metadata.hasPendingWrites;
-    if(first){
-     if(!s.exists&&s.metadata.fromCache){setSyncLine('Offline — will sync when signal returns',false);return;}
-     first=false;
-     if(!s.exists){lastSynced={};save();}
-     else{
-      var local=snapshotState(),d=s.data(),remote=(d&&d.data)||{},merged={};
-      SYNC_SECTIONS.forEach(function(sec){merged[sec]=Object.assign({},local[sec]||{},remote[sec]||{});});
-      adoptRemote(merged);lastSynced=JSON.parse(JSON.stringify(remote));save();
-     }
-    }else if(!pending){var dd=s.data();if(!dd||!dd.data)return;adoptRemote(dd.data);lastSynced=JSON.parse(JSON.stringify(dd.data));}
-    if(s.metadata.fromCache)setSyncLine(navigator.onLine?'Waiting for server…':'Offline — syncs later',false);else setSyncLine('Live sync on',true);
-   },function(){setSyncLine('Sync unavailable — saved here',false);});
-  });
- }).catch(function(e){if(!e||e.message!=='unseal')setSyncLine('Sync could not start — saved here',false);});
- addEventListener('offline',function(){if(dbRef)setSyncLine('Offline — syncs later',false);});
- addEventListener('online',function(){if(dbRef)setSyncLine('Live sync on',true);});
+ Promise.all([unseal(pass),sha256hex('lift-sync:'+pass)]).then(function(r){
+  var cfg=r[0];
+  SYNC.url='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(cfg.projectId)+'/databases/(default)/documents/lift/'+r[1];
+  SYNC.key=cfg.apiKey;SYNC.ready=true;
+  pull();
+  setInterval(function(){if(!document.hidden)pull();},45000);
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)pull();});
+  addEventListener('online',function(){pull();});
+  addEventListener('offline',function(){setSyncLine('Offline — syncs later',false);});
+ }).catch(function(){setSyncLine('Passphrase does not match this build — saved here',false);});
 }
 
 /* ---------------- service worker ---------------- */
@@ -646,9 +652,9 @@ document.addEventListener('click',function(ev){
   save();stopRest();keepAwake(false);show('today');return;}
  if(act==='abandon'){if(!ses)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[todayISO()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='adj'){state.profile.kcalAdj=(state.profile.kcalAdj||0)+ +b.dataset.adj;save();renderEat();toast('Calories adjusted');return;}
- if(act==='forget'){try{localStorage.removeItem(PK);}catch(e){}location.reload();return;}
+ if(act==='forget'){try{localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}
  if(act==='export'){var blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'}),u=URL.createObjectURL(blob),a2=document.createElement('a');a2.href=u;a2.download='lift-'+todayISO()+'.json';document.body.appendChild(a2);a2.click();a2.remove();return;}
- if(act==='wipe'){if(!confirm('Remove all data from this device? The synced copy stays in the cloud.'))return;try{localStorage.removeItem(LS);localStorage.removeItem(PK);}catch(e){}location.reload();return;}
+ if(act==='wipe'){if(!confirm('Remove all data from this device? The synced copy stays in the cloud.'))return;try{localStorage.removeItem(LS);localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}
 });
 document.addEventListener('change',function(ev){
  var t=ev.target,ses=activeSession();

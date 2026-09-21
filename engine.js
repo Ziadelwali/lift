@@ -377,7 +377,51 @@
     });
   }
 
+
+  /* ---------- Firestore REST value codec ----------
+     The app talks to Firestore over plain REST (the SDK realtime channel is
+     blocked for this project). Firestore values are typed JSON. */
+  function toFs(v) {
+    if (v === null || v === undefined) return { nullValue: null };
+    if (typeof v === "boolean") return { booleanValue: v };
+    if (typeof v === "number") return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    if (typeof v === "string") return { stringValue: v };
+    if (Array.isArray(v)) return { arrayValue: { values: v.map(toFs) } };
+    var f = {}; Object.keys(v).forEach(function (k) { if (v[k] !== undefined) f[k] = toFs(v[k]); });
+    return { mapValue: { fields: f } };
+  }
+  function fromFs(v) {
+    if (!v || "nullValue" in v) return null;
+    if ("booleanValue" in v) return v.booleanValue;
+    if ("integerValue" in v) return +v.integerValue;
+    if ("doubleValue" in v) return v.doubleValue;
+    if ("stringValue" in v) return v.stringValue;
+    if ("timestampValue" in v) return v.timestampValue;
+    if ("arrayValue" in v) return (v.arrayValue.values || []).map(fromFs);
+    if ("mapValue" in v) { var o = {}, f = v.mapValue.fields || {}; Object.keys(f).forEach(function (k) { o[k] = fromFs(f[k]); }); return o; }
+    return null;
+  }
+  /* field path segment: backtick-quote anything that is not a plain identifier */
+  function fsSeg(k) { return /^[A-Za-z_][A-Za-z_0-9]*$/.test(k) ? k : '`' + k.replace(/[`\\]/g, '\\$&') + '`'; }
+  /* diff two {section:{key:value}} states into a REST PATCH: mask paths + document fields.
+     Removed keys appear in the mask only, which deletes them. */
+  function restPatch(cur, base, sections) {
+    var mask = [], data = {}, any = false;
+    sections.forEach(function (sec) {
+      var c = cur[sec] || {}, o = base[sec] || {};
+      Object.keys(c).forEach(function (k) {
+        if (JSON.stringify(c[k]) !== JSON.stringify(o[k])) { mask.push("data." + sec + "." + fsSeg(k)); data[sec] = data[sec] || {}; data[sec][k] = c[k]; any = true; }
+      });
+      Object.keys(o).forEach(function (k) { if (!(k in c)) { mask.push("data." + sec + "." + fsSeg(k)); any = true; } });
+    });
+    if (!any) return null;
+    var fields = { v: toFs(1), at: toFs(new Date().toISOString()), data: toFs(data) };
+    mask.push("v", "at");
+    return { mask: mask, fields: fields };
+  }
+
   return {
+    toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
     RULES: RULES, PROGRAM: PROGRAM, PRIORITY: PRIORITY, WARMUP: WARMUP, FOODS: FOODS,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,

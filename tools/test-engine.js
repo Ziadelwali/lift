@@ -59,5 +59,21 @@ var ta = E.trendAdvice(st);
 eq('trend rate ~-0.49', Math.round(ta.rate * 100) / 100, -0.49);
 eq('trend in band', ta.adj, 0);
 
+
+// ---- REST codec ----
+(function(){
+ var E2=require('../engine.js'),fails2=0;
+ function eq2(n,g,w){var ok=JSON.stringify(g)===JSON.stringify(w);console.log((ok?'ok   ':'FAIL ')+n+(ok?'':'  got '+JSON.stringify(g)+' want '+JSON.stringify(w)));if(!ok)fails2++;}
+ var obj={a:1,b:1.5,c:'x',d:null,e:true,f:[1,'y',{g:2}],h:{'2026-09-21':{kg:112.5}}};
+ eq2('codec roundtrip',E2.fromFs(E2.toFs(obj)),obj);
+ eq2('seg plain',E2.fsSeg('profile'),'profile');
+ eq2('seg date',E2.fsSeg('2026-09-21'),'`2026-09-21`');
+ var p=E2.restPatch({profile:{age:38,weight:112},weight:{'2026-09-21':112}},{profile:{age:38,height:186},weight:{}},['profile','weight']);
+ eq2('patch mask',p.mask,['data.profile.weight','data.profile.height','data.weight.`2026-09-21`','v','at']);
+ eq2('patch fields',Object.keys(p.fields.data.mapValue.fields),['profile','weight']);
+ eq2('patch no change',E2.restPatch({profile:{a:1}},{profile:{a:1}},['profile']),null);
+ if(fails2){console.log(fails2+' FAILED');process.exit(1);}console.log('codec ok');
+})();
+
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);

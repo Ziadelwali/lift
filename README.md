@@ -1,6 +1,6 @@
 # Lift
 
-Phone-first training + diet app. One HTML page on GitHub Pages, installable as a PWA, works offline in the gym, syncs through one Firestore document keyed by a passphrase.
+Phone-first training + diet app. One HTML page on GitHub Pages, installable as a PWA, works offline in the gym, syncs through one Firestore document keyed by a passphrase (plain REST + polling — no Firebase SDK).
 
 Live: https://ziadelwali.github.io/lift/
 
