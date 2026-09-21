@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <title>Lift</title>
-<meta name="build" content="01c1f10ff4">
+<meta name="build" content="343ec7b073">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
@@ -217,7 +217,8 @@ var LS='lift.v1', PK='lift.pp', LSB='lift.base';
 var SYNC_SECTIONS=['profile','sessions','weight','daily','settings'];
 var state={profile:{},sessions:{},weight:{},daily:{},settings:{}};
 var saveT=null,lastSynced=null;   /* lastSynced = the state as the server last saw it from this device */
-var SYNC={url:null,ready:false,busy:false,updateTime:null,again:false};
+var SYNC={url:null,ready:false,busy:false,updateTime:null,again:false,log:[]};
+function slog(t){var d=new Date();SYNC.log.push(d.toTimeString().slice(0,8)+' '+t);if(SYNC.log.length>8)SYNC.log.shift();var el=$('#synclog');if(el)el.textContent=SYNC.log.join(String.fromCharCode(10));}
 try{var raw=localStorage.getItem(LS);if(raw){var parsed=JSON.parse(raw);SYNC_SECTIONS.forEach(function(s){if(parsed[s])state[s]=parsed[s];});}}catch(e){}
 try{var rawb=localStorage.getItem(LSB);if(rawb)lastSynced=JSON.parse(rawb);}catch(e){}
 function snapshotState(){return JSON.parse(JSON.stringify(state));}
@@ -227,7 +228,7 @@ function save(){
  clearTimeout(saveT);saveT=setTimeout(flush,600);
 }
 function setSyncLine(txt,live){
- $('#syncline').textContent=txt;var d=$('#syncdot');d.className=live===true?'live':live===false?'off':'';
+ slog(txt);$('#syncline').textContent=txt;var d=$('#syncdot');d.className=live===true?'live':live===false?'off':'';
  var si=$('#syncinfo');if(si)si.textContent=txt;
 }
 function fsFetch(method,qs,body){
@@ -241,12 +242,12 @@ function flush(){
  if(SYNC.busy){SYNC.again=true;return;}
  var patch=E.restPatch(state,lastSynced||{},SYNC_SECTIONS);
  if(!patch){setSyncLine('Live sync on',true);return;}
- var snap=snapshotState();SYNC.busy=true;
+var snap=snapshotState();SYNC.busy=true;slog('PATCH '+patch.mask.length+' fields…');
  var qs='?key='+encodeURIComponent(SYNC.key)+patch.mask.map(function(m){return '&updateMask.fieldPaths='+encodeURIComponent(m);}).join('');
- fsFetch('PATCH',qs,{fields:patch.fields}).then(function(r){
+ fsFetch('PATCH',qs,{fields:patch.fields}).then(function(r){slog('PATCH '+r.status);
   if(r.ok)return r.json().then(function(doc){setBase(snap);SYNC.updateTime=doc.updateTime;setSyncLine('Live sync on',true);});
   return r.text().then(function(t){setSyncLine('Sync rejected ('+r.status+') — saved here',false);console.warn('sync patch',r.status,t.slice(0,300));});
- }).catch(function(){setSyncLine('Offline — syncs later',false);})
+ }).catch(function(e){slog('PATCH failed: '+(e&&e.name)+' '+(e&&e.message));setSyncLine('Offline — syncs later',false);})
  .then(function(){SYNC.busy=false;if(SYNC.again){SYNC.again=false;flush();}});
 }
 /* take the server copy, keeping local changes that have not been pushed yet */
@@ -266,9 +267,10 @@ function adoptRemote(remote){
 }
 /* fetch the server copy; first time on a device the two are merged (server wins per field) */
 function pull(){
- if(!SYNC.ready||!navigator.onLine||SYNC.busy)return;
- SYNC.busy=true;
- fsFetch('GET','?key='+encodeURIComponent(SYNC.key)).then(function(r){
+ if(!SYNC.ready||SYNC.busy)return;
+ if(!navigator.onLine){setSyncLine('Offline — syncs later',false);return;}
+ SYNC.busy=true;slog('GET…');
+ fsFetch('GET','?key='+encodeURIComponent(SYNC.key)).then(function(r){slog('GET '+r.status);
   if(r.status===404){if(!lastSynced)setBase({});SYNC.updateTime=null;return;}
   if(!r.ok)return r.text().then(function(t){setSyncLine('Sync rejected ('+r.status+') — saved here',false);console.warn('sync get',r.status,t.slice(0,300));});
   return r.json().then(function(doc){
@@ -280,7 +282,7 @@ function pull(){
    }else if(doc.updateTime!==SYNC.updateTime){adoptRemote(remote);setBase(remote);}
    SYNC.updateTime=doc.updateTime;setSyncLine('Live sync on',true);
   });
- }).catch(function(){setSyncLine('Offline — syncs later',false);})
+ }).catch(function(e){slog('GET failed: '+(e&&e.name)+' '+(e&&e.message));setSyncLine('Offline — syncs later',false);})
  .then(function(){SYNC.busy=false;flush();});
 }
 function sha256hex(txt){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt)).then(function(buf){return Array.prototype.map.call(new Uint8Array(buf),function(b){return('0'+b.toString(16)).slice(-2);}).join('');});}
@@ -298,9 +300,9 @@ function unseal(pass){
 function startSync(){
  var pass=null;try{pass=localStorage.getItem(PK);}catch(e){}
  if(!pass||pass==='-'||!(window.crypto&&crypto.subtle)){setSyncLine('Saved on this device only',null);return;}
- setSyncLine('Connecting…',null);
+ setSyncLine('Connecting…',null);slog('unsealing config…');
  Promise.all([unseal(pass),sha256hex('lift-sync:'+pass)]).then(function(r){
-  var cfg=r[0];
+  var cfg=r[0];slog('config ok, project '+cfg.projectId);
   SYNC.url='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(cfg.projectId)+'/databases/(default)/documents/lift/'+r[1];
   SYNC.key=cfg.apiKey;SYNC.ready=true;
   pull();
@@ -308,7 +310,7 @@ function startSync(){
   document.addEventListener('visibilitychange',function(){if(!document.hidden)pull();});
   addEventListener('online',function(){pull();});
   addEventListener('offline',function(){setSyncLine('Offline — syncs later',false);});
- }).catch(function(){setSyncLine('Passphrase does not match this build — saved here',false);});
+ }).catch(function(e){slog('start failed: '+(e&&e.name)+' '+(e&&e.message));setSyncLine('Passphrase does not match this build — saved here',false);});
 }
 
 /* ---------------- service worker ---------------- */
@@ -628,7 +630,7 @@ function renderProfile(){
  h+='<div class="card"><h2>Training days</h2><p class="xs" style="margin:4px 0 6px">Three days with a rest day between is the default. The start time anchors your meals.</p>'+
   [1,2,3,4,5,6,0].map(function(d){return '<div class="row" style="min-height:44px"><label class="check" style="flex:1"><input type="checkbox" data-day="'+d+'"'+(sched[d]!=null?' checked':'')+'><span>'+DOW[d]+'</span></label><input type="time" class="rir" style="width:110px" data-time="'+d+'" value="'+(sched[d]||'16:00')+'"'+(sched[d]!=null?'':' disabled')+'></div>';}).join('')+
   '<div class="grid2"><label class="field"><span class="l">Wake</span><input type="time" data-p="wake" value="'+(p.wake||'06:30')+'"></label><label class="field"><span class="l">Bed</span><input type="time" data-p="bed" value="'+(p.bed||'22:30')+'"></label></div></div>';
- h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+$('#syncline').textContent+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+'</p><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button><button class="btn small ghost" data-act="forget">Change passphrase</button><button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div></div>';
+ h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+$('#syncline').textContent+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+'</p><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button><button class="btn small ghost" data-act="forget">Change passphrase</button><button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div></div>';
  h+='<p class="xs" style="padding:0 4px 10px">Exercise photos and descriptions: free-exercise-db (public domain). Training and nutrition rules: Pelland 2025, Robinson 2024, Schoenfeld, ISSN position stands. This is a tool, not medical advice.</p>';
  $('#v-profile').innerHTML=h;
 }
