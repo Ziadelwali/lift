@@ -1,0 +1,63 @@
+/* node tools/test-engine.js - scripted histories through the suggestion engine */
+'use strict';
+var E = require('../engine.js');
+var fails = 0;
+function eq(name, got, want) {
+  var ok = JSON.stringify(got) === JSON.stringify(want);
+  console.log((ok ? 'ok   ' : 'FAIL ') + name + (ok ? '' : '  got ' + JSON.stringify(got) + ' want ' + JSON.stringify(want)));
+  if (!ok) fails++;
+}
+var cfg = { id: 'X', sets: 3, reps: [8, 12], inc: 2.5 };
+function h(sets) { return { date: '2026-01-01', sets: sets.map(function (s) { return { kg: s[0], reps: s[1], rir: s[2], done: true }; }) }; }
+
+eq('calibrate', E.suggest(cfg, []).state, 'calibrate');
+eq('calibrate sets', E.suggest(cfg, [], { calibration: true }).sets, 2);
+eq('push', E.suggest(cfg, [h([[40, 10, 2], [40, 9, 1], [40, 9, 1]])]), { kg: 40, reps: 10, sets: 3, state: 'push', note: 'Same weight. Beat last time: 10 reps on every set.' });
+eq('up', E.suggest(cfg, [h([[40, 12, 2], [40, 12, 1], [40, 12, 0]])]).kg, 42.5);
+eq('up reps', E.suggest(cfg, [h([[40, 12, 2], [40, 12, 1], [40, 12, 0]])]).reps, 8);
+eq('hold', E.suggest(cfg, [h([[42.5, 8, 1], [42.5, 7, 0], [42.5, 6, 0]])]).state, 'hold');
+eq('drop', E.suggest(cfg, [h([[42.5, 7, 0], [42.5, 7, 0]]), h([[42.5, 8, 1], [42.5, 7, 0]])]).kg, 37.5);
+eq('deload', E.suggest(cfg, [h([[40, 10, 2]])], { deload: true }), { kg: 35, reps: 8, sets: 2, state: 'deload', note: 'Deload: lighter, fewer sets, stop with 3–4 reps in reserve. Recovery is the point.' });
+eq('ramp', E.rampSets(80), [{ kg: 40, reps: 8 }, { kg: 55, reps: 5 }, { kg: 67.5, reps: 2 }]);
+
+var prof = { sex: 'm', age: 38, height: 186, weight: 112, activity: 'feet', phase: 'lean', priority: ['shoulders', 'back'], sched: { 1: '16:00', 3: '16:00', 5: '16:00' }, wake: '06:30', bed: '22:30' };
+var m = E.macros(prof);
+eq('bmr', m.bmr, 2098);
+eq('protein high-bmi', m.protein, 179);
+console.log('macros', m);
+
+var st = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: {} };
+var p = E.plan('2026-09-21', st); // Monday
+eq('plan monday A', [p.training, p.day, p.calibration, p.week], [true, 'A', true, 1]);
+eq('plan tuesday rest', E.plan('2026-09-22', st).training, false);
+eq('exercises A count', p.exercises.length, 9);
+eq('exercises A no prio', E.exercisesFor('A', { priority: [] }).length, 8);
+eq('exercises A default prio', E.exercisesFor('A', {}).length, 9);
+var ses = E.buildSession(p, st);
+eq('session sets calib', ses.ex[0].sets.length, 2);
+// complete 3 sessions → week 2, day B next
+['2026-09-21', '2026-09-23', '2026-09-25'].forEach(function (d, i) {
+  var pp = E.plan(d, st), s = E.buildSession(pp, st);
+  s.ex.forEach(function (e) { e.sets.forEach(function (x) { x.kg = 40; x.reps = 12; x.rir = 1; x.done = true; }); });
+  s.done = true; st.sessions[d] = s;
+});
+var p4 = E.plan('2026-09-28', st);
+eq('week 2 day B', [p4.day, p4.week, p4.calibration], ['B', 2, false]);
+var s4 = E.buildSession(p4, st);
+eq('week 2 hack squat up', s4.ex[0].suggest.state, 'up');
+eq('week 2 hack squat kg', s4.ex[0].suggest.kg, 45);
+
+var tl = E.timeline(prof, E.plan('2026-09-21', st), m).map(function (s) { return s.time + ' ' + s.label; });
+console.log(tl.join('\n'));
+eq('timeline pre at 13:30', tl.some(function (x) { return x === '13:30 Pre-workout meal'; }), true);
+eq('timeline post at 17:25', tl.some(function (x) { return x === '17:25 Post-workout meal'; }), true);
+
+// weight trend
+var w = {}; for (var i = 0; i < 21; i++) { var d = new Date(2026, 8, 1 + i); w[E.isoDate(d)] = 112 - i * 0.07; }
+st.weight = w;
+var ta = E.trendAdvice(st);
+eq('trend rate ~-0.49', Math.round(ta.rate * 100) / 100, -0.49);
+eq('trend in band', ta.adj, 0);
+
+console.log(fails ? fails + ' FAILED' : 'all ok');
+process.exit(fails ? 1 : 0);

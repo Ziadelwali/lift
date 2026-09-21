@@ -1,0 +1,19 @@
+# Deny-by-default: only the files the site needs are committed.
+/*
+
+!.gitignore
+!index.html
+!exercises.js
+!fbconfig.js
+!engine.js
+!sw.js
+!manifest.webmanifest
+!robots.txt
+!icon-180.png
+!icon-192.png
+!icon-512.png
+!img/
+!tools/
+!README.md
+!publish.cmd
+!.claude/

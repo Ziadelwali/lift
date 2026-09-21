@@ -1,0 +1,388 @@
+/* engine.js - the rules of the app as pure functions. No DOM. Loaded by
+   index.html and by tools/test-engine.js (node). Everything here follows the
+   evidence summarised in README.md: 10-20 hard sets per muscle per week,
+   1-3 reps in reserve, double progression, periodic deloads, protein spread
+   over ~4 feeds, creatine daily. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.ENGINE = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var RULES = {
+    rirTarget: [1, 3],          // reps in reserve on working sets
+    calibrationSessions: 3,     // first week: 2 sets, find loads
+    deloadEvery: 6,             // every 6th training week
+    deloadLoad: 0.9, deloadSets: 0.5,
+    stallDrop: 0.9,             // cut load 10 % after two failed sessions
+    sessionMinutes: 65,
+    warmupMinutes: 8,
+    proteinPerKg: { lean: 2.0, high: 1.6 }, // high = BMI >= 30
+    fatShare: 0.25,
+    phase: { lean: 0.85, maintain: 1.0, bulk: 1.10 },
+    activity: { desk: 1.35, feet: 1.5, active: 1.65 },
+    trendTarget: { lean: [-0.6, -0.3], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] }, // kg/week
+    creatineG: 5, presleepProteinG: 35,
+    volumeBand: { normal: [10, 16], priority: [14, 20] }
+  };
+
+  /* ---------- program ---------- */
+  var PROGRAM = {
+    A: [
+      { id: 'Leg_Press', sets: 3, reps: [6, 10], inc: 5, rest: 150, ramp: true,
+        where: 'The big angled sled you sit in and push with your feet.',
+        tip: 'Feet shoulder-width, mid-platform. Lower until knees are ~90°, never let the lower back curl off the pad.',
+        alts: ['Hack_Squat', 'Goblet_Squat'] },
+      { id: 'Dumbbell_Bench_Press', sets: 3, reps: [6, 10], inc: 2, rest: 150, ramp: true,
+        where: 'Flat bench in the free-weight area, one dumbbell in each hand.',
+        tip: 'Shoulder blades pinned back and down, elbows ~45° from the body. Lower to chest level, press up and slightly in.',
+        alts: ['Machine_Bench_Press', 'Leverage_Chest_Press'] },
+      { id: 'Wide-Grip_Lat_Pulldown', sets: 3, reps: [8, 12], inc: 2.5, rest: 120,
+        where: 'Cable station with a seat, knee pad and a wide bar overhead.',
+        tip: 'Lean back slightly, pull the bar to the upper chest with the elbows, pause, control the way up.',
+        alts: ['Close-Grip_Front_Lat_Pulldown', 'Chin-Up'] },
+      { id: 'Seated_Leg_Curl', sets: 3, reps: [10, 15], inc: 5, rest: 90,
+        where: 'Machine where you sit and curl a pad down with the backs of your legs.',
+        tip: 'Hips pinned by the lap pad. Curl all the way, then control the return for 2–3 seconds.',
+        alts: ['Lying_Leg_Curls'] },
+      { id: 'Dumbbell_Shoulder_Press', sets: 3, reps: [8, 12], inc: 2, rest: 120,
+        where: 'Upright bench (back at ~85°), dumbbells at shoulder height.',
+        tip: 'Start with dumbbells beside the ears, press up until arms are nearly straight. Ribs down, no arching.',
+        alts: ['Leverage_Shoulder_Press'] },
+      { id: 'Seated_Cable_Rows', sets: 3, reps: [8, 12], inc: 2.5, rest: 120,
+        where: 'Low cable with a bench, feet on the plates, V-handle or bar.',
+        tip: 'Chest tall, pull the handle to the belly button squeezing the shoulder blades, let the arms go fully long on the return.',
+        alts: ['Leverage_High_Row', 'Dumbbell_Incline_Row'] },
+      { id: 'Side_Lateral_Raise', sets: 3, reps: [12, 15], inc: 1, rest: 75, prio: 'shoulders',
+        where: 'Light dumbbells, standing.',
+        tip: 'Lead with the elbows, raise to shoulder height with a slight forward lean. Light weight, no swinging.',
+        alts: ['Seated_Side_Lateral_Raise'] },
+      { id: 'Triceps_Pushdown_-_Rope_Attachment', sets: 2, reps: [10, 15], inc: 2.5, rest: 75,
+        where: 'High cable with the rope attachment.',
+        tip: 'Elbows glued to the sides, push down and split the rope at the bottom.',
+        alts: ['Triceps_Pushdown'] },
+      { id: 'Cable_Crunch', sets: 2, reps: [10, 15], inc: 2.5, rest: 60,
+        where: 'Kneel under a high cable holding the rope behind your head.',
+        tip: 'Crunch the ribs toward the hips, hips stay still. Slow on the way up.',
+        alts: ['Hanging_Leg_Raise', 'Plank'] }
+    ],
+    B: [
+      { id: 'Hack_Squat', sets: 3, reps: [6, 10], inc: 5, rest: 150, ramp: true,
+        where: 'Angled machine you stand in with shoulder pads, back on the sled.',
+        tip: 'Feet slightly forward, squat until thighs pass parallel, drive through the whole foot.',
+        alts: ['Leg_Press', 'Goblet_Squat'] },
+      { id: 'Stiff-Legged_Dumbbell_Deadlift', sets: 3, reps: [8, 12], inc: 2, rest: 150, ramp: true,
+        where: 'Two dumbbells, standing. This is the Romanian deadlift done with dumbbells.',
+        tip: 'Soft knees, push the hips back, dumbbells slide down the thighs until you feel the hamstrings stretch. Flat back always.',
+        alts: ['Romanian_Deadlift'] },
+      { id: 'Incline_Dumbbell_Press', sets: 3, reps: [8, 12], inc: 2, rest: 150,
+        where: 'Bench set to ~30° incline, dumbbells.',
+        tip: 'Same as flat press but the bench is tilted — upper chest does more. Lower to the upper chest.',
+        alts: ['Leverage_Incline_Chest_Press', 'Dumbbell_Bench_Press'] },
+      { id: 'Leverage_Iso_Row', sets: 3, reps: [8, 12], inc: 5, rest: 120,
+        where: 'Plate-loaded row machine with a chest pad (Hammer Strength style).',
+        tip: 'Chest on the pad, pull the handles back until the elbows pass the torso, squeeze, slow return.',
+        alts: ['Seated_Cable_Rows', 'Dumbbell_Incline_Row'] },
+      { id: 'Seated_Side_Lateral_Raise', sets: 3, reps: [12, 15], inc: 1, rest: 75,
+        where: 'Sit on the end of a bench with light dumbbells.',
+        tip: 'Seated removes the leg swing. Raise to shoulder height, pause, lower slowly.',
+        alts: ['Side_Lateral_Raise'] },
+      { id: 'Straight-Arm_Pulldown', sets: 2, reps: [10, 15], inc: 2.5, rest: 75, prio: 'back',
+        where: 'High cable with a straight bar or rope, standing.',
+        tip: 'Arms almost straight, sweep the bar down to the thighs using the lats, not the triceps.',
+        alts: ['Rope_Straight-Arm_Pulldown'] },
+      { id: 'Dumbbell_Bicep_Curl', sets: 2, reps: [10, 15], inc: 1, rest: 75,
+        where: 'Dumbbells, standing or seated.',
+        tip: 'Elbows stay at the sides, curl all the way up, lower for 2–3 seconds.',
+        alts: ['Hammer_Curls', 'EZ-Bar_Curl'] },
+      { id: 'Standing_Calf_Raises', sets: 3, reps: [10, 15], inc: 5, rest: 75,
+        where: 'Machine with shoulder pads and a step for the toes.',
+        tip: 'Full stretch at the bottom (pause 1 s), full rise onto the toes. No bouncing.',
+        alts: ['Seated_Calf_Raise', 'Calf_Press_On_The_Leg_Press_Machine'] },
+      { id: 'Face_Pull', sets: 2, reps: [12, 15], inc: 2.5, rest: 60,
+        where: 'Cable at face height with the rope.',
+        tip: 'Pull the rope toward the face, hands finish beside the ears, elbows high. Keeps shoulders healthy.',
+        alts: ['Reverse_Machine_Flyes', 'Cable_Rear_Delt_Fly'] }
+    ]
+  };
+
+  /* Muscles each priority tag covers (free-exercise-db names). */
+  var PRIORITY = {
+    shoulders: { label: 'Shoulders (side delts)', muscles: ['shoulders'] },
+    back: { label: 'Upper back / lats', muscles: ['lats', 'middle back'] },
+    chest: { label: 'Chest', muscles: ['chest'] },
+    arms: { label: 'Arms', muscles: ['biceps', 'triceps'] }
+  };
+
+  var WARMUP = {
+    general: { id: 'Bicycling_Stationary', label: 'Easy bike or rower', secs: 210, note: 'Conversational pace. Just warm, not tired.' },
+    A: [
+      { id: 'Standing_Hip_Circles', label: 'Hip circles', reps: '8 each way, each leg' },
+      { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow' },
+      { id: 'Band_Pull_Apart', label: 'Band pull-aparts', reps: '15' },
+      { id: 'Arm_Circles', label: 'Arm circles', reps: '10 each way' }
+    ],
+    B: [
+      { id: 'Cat_Stretch', label: 'Cat–cow', reps: '8 slow' },
+      { id: 'Single_Leg_Glute_Bridge', label: 'Single-leg glute bridge', reps: '8 each side' },
+      { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow' },
+      { id: 'External_Rotation_with_Band', label: 'Band external rotation', reps: '12 each arm' }
+    ],
+    ramp: [[0.5, 8], [0.7, 5], [0.85, 2]]   // fraction of working load × reps, first compound only
+  };
+
+  /* ---------- helpers ---------- */
+  function roundTo(kg, inc) { return Math.round(kg / inc) * inc; }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function isoDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function parseISO(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function hm(t) { var p = (t || '00:00').split(':'); return (+p[0]) * 60 + (+p[1]); }
+  function fmtHM(m) { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
+  function epley(kg, reps) { return reps >= 1 ? kg * (1 + reps / 30) : 0; }
+
+  function exercisesFor(day, profile) {
+    var prio = (profile && profile.priority) || ['shoulders', 'back'];
+    return PROGRAM[day].filter(function (e) { return !e.prio || prio.indexOf(e.prio) !== -1; });
+  }
+  function findCfg(id) {
+    var all = PROGRAM.A.concat(PROGRAM.B);
+    for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
+    return null;
+  }
+
+  /* ---------- sessions ---------- */
+  function completedSessions(state) {
+    var s = state.sessions || {};
+    return Object.keys(s).filter(function (k) { return s[k] && s[k].done; }).sort();
+  }
+  /* history of one exercise: array (oldest → newest) of arrays of logged sets */
+  function history(state, exId) {
+    var keys = completedSessions(state), out = [];
+    keys.forEach(function (k) {
+      var ses = state.sessions[k];
+      (ses.ex || []).forEach(function (e) {
+        if (e.id !== exId) return;
+        var sets = (e.sets || []).filter(function (s) { return s.done && s.kg > 0 && s.reps > 0; });
+        if (sets.length) out.push({ date: k, sets: sets });
+      });
+    });
+    return out;
+  }
+
+  /* Double progression. Returns {kg, reps, sets, note, state:'calibrate'|'up'|'hold'|'push'|'drop'} */
+  function suggest(cfg, hist, opts) {
+    opts = opts || {};
+    var lo = cfg.reps[0], hi = cfg.reps[1], sets = cfg.sets;
+    if (opts.calibration) sets = Math.max(2, Math.round(sets * 0.67));
+    if (!hist || !hist.length) {
+      return { kg: null, reps: hi, sets: sets, state: 'calibrate',
+        note: 'First time: pick a weight you could do about ' + hi + ' reps with, with 3 left in the tank. Log what you actually did.' };
+    }
+    var last = hist[hist.length - 1].sets;
+    var kg = Math.max.apply(null, last.map(function (s) { return s.kg; }));
+    var atKg = last.filter(function (s) { return s.kg === kg; });
+    var minReps = Math.min.apply(null, atKg.map(function (s) { return s.reps; }));
+    var maxRir = Math.max.apply(null, atKg.map(function (s) { return s.rir == null ? 2 : s.rir; }));
+    var allTop = atKg.length >= Math.min(sets, 2) && atKg.every(function (s) { return s.reps >= hi && (s.rir == null || s.rir <= 3); });
+    var anyBelow = atKg.some(function (s) { return s.reps < lo; });
+
+    if (opts.deload) {
+      return { kg: roundTo(kg * RULES.deloadLoad, cfg.inc), reps: lo, sets: Math.max(1, Math.round(sets * RULES.deloadSets)),
+        state: 'deload', note: 'Deload: lighter, fewer sets, stop with 3–4 reps in reserve. Recovery is the point.' };
+    }
+    if (allTop) {
+      return { kg: roundTo(kg + cfg.inc, cfg.inc), reps: lo, sets: sets, state: 'up',
+        note: 'All sets hit ' + hi + ' last time — up ' + cfg.inc + ' kg. Aim for ' + lo + '+ reps.' };
+    }
+    if (anyBelow) {
+      var prev = hist.length > 1 ? hist[hist.length - 2].sets : null;
+      var prevBelow = prev && prev.some(function (s) { return s.kg >= kg && s.reps < lo; });
+      if (prevBelow) {
+        return { kg: roundTo(kg * RULES.stallDrop, cfg.inc), reps: lo, sets: sets, state: 'drop',
+          note: 'Two sessions under ' + lo + ' reps — drop 10 % and rebuild. That is normal, not failure.' };
+      }
+      return { kg: kg, reps: lo, sets: sets, state: 'hold',
+        note: 'Under ' + lo + ' reps last time. Same weight, get every set to ' + lo + '.' };
+    }
+    var target = Math.min(hi, minReps + 1);
+    return { kg: kg, reps: target, sets: sets, state: 'push',
+      note: 'Same weight. Beat last time: ' + target + ' reps on every set' + (maxRir >= 3 ? ' — you had reps left.' : '.') };
+  }
+
+  /* Was the exercise stalled (dropped) in the recent sessions? */
+  function recentStalls(state, profile, lookback) {
+    var keys = completedSessions(state).slice(-(lookback || 3)), count = 0, seen = {};
+    keys.forEach(function (k) {
+      (state.sessions[k].ex || []).forEach(function (e) {
+        if (e.suggest && e.suggest.state === 'drop' && !seen[e.id]) { seen[e.id] = 1; count++; }
+      });
+    });
+    return count;
+  }
+
+  /* What does the calendar say for a date? */
+  function plan(dateISO, state) {
+    var profile = state.profile || {}, sched = profile.sched || { 1: '16:00', 3: '16:00', 5: '16:00' };
+    var d = parseISO(dateISO), wd = d.getDay();
+    var existing = state.sessions && state.sessions[dateISO];
+    var done = completedSessions(state);
+    var n = done.length;                       // sessions completed before today (if today not done)
+    if (existing && existing.done) n = done.indexOf(dateISO);
+    var week = Math.floor(n / 3) + 1;          // training week number, 1-based
+    var calibration = n < RULES.calibrationSessions;
+    var deloadUntil = (state.settings && state.settings.deloadUntil) || 0;
+    var deload = !calibration && (week % RULES.deloadEvery === 0 || n < deloadUntil);
+    var day = existing ? existing.day : (n % 2 === 0 ? 'A' : 'B');
+    var training = !!existing || sched[wd] != null;
+    return {
+      date: dateISO, training: training, time: existing && existing.time || sched[wd] || null,
+      day: training ? day : null, week: week, n: n, calibration: calibration, deload: deload,
+      exercises: training ? exercisesFor(day, profile) : []
+    };
+  }
+
+  /* Build the session object for a plan (suggestions filled in). */
+  function buildSession(p, state) {
+    var ex = p.exercises.map(function (cfg) {
+      var swap = state.settings && state.settings.swaps && state.settings.swaps[cfg.id];
+      var id = swap || cfg.id;
+      var useCfg = Object.assign({}, cfg, { id: id });
+      var sg = suggest(useCfg, history(state, id), { calibration: p.calibration, deload: p.deload });
+      var sets = [];
+      for (var i = 0; i < sg.sets; i++) sets.push({ kg: sg.kg, reps: sg.reps, rir: null, done: false });
+      return { id: id, base: cfg.id, suggest: sg, sets: sets };
+    });
+    return { date: p.date, day: p.day, time: p.time, week: p.week, calibration: p.calibration, deload: p.deload,
+      started: null, finished: null, done: false, warm: {}, ex: ex };
+  }
+
+  function rampSets(kg) {
+    if (!kg) return [];
+    return WARMUP.ramp.map(function (r) { return { kg: Math.max(0, roundTo(kg * r[0], 2.5)), reps: r[1] }; });
+  }
+
+  /* ---------- nutrition ---------- */
+  function bmi(p) { return p.height ? p.weight / Math.pow(p.height / 100, 2) : 0; }
+  function macros(p) {
+    if (!p || !p.weight || !p.height || !p.age) return null;
+    var bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === 'f' ? -161 : 5);
+    var tdee = bmr * (RULES.activity[p.activity] || 1.5);
+    var phase = p.phase || 'lean';
+    var kcal = Math.round((tdee * RULES.phase[phase] + (p.kcalAdj || 0)) / 10) * 10;
+    var perKg = bmi(p) >= 30 ? RULES.proteinPerKg.high : RULES.proteinPerKg.lean;
+    var protein = Math.round(p.weight * perKg);
+    var fat = Math.round(kcal * RULES.fatShare / 9);
+    var carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
+    return { bmr: Math.round(bmr), tdee: Math.round(tdee), kcal: kcal, protein: protein, fat: fat, carbs: carbs, phase: phase, bmi: bmi(p) };
+  }
+
+  var FOODS = {
+    breakfast: ['Skyr 300 g + oats 60 g + berries', '4 eggs + 2 slices rugbrød + tomato', 'Protein oats: oats 70 g, whey 30 g, banana'],
+    snack: ['Whey shake 30 g + a piece of fruit', 'Skyr 250 g + nuts 20 g', 'Cottage cheese 200 g + rugbrød'],
+    pre: ['Chicken 150 g + rice (80 g dry) + veg', 'Rugbrød 3 slices + tuna + cottage cheese', 'Pasta 90 g dry + lean mince 150 g'],
+    post: ['Lean beef or chicken 200 g + potatoes 300 g + veg', 'Salmon 180 g + rice + broccoli', 'Big wrap: chicken 180 g, rice, beans, salsa'],
+    dinner: ['Chicken 180 g + potatoes + big salad', 'Fish 200 g + rice + veg', 'Lean mince 180 g + wholegrain pasta + veg'],
+    presleep: ['Skyr or quark 300 g', 'Casein shake 35 g', 'Cottage cheese 250 g']
+  };
+
+  /* Clock-time eating schedule for a date. */
+  function timeline(profile, p, mac) {
+    var wake = hm(profile.wake || '06:30'), bed = hm(profile.bed || '22:30');
+    if (bed <= wake) bed += 1440;
+    var P = mac ? mac.protein : 160, K = mac ? mac.kcal : 2400;
+    var feedP = Math.round((P - RULES.presleepProteinG) / 4);
+    var slots = [];
+    function slot(t, key, label, why, pShare, kShare, foods) {
+      slots.push({ t: t, time: fmtHM(t), key: key, label: label, why: why, protein: pShare, kcal: Math.round(K * kShare / 10) * 10, foods: FOODS[foods] });
+    }
+    if (p.training && p.time) {
+      var T = hm(p.time); if (T < wake) T += 1440;
+      var pre = T - 150, post = T + RULES.sessionMinutes + 20;
+      slot(wake + 30, 'b', 'Breakfast', 'Protein feed 1. Start the day\'s protein early.', feedP, 0.2, 'breakfast');
+      if (pre - (wake + 30) >= 150) {
+        slot(Math.round(((wake + 30) + pre) / 2), 's', 'Snack', 'Protein feed 2, keeps feeds ~3–4 h apart.', feedP, 0.15, 'snack');
+        slot(pre, 'pre', 'Pre-workout meal', 'Carbs + protein 2–3 h before training — fuel for hard sets.', feedP, 0.25, 'pre');
+      } else {
+        slots[0].label = 'Breakfast = pre-workout meal'; slots[0].why = 'Training is early: carbs + protein now, 1–2 h before.'; slots[0].kcal = Math.round(K * 0.3 / 10) * 10;
+      }
+      slot(T - 15, 'cr', 'Creatine 5 g + water', 'Timing barely matters — daily consistency does. Shaker, coffee, anything.', 0, 0, null);
+      slot(T, 'train', 'Train', 'Session ' + p.day + ' · ~' + RULES.sessionMinutes + ' min incl. warm-up.', 0, 0, null);
+      slot(post, 'post', 'Post-workout meal', 'Biggest meal of the day: protein + carbs within ~2 h. Recovery starts here.', feedP, 0.3, 'post');
+      if (bed - 60 - post >= 180) slot(post + 180, 'd', 'Light dinner / snack', 'Only if the gap to bed is long. Protein-led.', Math.round(feedP / 2), 0.0, 'snack');
+      slot(bed - 60, 'ps', 'Pre-sleep protein', 'Skyr/casein 30–40 g: overnight muscle protein synthesis.', RULES.presleepProteinG, 0.1, 'presleep');
+    } else {
+      slot(wake + 30, 'b', 'Breakfast', 'Protein feed 1.', feedP, 0.25, 'breakfast');
+      slot(wake + 30 + 210, 's', 'Lunch', 'Protein feed 2.', feedP, 0.25, 'pre');
+      slot(wake + 30 + 420, 'sn', 'Afternoon snack', 'Protein feed 3. Rest day: carbs a bit lower, fat a bit higher.', feedP, 0.15, 'snack');
+      slot(Math.min(wake + 30 + 660, bed - 180), 'd', 'Dinner', 'Protein feed 4.', feedP, 0.25, 'dinner');
+      slot(wake + 60, 'cr', 'Creatine 5 g', 'Every day, training or not.', 0, 0, null);
+      slot(bed - 60, 'ps', 'Pre-sleep protein', 'Skyr/casein 30–40 g.', RULES.presleepProteinG, 0.1, 'presleep');
+    }
+    slots.sort(function (a, b) { return a.t - b.t; });
+    return slots;
+  }
+
+  /* ---------- progress ---------- */
+  function weightSeries(state) {
+    var w = state.weight || {};
+    return Object.keys(w).sort().map(function (k) { return { date: k, kg: +w[k] }; }).filter(function (x) { return x.kg > 0; });
+  }
+  /* 7-day trailing average per point */
+  function weightTrend(state) {
+    var s = weightSeries(state);
+    return s.map(function (pt, i) {
+      var from = parseISO(pt.date).getTime() - 6 * 864e5, vals = [];
+      for (var j = i; j >= 0 && parseISO(s[j].date).getTime() >= from; j--) vals.push(s[j].kg);
+      return { date: pt.date, kg: pt.kg, avg: vals.reduce(function (a, b) { return a + b; }, 0) / vals.length };
+    });
+  }
+  /* kg/week over the last 14 days of trend, and advice for the phase */
+  function trendAdvice(state) {
+    var t = weightTrend(state);
+    if (t.length < 8) return { rate: null, text: 'Weigh in most mornings; after ~2 weeks the trend tells us whether to adjust calories.' };
+    var last = t[t.length - 1], back = null;
+    for (var i = t.length - 1; i >= 0; i--) {
+      if (parseISO(last.date).getTime() - parseISO(t[i].date).getTime() >= 7 * 864e5) { back = t[i]; break; }
+    }
+    if (!back) return { rate: null, text: 'Keep weighing in — not enough spread of dates yet.' };
+    var days = (parseISO(last.date).getTime() - parseISO(back.date).getTime()) / 864e5;
+    var rate = (last.avg - back.avg) / days * 7;
+    var phase = (state.profile && state.profile.phase) || 'lean', band = RULES.trendTarget[phase];
+    var text, adj = 0;
+    if (rate < band[0]) { text = 'Losing faster than ' + Math.abs(band[0]) + ' kg/week — that risks muscle. Add ~150 kcal (carbs around training).'; adj = 150; }
+    else if (rate > band[1]) { text = phase === 'bulk' ? 'Gaining faster than planned — trim ~150 kcal.' : 'Weight is not drifting down. Trim ~150 kcal, or add 2k steps a day.'; adj = -150; }
+    else text = 'Trend is in the target band (' + band[0] + ' to ' + band[1] + ' kg/week). Lifts progressing? Change nothing.';
+    return { rate: rate, text: text, adj: adj };
+  }
+
+  function weeklyVolume(state, exdb, weekEndISO) {
+    var end = weekEndISO ? parseISO(weekEndISO) : new Date(); end.setHours(23, 59, 59, 999);
+    var start = end.getTime() - 7 * 864e5, vol = {};
+    completedSessions(state).forEach(function (k) {
+      var t = parseISO(k).getTime(); if (t < start || t > end.getTime()) return;
+      (state.sessions[k].ex || []).forEach(function (e) {
+        var n = (e.sets || []).filter(function (s) { return s.done && s.reps > 0; }).length;
+        var ex = exdb[e.id]; if (!ex) return;
+        ex.primary.forEach(function (m) { vol[m] = (vol[m] || 0) + n; });
+        ex.secondary.forEach(function (m) { vol[m] = (vol[m] || 0) + n * 0.5; });
+      });
+    });
+    return vol;
+  }
+
+  function bestSets(state, exId) {
+    return history(state, exId).map(function (h) {
+      var best = h.sets.reduce(function (b, s) { return epley(s.kg, s.reps) > epley(b.kg, b.reps) ? s : b; }, h.sets[0]);
+      return { date: h.date, kg: best.kg, reps: best.reps, e1rm: Math.round(epley(best.kg, best.reps) * 10) / 10 };
+    });
+  }
+
+  return {
+    RULES: RULES, PROGRAM: PROGRAM, PRIORITY: PRIORITY, WARMUP: WARMUP, FOODS: FOODS,
+    roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
+    exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
+    suggest: suggest, recentStalls: recentStalls, plan: plan, buildSession: buildSession, rampSets: rampSets,
+    macros: macros, timeline: timeline, weightSeries: weightSeries, weightTrend: weightTrend,
+    trendAdvice: trendAdvice, weeklyVolume: weeklyVolume, bestSets: bestSets
+  };
+});
