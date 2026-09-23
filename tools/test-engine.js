@@ -90,5 +90,8 @@ E.PROGRAM.A.concat(E.PROGRAM.B).forEach(function (c) { allIds.push(c.id); (c.alt
 eq('all have where/form', allIds.filter(function (id) { var i = E.info(id); return !(i && i.where && i.tip); }), []);
 eq('all have plain names', allIds.filter(function (id) { return !E.LABEL[id]; }), []);
 
+var warm = [E.WARMUP.general].concat(E.WARMUP.A, E.WARMUP.B);
+eq('warm-ups explain how', warm.filter(function (w) { return !(w.how && w.how.length); }).map(function (w) { return w.id; }), []);
+
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);

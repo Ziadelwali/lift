@@ -216,6 +216,25 @@ svg.bm .o{fill:var(--bm-o)}
 svg.bm .m{fill:var(--bm-m)}
 svg.bm .m.p{fill:var(--acc)}svg.bm .m.s{fill:var(--acc);opacity:.45}
 
+/* ---------- warm-up moves ---------- */
+.wu{display:flex;align-items:center;gap:4px;min-height:62px}
+.wuwrap+.wuwrap{border-top:1px solid var(--line)}
+.wubox{display:grid;place-items:center;width:44px;height:56px;flex:none;cursor:pointer}
+.wubox input{width:24px;height:24px;accent-color:var(--acc)}
+.wuhead{flex:1;min-width:0;display:flex;align-items:center;gap:10px;text-align:left;padding:6px 0}
+.wuhead .th{width:66px;height:44px;border-radius:8px}
+.wut{flex:1;min-width:0;display:flex;flex-direction:column;font-size:14.5px;line-height:1.3}
+.wut b{font-weight:600}
+.chev{flex:none;width:9px;height:9px;border-right:2px solid var(--ink3);border-bottom:2px solid var(--ink3);transform:rotate(45deg);margin:0 6px 4px 0;transition:transform .2s}
+.wu.open .chev{transform:rotate(225deg);margin:4px 6px 0 0}
+.wuhow{padding:2px 0 12px}
+.wumedia{position:relative;aspect-ratio:850/567;background:#000;border-radius:12px;overflow:hidden}
+.wumedia img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:frameA 2.4s steps(1) infinite}
+.wumedia img.f1{animation-name:frameB}
+.wuhow ol{margin:10px 0 0;padding-left:20px;font-size:14px;color:var(--ink2)}
+.wuhow ol li{margin-bottom:4px}
+@media (prefers-reduced-motion:reduce){.wumedia img{animation:none}.wumedia img.f1{opacity:0}}
+
 /* ---------- hero (big thin numeral, Nimbus style) ---------- */
 .hero{display:flex;align-items:flex-end;gap:14px;margin:4px 0 8px}
 .hero .num{font-size:clamp(60px,19vw,92px);font-weight:200;line-height:.85;letter-spacing:-.04em;color:var(--ink)}
@@ -592,8 +611,9 @@ function renderTrain(){
  for(var i=0;i<ses.ex.length;i++){var c=E.findCfg(ses.ex[i].base);if(c&&c.ramp&&ses.ex[i].sets[0].kg){firstRamp=ses.ex[i];break;}}
  var wdone=ses.warm||{};
  h+='<div class="card"><div class="row between"><h2>Warm-up</h2><span class="xs">≤ '+E.RULES.warmupMinutes+' min</span></div>'+
-  '<label class="check"><input type="checkbox" data-warm="gen"'+(wdone.gen?' checked':'')+'>'+thumb(wl.general.id)+'<div><b>'+wl.general.label+'</b> · '+fmtSec(wl.general.secs)+'<div class="xs">'+wl.general.note+'</div></div></label>'+
-  wl[ses.day].map(function(w){return '<label class="check"><input type="checkbox" data-warm="'+w.id+'"'+(wdone[w.id]?' checked':'')+'>'+thumb(w.id)+'<div><b>'+esc(w.label)+'</b> · '+w.reps+'</div></label>';}).join('')+
+  '<p class="xs" style="margin-top:2px">Tap a move to see how it\'s done. Tick the box when you\'ve done it.</p>'+
+  warmItem('gen',wl.general,fmtSec(wl.general.secs),wdone)+
+  wl[ses.day].map(function(w){return warmItem(w.id,w,w.reps,wdone);}).join('')+
   (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(nm(firstRamp.id))+': '+E.rampSets(firstRamp.sets[0].kg).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
   '</div>';
  /* exercises */
@@ -602,6 +622,15 @@ function renderTrain(){
  $('#v-train').innerHTML=h;
  measureBars();
  clearInterval(renderTrain._t);renderTrain._t=setInterval(function(){var el=$('#elapsed');if(el&&activeSession())el.textContent=fmtSec((Date.now()-ses.started)/1000);else clearInterval(renderTrain._t);},1000);
+}
+/* Warm-up move: tick box + tap-to-open picture and plain steps. */
+var openWarm={};
+function warmItem(key,w,amount,wdone){
+ var ex=EX[w.id],open=!!openWarm[key];
+ return '<div class="wuwrap" id="wu-'+key+'"><div class="wu'+(open?' open':'')+'"><label class="wubox"><input type="checkbox" data-warm="'+key+'"'+(wdone[key]?' checked':'')+' aria-label="Done"></label>'+
+  '<button class="wuhead" data-wuopen="'+key+'">'+thumb(w.id)+'<span class="wut"><b>'+esc(w.label)+'</b><span class="xs">'+esc(amount)+(open?'':' · how?')+'</span></span><i class="chev"></i></button></div>'+
+  (open&&ex?'<div class="wuhow"><div class="wumedia"><img src="'+ex.images[0]+'" alt=""><img class="f1" src="'+ex.images[1]+'" alt=""></div>'+
+   '<ol>'+(w.how||[]).map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol>'+(w.note?'<p class="xs" style="margin-top:4px">'+esc(w.note)+'</p>':'')+'</div>':'')+'</div>';
 }
 /* Sticky session progress: picture per exercise, tap to jump. */
 var SMOOTH=!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)?'smooth':'auto';
@@ -799,7 +828,8 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen]');if(!b)return;
+ if(b.dataset.wuopen){var wk=b.dataset.wuopen;openWarm[wk]=!openWarm[wk];var wses=activeSession();if(!wses)return;var ww=wk==='gen'?E.WARMUP.general:E.WARMUP[wses.day].filter(function(x){return x.id===wk;})[0];var wel=$('#wu-'+wk);if(ww&&wel)wel.outerHTML=warmItem(wk,ww,wk==='gen'?fmtSec(ww.secs):ww.reps,wses.warm||{});return;}
  if(b.dataset.mealrow){if(ev.target.tagName==='INPUT')return;var mi=b.querySelector('input');if(mi&&!mi.disabled){mi.checked=!mi.checked;mi.dispatchEvent(new Event('change',{bubbles:true}));}return;}
  if(b.dataset.rest){rest.end+=(+b.dataset.rest)*1000;rest.total=Math.max(1,rest.total+(+b.dataset.rest));if(rest.end>Date.now())$('#rest').classList.remove('over');tickRest();return;}
  if(b.dataset.jump){var jc=$('#ex-'+b.dataset.jump);if(jc)jc.scrollIntoView({behavior:SMOOTH,block:'start'});return;}
