@@ -278,6 +278,22 @@
       "unlocks": [
         "EZ-Bar_Curl"
       ]
+    },
+    {
+      "id": "horizontal_leg_press",
+      "name": "Horizontal (flat) plate-loaded leg press",
+      "type": "machine",
+      "trains": [
+        "quads",
+        "glutes",
+        "hamstrings"
+      ],
+      "status": "check",
+      "check": "Only the flat one, or the 45-degree angled one too? Is it the same machine as seated_leg_press?",
+      "unlocks": [
+        "Leg_Press",
+        "Calf_Press_On_The_Leg_Press_Machine"
+      ]
     }
   ]
 }
