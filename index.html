@@ -477,6 +477,20 @@ $('#themebtn').addEventListener('click',function(){setTheme(isDark()?'light':'da
 if(window.matchMedia){var mq=matchMedia('(prefers-color-scheme: dark)');(mq.addEventListener?mq.addEventListener.bind(mq,'change'):mq.addListener.bind(mq))(function(){if(themeMode()==='auto')applyTheme();});}
 applyTheme();
 
+/* ---------------- install as an app (Android: Chrome, Brave, Samsung Internet) ---------------- */
+var installEvt=null;
+function isInstalled(){return (window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;}
+addEventListener('beforeinstallprompt',function(e){e.preventDefault();installEvt=e;if(typeof render==='function'&&view!=='train')render();});
+addEventListener('appinstalled',function(){installEvt=null;toast('Installed — open Lift from your home screen');if(view!=='train')render();});
+function installCard(where){
+ if(isInstalled())return where==='profile'?'<div class="card"><h2>App</h2><p class="sm" style="margin-top:6px">Installed ✓ — you are using Lift as an app.</p></div>':'';
+ if(where==='today'){try{if(localStorage.getItem('lift.installLater')===todayISO().slice(0,7))return '';}catch(e){}}
+ return '<div class="card install"><h2>Install Lift as an app</h2><p class="sm" style="margin-top:6px">Full screen, its own icon on your home screen, screen stays on during training, and updates arrive more reliably. No app store needed.</p>'+
+  (installEvt?'<button class="btn wide" data-act="install" style="margin-top:12px">Install app</button>':
+   '<p class="sm" style="margin-top:10px"><b>How:</b> tap the browser menu <b>⋮</b> → <b>Install app</b> (or <b>Add to Home screen</b>).</p>')+
+  (where==='today'?'<button class="btn small ghost" data-act="installlater" style="margin-top:8px">Not now</button>':'')+'</div>';
+}
+
 /* ---------------- body map ---------------- */
 /* Plain words for everything the user sees: exercise names, muscles, equipment. */
 var MUSCLE_WORDS={abdominals:'belly',abductors:'outer hip',adductors:'inner thigh',biceps:'front of upper arm',calves:'calves',chest:'chest',
@@ -582,7 +596,7 @@ function render(){
 function renderToday(){
  var iso=todayISO(),p=E.plan(iso,state),mac=E.macros(state.profile),ses=state.sessions[iso];
  var h='<p class="eyebrow" style="margin-top:6px">'+niceDate(iso)+' · week '+p.week+'</p>';
- h+=nextFoodCard(iso,p,mac)+cookTodayCard(iso,mac);
+ h+=installCard('today')+nextFoodCard(iso,p,mac)+cookTodayCard(iso,mac);
  if(p.training){
   var exs=(ses?ses.ex.map(function(e){var c=E.findCfg(e.base)||{};return {id:e.id,prio:c.prio};}):p.exercises);
   h+='<div class="card"><div class="hero"><span class="num">'+(ses&&ses.done?'✓':esc(p.time||'—'))+'</span><div class="cap"><b>Session '+p.day+(ses&&ses.done?' done':'')+'</b><span>'+exs.length+' exercises · ~'+E.RULES.sessionMinutes+' min</span></div></div><div class="sunline"></div>'+
@@ -972,6 +986,7 @@ function renderProfile(){
   '<div class="grid3"><label class="field"><span class="l">Wake</span><input type="time" data-p="wake" value="'+(p.wake||'06:30')+'"></label><label class="field"><span class="l">Lunch</span><input type="time" data-p="lunch" value="'+(p.lunch||'11:30')+'"></label><label class="field"><span class="l">Bed</span><input type="time" data-p="bed" value="'+(p.bed||'22:30')+'"></label></div><p class="xs">Meals are planned around these; nothing is scheduled in the last 3 hours before bed.</p></div>';
  var tm=themeMode();
  h+='<div class="card"><h2>Appearance</h2><p class="xs" style="margin:4px 0 10px">Auto follows your phone\'s light/dark setting.</p><div class="seg">'+[['auto','Auto'],['light','Light'],['dark','Dark']].map(function(o){return '<button data-themeset="'+o[0]+'"'+(tm===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div></div>';
+ h+=installCard('profile');
  h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+$('#syncline').textContent+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+'</p><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button><button class="btn small ghost" data-act="forget">Change password</button><button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div></div>';
  h+='<p class="xs" style="padding:0 4px 10px">Exercise photos and descriptions: free-exercise-db (public domain). Training and nutrition rules: Pelland 2025, Robinson 2024, Schoenfeld, ISSN position stands. This is a tool, not medical advice.</p>';
  $('#v-profile').innerHTML=h;
@@ -1019,6 +1034,8 @@ document.addEventListener('click',function(ev){
  if(act==='abandon'){if(!ses)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[todayISO()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='copyshop'){var txt=shopText();(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){toast('List copied — paste it in Notes or a message');},function(){prompt('Copy the list:',txt);});return;}
  if(act==='clearshop'){state.settings.shop={since:todayISO(),ticks:{}};save();shopCard.open=true;renderEat();return;}
+ if(act==='install'){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(c){if(c&&c.outcome==='accepted')installEvt=null;render();});}return;}
+ if(act==='installlater'){try{localStorage.setItem('lift.installLater',todayISO().slice(0,7));}catch(e){}renderToday();return;}
  if(act==='adj'){state.profile.kcalAdj=(state.profile.kcalAdj||0)+ +b.dataset.adj;save();renderEat();toast('Calories adjusted');return;}
  if(act==='update'){if(!('serviceWorker' in navigator)){location.reload();return;}toast('Checking…');navigator.serviceWorker.getRegistration().then(function(r){return r?r.update():null;}).then(function(){setTimeout(function(){location.reload();},1500);});return;}
  if(act==='forget'){try{localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}
