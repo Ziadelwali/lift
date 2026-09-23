@@ -396,26 +396,30 @@
   };
   /* per 100 g raw/dry */
   var FOOD = {
-    chicken: { name: 'chicken breast (raw)', P: 23, kcal: 110 },
-    beef: { name: 'beef mince 5 % (raw)', P: 21, kcal: 125 },
-    beefstrips: { name: 'lean beef strips (raw)', P: 22, kcal: 120 },
-    salmon: { name: 'salmon fillet (raw)', P: 20, kcal: 200 },
-    rice: { name: 'rice (dry)', P: 7, kcal: 360 },
-    potato: { name: 'potatoes (raw)', P: 2, kcal: 77 },
-    pasta: { name: 'wholegrain pasta (dry)', P: 13, kcal: 350 },
-    bulgur: { name: 'bulgur (dry)', P: 12, kcal: 350 }
+    chicken: { name: 'chicken breast (raw)', P: 23, kcal: 110, cat: 'meat' },
+    beef: { name: 'beef mince 5 % (raw)', P: 21, kcal: 125, cat: 'meat' },
+    beefstrips: { name: 'lean beef strips (raw)', P: 22, kcal: 120, cat: 'meat' },
+    salmon: { name: 'salmon fillet (raw)', P: 20, kcal: 200, cat: 'meat' },
+    rice: { name: 'rice (dry)', P: 7, kcal: 360, cat: 'carb' },
+    potato: { name: 'potatoes (raw)', P: 2, kcal: 77, cat: 'veg' },
+    pasta: { name: 'wholegrain pasta (dry)', P: 13, kcal: 350, cat: 'carb' },
+    bulgur: { name: 'bulgur (dry)', P: 12, kcal: 350, cat: 'carb' }
   };
   var RECIPES = [
     { key: 'chicken-rice', name: 'Chicken, rice & wok veg', protein: 'chicken', carb: 'rice',
+      buy: [['veg', 'frozen wok vegetables', 1000, 'g'], ['veg', 'garlic', 1, 'bulb'], ['cupboard', 'paprika', 1, 'jar']],
       extra: { name: 'frozen wok vegetables', g: 250, P: 5, kcal: 75 }, oil: 10,
       steps: ['Rice: boil all of it in one big pot.', 'Chicken: cut in strips, oven tray at 200 °C for 20–25 min with salt, pepper, paprika.', 'Veg: fry in a pan 8 min with a little oil, garlic and salt.', 'Split into 4 boxes, fridge.'] },
     { key: 'chili', name: 'Chili con carne with rice', protein: 'beef', carb: 'rice',
+      buy: [['cupboard', 'kidney beans', 1, 'can'], ['cupboard', 'chopped tomatoes', 2, 'can'], ['veg', 'onion', 2, 'pcs'], ['veg', 'bell pepper', 2, 'pcs'], ['cupboard', 'chili spice', 1, 'jar']],
       extra: { name: 'beans, chopped tomatoes, onion & pepper', g: 250, P: 7, kcal: 110 }, oil: 5,
       steps: ['Fry onion and pepper, add the mince and brown it.', 'Add 1 can kidney beans, 2 cans chopped tomatoes, chili spice; simmer 20 min.', 'Rice in one big pot.', 'Split into 4 boxes, fridge.'] },
     { key: 'beef-bulgur', name: 'Kebab-style beef strips, bulgur & salad', protein: 'beefstrips', carb: 'bulgur',
+      buy: [['veg', 'tomatoes', 4, 'pcs'], ['veg', 'cucumber', 1, 'pcs'], ['veg', 'red onion', 2, 'pcs'], ['dairy', 'Greek yoghurt', 200, 'g'], ['cupboard', 'kebab spice (or cumin + paprika)', 1, 'jar']],
       extra: { name: 'tomato, cucumber, onion & a spoon of yoghurt dressing', g: 250, P: 5, kcal: 80 }, oil: 10,
       steps: ['Bulgur: pour boiling water over it (twice its volume), lid on, 15 min.', 'Beef strips: fry hot in a pan in two rounds with kebab spice or cumin, paprika, garlic.', 'Salad: chop tomato, cucumber and onion; keep separate so it stays crisp.', 'Split into 4 boxes, fridge; add the yoghurt when you eat.'] },
     { key: 'salmon-potato', name: 'Salmon, potatoes & broccoli', protein: 'salmon', carb: 'potato',
+      buy: [['veg', 'broccoli', 1000, 'g'], ['veg', 'lemon', 1, 'pcs']],
       extra: { name: 'broccoli', g: 250, P: 7, kcal: 85 }, oil: 0,
       steps: ['Potatoes in wedges, oven 200 °C for 35 min.', 'Salmon on the same tray for the last 15 min.', 'Broccoli: steam 5 min.', 'Split into 4 boxes; eat the salmon within 2 days.'] }
   ];
@@ -425,6 +429,65 @@
     '4 eggs + 3 slices rugbrød + skyr 200 g',
     'Smoked mackerel or salmon 150 g + rugbrød 3 slices + cottage cheese 150 g'
   ];
+  /* What each no-cook meal needs, same order as NOCOOK. */
+  var NOCOOK_BUY = [
+    [['meat', 'tuna in water', 1, 'can'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'cottage cheese', 200, 'g'], ['veg', 'cucumber', 1, 'pcs']],
+    [['meat', 'grilled chicken (ready-made)', 0.5, 'pcs'], ['carb', 'wraps', 2, 'pcs'], ['veg', 'salad bag', 1, 'pcs']],
+    [['dairy', 'eggs', 4, 'pcs'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'skyr', 200, 'g']],
+    [['meat', 'smoked mackerel', 150, 'g'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'cottage cheese', 150, 'g']]
+  ];
+  /* People who eat the cooked dinners too. Their plates are estimated smaller than the
+     user's (adult ~70 %, child ~50 %). A batch covers 2 dinners, so each extra person
+     adds 2 of their portions to the pot. */
+  var FAMILY_SHARE = { adults: 0.7, kids: 0.5 };
+  function family(profile) { var f = (profile && profile.family) || {}; return { adults: f.adults || 0, kids: f.kids || 0 }; }
+  function batchServings(profile) { var f = family(profile); return 4 + 2 * (f.adults * FAMILY_SHARE.adults + f.kids * FAMILY_SHARE.kids); }
+  function batchBuy(recipe, pt, profile) {
+    var n = batchServings(profile), k = n / 4, pf = FOOD[recipe.protein], cf = FOOD[recipe.carb], out = [];
+    function r(q, unit) { return unit === 'g' || unit === 'ml' ? Math.round(q / 10) * 10 : Math.ceil(q - 1e-9); }
+    out.push({ cat: pf.cat, name: pf.name, qty: r(pt.items[0].g * n, 'g'), unit: 'g' });
+    out.push({ cat: cf.cat, name: cf.name, qty: r(pt.items[1].g * n, 'g'), unit: 'g' });
+    pt.items.forEach(function (it) { if (it.slices) out.push({ cat: 'carb', name: 'rugbrød', qty: it.slices * 4, unit: 'slices' }); });   // bread is only in the user's boxes
+    if (recipe.oil) out.push({ cat: 'cupboard', name: 'olive or rapeseed oil', qty: r(recipe.oil * n, 'ml'), unit: 'ml' });
+    (recipe.buy || []).forEach(function (x) { out.push({ cat: x[0], name: x[1], qty: x[3] === 'jar' ? 1 : r(x[2] * k, x[3]), unit: x[3] }); });
+    return out;
+  }
+  var SHOP_CATS = [['meat', 'Meat & fish'], ['carb', 'Rice, bulgur & bread'], ['veg', 'Vegetables & fruit'], ['dairy', 'Dairy & eggs'], ['shake', 'Shakes & creatine'], ['cupboard', 'Cupboard']];
+  /* Everything to buy for the 7 days from fromIso: the cook days' batches, the no-cook
+     meals, the daily shakes, skyr and creatine. Same items are added together. */
+  function weekShopping(profile, fromIso, mac) {
+    var tgt = mealTargets(mac), d0 = parseISO(fromIso), items = {}, cooks = [], nocook = 0;
+    function add(cat, name, qty, unit) { var k = cat + '|' + name + '|' + unit; if (!items[k]) items[k] = { key: k, cat: cat, name: name, qty: 0, unit: unit }; items[k].qty += qty; }
+    for (var i = 0; i < 7; i++) {
+      var dt = new Date(d0); dt.setDate(d0.getDate() + i); var iso = isoDate(dt);
+      var b = batchFor(profile, iso, 2);
+      if (b && b.cookToday) {
+        var pt = portion(b.recipe, tgt.P, tgt.kcal);
+        cooks.push({ date: iso, name: b.recipe.name });
+        batchBuy(b.recipe, pt, profile).forEach(function (x) { if (x.unit === 'jar') { if (!items[x.cat + '|' + x.name + '|jar']) add(x.cat, x.name, 1, 'jar'); } else add(x.cat, x.name, x.qty, x.unit); });
+      }
+      [1, 2].forEach(function (m) { if (!batchFor(profile, iso, m)) { nocook++; NOCOOK_BUY[dt.getDate() % NOCOOK.length].forEach(function (x) { add(x[0], x[1], x[2], x[3]); }); } });
+    }
+    add('shake', 'whey protein', 7 * 40, 'g'); add('dairy', 'skimmed milk', 7 * 500, 'ml'); add('veg', 'bananas', 7, 'pcs');
+    add('dairy', 'skyr (400 g tubs)', 7, 'pcs'); add('shake', 'creatine monohydrate', 7 * 5, 'g');
+    var groups = SHOP_CATS.map(function (c) {
+      return { cat: c[0], label: c[1], items: Object.keys(items).map(function (k) { return items[k]; }).filter(function (it) { return it.cat === c[0]; })
+        .sort(function (a, b) { return a.name < b.name ? -1 : 1; }) };
+    }).filter(function (g) { return g.items.length; });
+    var to = new Date(d0); to.setDate(d0.getDate() + 6);
+    return { from: fromIso, to: isoDate(to), cooks: cooks, nocook: nocook, groups: groups };
+  }
+  function fmtQty(it) {
+    var q = it.qty, u = it.unit;
+    if (u === 'g') return q >= 1000 ? (Math.round(q / 100) / 10) + ' kg' : Math.round(q) + ' g';
+    if (u === 'ml') return q >= 1000 ? (Math.round(q / 100) / 10) + ' L' : Math.round(q) + ' ml';
+    if (u === 'slices') return q + ' slices' + (q >= 12 ? ' (~' + Math.ceil(q / 16) + ' loaf' + (Math.ceil(q / 16) > 1 ? 's' : '') + ')' : '');
+    if (u === 'can') return q + (q > 1 ? ' cans' : ' can');
+    if (u === 'jar') return '1 jar (if you have none)';
+    if (u === 'bulb') return q + ' bulb' + (q > 1 ? 's' : '');
+    return (q % 1 ? q.toFixed(1).replace('.5', '½').replace(/^0/, '') : q) + '';
+  }
+
   function r10(g) { return Math.max(0, Math.round(g / 10) * 10); }
   /* One portion: enough protein food to reach the meal's protein, carbs up to a sensible
      plate size for the remaining kcal, and rugbrød on the side if still short. */
@@ -602,7 +665,7 @@
 
   return {
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, weekShopping: weekShopping, fmtQty: fmtQty, family: family, batchServings: batchServings, batchBuy: batchBuy, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, recentStalls: recentStalls, plan: plan, buildSession: buildSession, rampSets: rampSets,
