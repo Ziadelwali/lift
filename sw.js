@@ -6,7 +6,8 @@ const SHELL = ['./', './index.html', './exercises.js', './engine.js', './fbconfi
 self.addEventListener('install', function (e) {
   e.waitUntil((async function () {
     const c = await caches.open(VERSION);
-    await Promise.all(SHELL.map(function (u) { return c.add(u).catch(function () {}); }));
+    // cache: 'reload' skips the browser's HTTP cache, so a new version never precaches old files
+    await Promise.all(SHELL.map(function (u) { return c.add(new Request(u, { cache: 'reload' })).catch(function () {}); }));
     await self.skipWaiting();
   })());
 });
@@ -26,11 +27,12 @@ self.addEventListener('fetch', function (e) {
   const same = url.origin === self.location.origin;
   const font = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
   if (!same && !font) return;
+  if (same && url.searchParams.has('fresh')) { e.respondWith(fetch(req.url, { cache: 'no-store' })); return; }   // explicit "get the live file"
 
   e.respondWith((async function () {
     const cache = await caches.open(VERSION);
     const hit = await cache.match(req, { ignoreSearch: same });
-    const net = fetch(req).then(function (res) {
+    const net = fetch(same && req.mode !== 'navigate' ? new Request(req.url, { cache: 'no-cache' }) : req).then(function (res) {
       if (res && (res.ok || res.type === 'opaque')) cache.put(req, res.clone()).catch(function () {});
       return res;
     }).catch(function () { return null; });
