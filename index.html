@@ -428,11 +428,18 @@ function unseal(pass){
  .then(function(k){return crypto.subtle.decrypt({name:'AES-GCM',iv:b2a(S.iv)},k,b2a(S.data));})
  .then(function(buf){return JSON.parse(new TextDecoder().decode(buf));});
 }
+/* If the passphrase does not open the config, the device may hold an old copy of
+   fbconfig.js (offline cache). Fetch the live one once and try again. */
+function freshSealed(){
+ return fetch('./fbconfig.js?fresh='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():Promise.reject(new Error(r.status));})
+ .then(function(t){var s=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1));window.FB_SEALED=s;return s;});
+}
+function unsealFresh(pass){return unseal(pass).catch(function(){slog('config did not open — fetching the live copy');return freshSealed().then(function(){return unseal(pass);});});}
 function startSync(){
  var pass=null;try{pass=localStorage.getItem(PK);}catch(e){}
  if(!pass||pass==='-'||!(window.crypto&&crypto.subtle)){setSyncLine('Saved on this device only',null);return;}
  setSyncLine('Connecting…',null);slog('unsealing config…');
- Promise.all([unseal(pass),sha256hex('lift-sync:'+pass)]).then(function(r){
+ Promise.all([unsealFresh(pass),sha256hex('lift-sync:'+pass)]).then(function(r){
   var cfg=r[0];slog('config ok, project '+cfg.projectId);
   SYNC.url='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(cfg.projectId)+'/databases/(default)/documents/lift/'+r[1];
   SYNC.key=cfg.apiKey;SYNC.ready=true;
@@ -1047,7 +1054,7 @@ function boot(){
 }
 $('#gateform').addEventListener('submit',function(e){e.preventDefault();var v=norm($('#gatep').value);if(!v){toast('Type a few words');return;}
  var btn=$('#gateform button'),msg=$('#gatemsg');btn.disabled=true;btn.textContent='Checking…';msg.textContent='';
- var ok=window.FB_SEALED&&window.crypto&&crypto.subtle?unseal(v).then(function(){return true;},function(){return false;}):Promise.resolve(true);
+ var ok=window.crypto&&crypto.subtle?unsealFresh(v).then(function(){return true;},function(){return false;}):Promise.resolve(true);
  ok.then(function(good){
   btn.disabled=false;btn.textContent='Continue';
   if(!good){msg.textContent='That passphrase is not right.';return;}
