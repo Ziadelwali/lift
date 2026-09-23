@@ -1,6 +1,6 @@
 /* Offline cache for Lift. App shell is precached; exercise photos are cached
    on first view. Stamped with a new VERSION on every publish. */
-const VERSION = 'v-8825d03a16';
+const VERSION = 'v-0cdfc100b7';
 const SHELL = ['./', './index.html', './exercises.js', './engine.js', './fbconfig.js', './manifest.webmanifest', './icon-192.png', './icon-180.png'];
 
 self.addEventListener('install', function (e) {
