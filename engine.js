@@ -391,43 +391,44 @@
      dinner that day, lunch + dinner the next day, lunch the day after. Three cooks
      = 12 of 14 weekly meals; the 2 left are no-cook meals. */
   var SHAKES = {
-    post: { label: 'Protein shake', P: 50, kcal: 420, how: 'Whey 40 g + 500 ml skimmed milk + 1 banana. Right after training (or mid-afternoon on rest days).' },
+    post: { label: 'Protein shake', P: 50, kcal: 420, how: 'Whey 40 g (pick a halal-certified brand) + 500 ml skimmed milk + 1 banana. Right after training (or mid-afternoon on rest days).' },
     evening: { label: 'Evening protein', P: 40, kcal: 250, how: 'Skyr 400 g — or whey 30 g in 300 ml milk. Slow protein for the night.' }
   };
   /* per 100 g raw/dry */
   var FOOD = {
-    chicken: { name: 'chicken breast (raw)', P: 23, kcal: 110 },
-    beef: { name: 'beef mince 5 % (raw)', P: 21, kcal: 125 },
-    pork: { name: 'pork tenderloin (raw)', P: 22, kcal: 110 },
+    chicken: { name: 'halal chicken breast (raw)', P: 23, kcal: 110 },
+    beef: { name: 'halal beef mince 5 % (raw)', P: 21, kcal: 125 },
+    beefstrips: { name: 'halal lean beef strips (raw)', P: 22, kcal: 120 },
     salmon: { name: 'salmon fillet (raw)', P: 20, kcal: 200 },
     rice: { name: 'rice (dry)', P: 7, kcal: 360 },
     potato: { name: 'potatoes (raw)', P: 2, kcal: 77 },
-    pasta: { name: 'wholegrain pasta (dry)', P: 13, kcal: 350 }
+    pasta: { name: 'wholegrain pasta (dry)', P: 13, kcal: 350 },
+    bulgur: { name: 'bulgur (dry)', P: 12, kcal: 350 }
   };
   var RECIPES = [
     { key: 'chicken-rice', name: 'Chicken, rice & wok veg', protein: 'chicken', carb: 'rice',
       extra: { name: 'frozen wok vegetables', g: 250, P: 5, kcal: 75 }, oil: 10,
-      steps: ['Rice: boil all of it in one big pot.', 'Chicken: cut in strips, oven tray at 200 °C for 20–25 min with salt, pepper, paprika.', 'Veg: fry in a pan 8 min with a little oil and soy sauce.', 'Split into 4 boxes, fridge.'] },
+      steps: ['Rice: boil all of it in one big pot.', 'Chicken: cut in strips, oven tray at 200 °C for 20–25 min with salt, pepper, paprika.', 'Veg: fry in a pan 8 min with a little oil, garlic and salt.', 'Split into 4 boxes, fridge.'] },
     { key: 'chili', name: 'Chili con carne with rice', protein: 'beef', carb: 'rice',
       extra: { name: 'beans, chopped tomatoes, onion & pepper', g: 250, P: 7, kcal: 110 }, oil: 5,
       steps: ['Fry onion and pepper, add the mince and brown it.', 'Add 1 can kidney beans, 2 cans chopped tomatoes, chili spice; simmer 20 min.', 'Rice in one big pot.', 'Split into 4 boxes, fridge.'] },
-    { key: 'pork-potato', name: 'Pork tenderloin, potatoes & greens', protein: 'pork', carb: 'potato',
-      extra: { name: 'broccoli or green beans', g: 250, P: 7, kcal: 80 }, oil: 10,
-      steps: ['Potatoes in wedges on an oven tray, 200 °C for 35 min with oil and salt.', 'Pork: whole in the oven for the last 20 min (or pan-fry in slices).', 'Greens: boil or steam 5 min.', 'Slice the pork, split into 4 boxes.'] },
+    { key: 'beef-bulgur', name: 'Kebab-style beef strips, bulgur & salad', protein: 'beefstrips', carb: 'bulgur',
+      extra: { name: 'tomato, cucumber, onion & a spoon of yoghurt dressing', g: 250, P: 5, kcal: 80 }, oil: 10,
+      steps: ['Bulgur: pour boiling water over it (twice its volume), lid on, 15 min.', 'Beef strips: fry hot in a pan in two rounds with kebab spice or cumin, paprika, garlic.', 'Salad: chop tomato, cucumber and onion; keep separate so it stays crisp.', 'Split into 4 boxes, fridge; add the yoghurt when you eat.'] },
     { key: 'salmon-potato', name: 'Salmon, potatoes & broccoli', protein: 'salmon', carb: 'potato',
       extra: { name: 'broccoli', g: 250, P: 7, kcal: 85 }, oil: 0,
       steps: ['Potatoes in wedges, oven 200 °C for 35 min.', 'Salmon on the same tray for the last 15 min.', 'Broccoli: steam 5 min.', 'Split into 4 boxes; eat the salmon within 2 days.'] }
   ];
   var NOCOOK = [
     'Rugbrød 3 slices + 1 can tuna + cottage cheese 200 g + cucumber',
-    'Half a roast chicken from the supermarket + 2 wraps + salad',
+    'Half a grilled chicken from a halal shop + 2 wraps + salad',
     '4 eggs + 3 slices rugbrød + skyr 200 g',
     'Smoked mackerel or salmon 150 g + rugbrød 3 slices + cottage cheese 150 g'
   ];
   function r10(g) { return Math.max(0, Math.round(g / 10) * 10); }
   /* One portion: enough protein food to reach the meal's protein, carbs up to a sensible
      plate size for the remaining kcal, and rugbrød on the side if still short. */
-  var CARB_CAP = { rice: 150, pasta: 150, potato: 600 };
+  var CARB_CAP = { rice: 150, pasta: 150, bulgur: 150, potato: 600 };
   function portion(recipe, mealP, mealK) {
     var pf = FOOD[recipe.protein], cf = FOOD[recipe.carb], ex = recipe.extra, oilK = recipe.oil * 9;
     var y = r10(Math.max(120, (mealP - ex.P) / pf.P * 100));
