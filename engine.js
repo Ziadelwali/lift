@@ -517,25 +517,25 @@
   var MORNING = [
     { short: 'Skyr 400 g + a handful of frozen berries', swap: 'a whey shake (30 g whey in 300 ml milk)', P: 42, kcal: 290, buy: [['dairy', 'skyr (400 g tubs)', 1, 'pcs'], ['veg', 'frozen berries', 80, 'g']] },
     { short: 'Whey shake: 30 g whey in 300 ml milk', swap: 'skyr 400 g', P: 35, kcal: 225, buy: [['shake', 'whey protein', 30, 'g'], ['dairy', 'skimmed milk', 300, 'ml']] },
-    { short: 'Cottage cheese 300 g + cucumber', swap: 'skyr 400 g or a whey shake (30 g whey in 300 ml milk)', P: 36, kcal: 270, buy: [['dairy', 'cottage cheese', 300, 'g'], ['veg', 'cucumber', 0.5, 'pcs']] },
+    { short: 'Greek yoghurt 2 % 400 g + a handful of berries', swap: 'skyr 400 g or a whey shake (30 g whey in 300 ml milk)', P: 38, kcal: 300, buy: [['dairy', 'Greek yoghurt 2 %', 400, 'g'], ['veg', 'frozen berries', 80, 'g']] },
     { short: 'Skyr 400 g with cinnamon', swap: 'a whey shake (30 g whey in 300 ml milk)', P: 40, kcal: 250, buy: [['dairy', 'skyr (400 g tubs)', 1, 'pcs']] }
   ];
   function dayNo(iso) { return Math.round(parseISO(iso).getTime() / 864e5); }
   function morningFor(iso) { return MORNING[mod(dayNo(iso), MORNING.length)]; }
   var NOCOOK = [
-    'Rugbrød 3 slices + 1 can tuna + cottage cheese 200 g + cucumber',
+    'Rugbrød 3 slices + 1 can tuna mixed with 2 spoons of skyr + 2 boiled eggs + cucumber',
     'Half a grilled chicken + 2 wraps + salad',
     '4 eggs + 3 slices rugbrød + skyr 200 g',
-    'Smoked mackerel or salmon 150 g + rugbrød 3 slices + cottage cheese 150 g',
+    'Smoked mackerel or salmon 150 g + rugbrød 3 slices + 2 boiled eggs',
     'Wholegrain wrap with 125 g chicken slices, hummus & salad',
     'Canned mackerel in tomato + 3 slices rugbrød + carrot sticks'
   ];
   /* What each no-cook meal needs, same order as NOCOOK. */
   var NOCOOK_BUY = [
-    [['meat', 'tuna in water', 1, 'can'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'cottage cheese', 200, 'g'], ['veg', 'cucumber', 1, 'pcs']],
+    [['meat', 'tuna in water', 1, 'can'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'skyr', 60, 'g'], ['dairy', 'eggs', 2, 'pcs'], ['veg', 'cucumber', 1, 'pcs']],
     [['meat', 'grilled chicken (ready-made)', 0.5, 'pcs'], ['carb', 'wraps', 2, 'pcs'], ['veg', 'salad bag', 1, 'pcs']],
     [['dairy', 'eggs', 4, 'pcs'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'skyr', 200, 'g']],
-    [['meat', 'smoked mackerel', 150, 'g'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'cottage cheese', 150, 'g']],
+    [['meat', 'smoked mackerel', 150, 'g'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'eggs', 2, 'pcs']],
     [['carb', 'wholegrain wraps', 2, 'pcs'], ['meat', 'chicken slices (cold cuts)', 125, 'g'], ['cupboard', 'hummus', 100, 'g'], ['veg', 'salad bag', 1, 'pcs']],
     [['meat', 'mackerel in tomato', 1, 'can'], ['carb', 'rugbrød', 3, 'slices'], ['veg', 'carrots', 2, 'pcs']]
   ];
