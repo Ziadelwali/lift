@@ -678,6 +678,61 @@
     return slots;
   }
 
+  /* ---------- calendar reminders ----------
+     Repeating weekly events for the phone's calendar, so reminders work with the app closed.
+     Same time on several weekdays = one event with BYDAY. Floating local times. */
+  var BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
+  function reminderEvents(profile, mac, fromIso, withMeals) {
+    var sched = profile.sched || { 1: '16:00', 3: '16:00', 5: '16:00' }, groups = {}, cooks = cookDays(profile);
+    function add(key, title, t, mins, wd, note) {
+      var k = key + '|' + t; if (!groups[k]) groups[k] = { key: key, title: title, time: fmtHM(t), mins: mins, days: [], note: note };
+      if (groups[k].days.indexOf(wd) < 0) groups[k].days.push(wd);
+    }
+    for (var wd = 0; wd < 7; wd++) {
+      var training = sched[wd] != null;
+      var p = { training: training, time: training ? sched[wd] : null, day: 'A', date: fromIso };
+      timeline(profile, p, mac).forEach(function (s) {
+        if (s.key === 'train') add('train', 'Lift: training', s.t, RULES.sessionMinutes, wd, 'Open Lift → Train.');
+        else if (withMeals && s.key === 'sh2') add('morning', 'Lift: morning protein', s.t, 10, wd, 'Skyr or a whey shake. Open Lift → Today.');
+        else if (withMeals && s.key === 'm1') add('m1', 'Lift: lunch', s.t, 20, wd, 'Open Lift → Today for what is in the box.');
+        else if (withMeals && s.key === 'sh1') add('shake', 'Lift: protein shake', s.t, 10, wd, 'Whey 40 g + 500 ml milk + banana.');
+        else if (withMeals && s.key === 'm2') {
+          add('m2', 'Lift: dinner', s.t, 30, wd, 'Open Lift → Today for what is in the box.');
+          if (cooks.indexOf(wd) >= 0) add('cook', 'Lift: cook 4 boxes tonight', s.t - 90, 60, wd, 'Shopping list and steps: Lift → Eat.');
+        }
+      });
+    }
+    var d0 = parseISO(fromIso);
+    return Object.keys(groups).map(function (k) {
+      var g = groups[k], first = new Date(d0);
+      for (var i = 0; i < 7 && g.days.indexOf(first.getDay()) < 0; i++) first.setDate(first.getDate() + 1);
+      g.days.sort(); g.firstDate = isoDate(first); g.rrule = 'FREQ=WEEKLY;BYDAY=' + g.days.map(function (x) { return BYDAY[x]; }).join(',');
+      return g;
+    }).sort(function (a, b) { return a.time < b.time ? -1 : 1; });
+  }
+  function icsStamp(iso, hhmm, plusMin) {
+    var d = parseISO(iso), m = hm(hhmm) + (plusMin || 0); d.setMinutes(m);
+    return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + 'T' + pad(d.getHours()) + pad(d.getMinutes()) + '00';
+  }
+  function calendarICS(profile, mac, fromIso, withMeals) {
+    var ev = reminderEvents(profile, mac, fromIso, withMeals), now = new Date();
+    var stamp = now.getUTCFullYear() + pad(now.getUTCMonth() + 1) + pad(now.getUTCDate()) + 'T' + pad(now.getUTCHours()) + pad(now.getUTCMinutes()) + '00Z';
+    var L = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Lift//reminders//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:Lift'];
+    ev.forEach(function (g) {
+      L.push('BEGIN:VEVENT', 'UID:lift-' + g.key + '-' + g.time.replace(':', '') + '@lift', 'DTSTAMP:' + stamp,
+        'DTSTART:' + icsStamp(g.firstDate, g.time), 'DTEND:' + icsStamp(g.firstDate, g.time, g.mins), 'RRULE:' + g.rrule,
+        'SUMMARY:' + g.title, 'DESCRIPTION:' + g.note,
+        'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + g.title, 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT');
+    });
+    L.push('END:VCALENDAR');
+    return L.join('\r\n') + '\r\n';
+  }
+  function googleCalLink(g) {
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(g.title) +
+      '&dates=' + icsStamp(g.firstDate, g.time) + '/' + icsStamp(g.firstDate, g.time, g.mins) +
+      '&recur=' + encodeURIComponent('RRULE:' + g.rrule) + '&details=' + encodeURIComponent(g.note);
+  }
+
   /* ---------- progress ---------- */
   function weightSeries(state) {
     var w = state.weight || {};
@@ -778,7 +833,7 @@
 
   return {
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, weekShopping: weekShopping, LATTE: LATTE, lattes: lattes, buildDish: buildDish, VEG_PARTS: VEG_PARTS, CARB_PARTS: CARB_PARTS, FLAVOURS: FLAVOURS, PROTEIN_PARTS: PROTEIN_PARTS, MORNING: MORNING, morningFor: morningFor, pickRecipe: pickRecipe, fmtQty: fmtQty, family: family, batchServings: batchServings, batchBuy: batchBuy, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, weekShopping: weekShopping, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, buildDish: buildDish, VEG_PARTS: VEG_PARTS, CARB_PARTS: CARB_PARTS, FLAVOURS: FLAVOURS, PROTEIN_PARTS: PROTEIN_PARTS, MORNING: MORNING, morningFor: morningFor, pickRecipe: pickRecipe, fmtQty: fmtQty, family: family, batchServings: batchServings, batchBuy: batchBuy, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, recentStalls: recentStalls, plan: plan, buildSession: buildSession, rampSets: rampSets,

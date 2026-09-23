@@ -482,6 +482,16 @@ var installEvt=null;
 function isInstalled(){return (window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||navigator.standalone===true;}
 addEventListener('beforeinstallprompt',function(e){e.preventDefault();installEvt=e;if(typeof render==='function'&&view!=='train')render();});
 addEventListener('appinstalled',function(){installEvt=null;toast('Installed — open Lift from your home screen');if(view!=='train')render();});
+function remindersCard(){
+ var mac=E.macros(state.profile);if(!mac)return '';
+ var ev=E.reminderEvents(state.profile,mac,todayISO(),true),DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+ return '<div class="card"><h2>Reminders</h2><p class="sm" style="margin-top:6px">Put your training and meal times in your phone\'s calendar — it reminds you even when Lift is closed.</p>'+
+  '<div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn small" data-act="ics" data-meals="1">Training + meals</button><button class="btn small ghost" data-act="ics" data-meals="0">Training only</button></div>'+
+  '<p class="xs" style="margin-top:8px">Downloads one file. Samsung phones: tap it → Samsung Calendar → Save. If it opens nothing, use the Google Calendar links below (one tap each).</p>'+
+  '<details class="fold" style="margin-top:8px"><summary><span class="eyebrow">Add one by one to Google Calendar</span></summary><ul class="shop">'+
+  ev.map(function(g){return '<li><a href="'+E.googleCalLink(g)+'" target="_blank" rel="noopener">'+esc(g.time+' '+g.title.replace('Lift: ',''))+'</a> <span class="xs">'+g.days.map(function(d){return DN[d];}).join(' ')+'</span></li>';}).join('')+'</ul></details>'+
+  '<p class="xs" style="margin-top:6px">Changed your training days or times? Add them again (and delete the old ones in the calendar).</p></div>';
+}
 function installCard(where){
  if(isInstalled())return where==='profile'?'<div class="card"><h2>App</h2><p class="sm" style="margin-top:6px">Installed ✓ — you are using Lift as an app.</p></div>':'';
  if(where==='today'){try{if(localStorage.getItem('lift.installLater')===todayISO().slice(0,7))return '';}catch(e){}}
@@ -986,7 +996,7 @@ function renderProfile(){
   '<div class="grid3"><label class="field"><span class="l">Wake</span><input type="time" data-p="wake" value="'+(p.wake||'06:30')+'"></label><label class="field"><span class="l">Lunch</span><input type="time" data-p="lunch" value="'+(p.lunch||'11:30')+'"></label><label class="field"><span class="l">Bed</span><input type="time" data-p="bed" value="'+(p.bed||'22:30')+'"></label></div><p class="xs">Meals are planned around these; nothing is scheduled in the last 3 hours before bed.</p></div>';
  var tm=themeMode();
  h+='<div class="card"><h2>Appearance</h2><p class="xs" style="margin:4px 0 10px">Auto follows your phone\'s light/dark setting.</p><div class="seg">'+[['auto','Auto'],['light','Light'],['dark','Dark']].map(function(o){return '<button data-themeset="'+o[0]+'"'+(tm===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div></div>';
- h+=installCard('profile');
+ h+=installCard('profile')+remindersCard();
  h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+$('#syncline').textContent+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+'</p><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button><button class="btn small ghost" data-act="forget">Change password</button><button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div></div>';
  h+='<p class="xs" style="padding:0 4px 10px">Exercise photos and descriptions: free-exercise-db (public domain). Training and nutrition rules: Pelland 2025, Robinson 2024, Schoenfeld, ISSN position stands. This is a tool, not medical advice.</p>';
  $('#v-profile').innerHTML=h;
@@ -1034,6 +1044,7 @@ document.addEventListener('click',function(ev){
  if(act==='abandon'){if(!ses)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[todayISO()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='copyshop'){var txt=shopText();(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){toast('List copied — paste it in Notes or a message');},function(){prompt('Copy the list:',txt);});return;}
  if(act==='clearshop'){state.settings.shop={since:todayISO(),ticks:{}};save();shopCard.open=true;renderEat();return;}
+ if(act==='ics'){var ics=E.calendarICS(state.profile,E.macros(state.profile),todayISO(),b.dataset.meals==='1'),blob=new Blob([ics],{type:'text/calendar'}),u2=URL.createObjectURL(blob),a3=document.createElement('a');a3.href=u2;a3.download='lift-reminders.ics';document.body.appendChild(a3);a3.click();a3.remove();setTimeout(function(){URL.revokeObjectURL(u2);},5000);toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
  if(act==='install'){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(c){if(c&&c.outcome==='accepted')installEvt=null;render();});}return;}
  if(act==='installlater'){try{localStorage.setItem('lift.installLater',todayISO().slice(0,7));}catch(e){}renderToday();return;}
  if(act==='adj'){state.profile.kcalAdj=(state.profile.kcalAdj||0)+ +b.dataset.adj;save();renderEat();toast('Calories adjusted');return;}

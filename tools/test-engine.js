@@ -149,5 +149,12 @@ eq('lattes show on a work day, not on Sunday', [E.timeline(lat, E.plan('2026-09-
 eq('morning protein changes daily', E.morningFor('2026-10-05').short !== E.morningFor('2026-10-06').short, true);
 
 
+// calendar reminders
+var rev = E.reminderEvents(prof, m, '2026-09-24', true);
+eq('training reminder Mon/Wed/Fri 16:00', rev.filter(function (g) { return g.key === 'train'; }).map(function (g) { return g.time + ' ' + g.rrule; }), ['16:00 FREQ=WEEKLY;BYDAY=MO,WE,FR']);
+eq('training-only file has just the training event', (E.calendarICS(prof, m, '2026-09-24', false).match(/BEGIN:VEVENT/g) || []).length, 1);
+eq('first training date is a training day (Fri 25 Sep)', rev.filter(function (g) { return g.key === 'train'; })[0].firstDate, '2026-09-25');
+eq('ics lines end in CRLF', E.calendarICS(prof, m, '2026-09-24', true).slice(-2), '\r\n');
+
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);
