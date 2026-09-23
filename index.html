@@ -216,6 +216,13 @@ svg.bm .o{fill:var(--bm-o)}
 svg.bm .m{fill:var(--bm-m)}
 svg.bm .m.p{fill:var(--acc)}svg.bm .m.s{fill:var(--acc);opacity:.45}
 
+/* ---------- cooking plan ---------- */
+details.cook{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
+details.cook>summary b{font-size:15px}
+ul.shop,ol.steps{margin:6px 0 0;padding-left:20px;font-size:14px;color:var(--ink2)}
+ul.shop li,ol.steps li{margin-bottom:4px}
+.seg button[data-cookday]{min-height:40px;font-size:13px}
+
 /* ---------- warm-up moves ---------- */
 .wu{display:flex;align-items:center;gap:4px;min-height:62px}
 .wuwrap+.wuwrap{border-top:1px solid var(--line)}
@@ -586,7 +593,7 @@ function timelineHTML(iso,p,mac,live){
   var done=!!meals[s.key],past=isToday&&s.t+45<now,next=isToday&&!nextDone&&!done&&!past;if(next)nextDone=true;
   var cd=next?(s.t>now?'in '+fmtDur(s.t-now):'now'):'';
   return '<li'+(s.key!=='train'&&live?' data-mealrow="'+s.key+'"':'')+' class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div><div class="why">'+esc(s.why)+'</div>'+
-   (s.foods?'<div class="foods">'+esc(s.foods[(hashDay(iso)+slots.indexOf(s))%s.foods.length])+'</div>':'')+
+   (s.cook?'<span class="chip warn" style="margin-top:4px">cook today</span>':'')+(s.foods?'<div class="foods">'+esc(s.foods[(hashDay(iso)+slots.indexOf(s))%s.foods.length])+'</div>':'')+
    (s.protein?'<div class="macro">~'+s.protein+' g protein'+(s.kcal?' · ~'+s.kcal+' kcal':'')+'</div>':'')+'</div>'+
    (s.key==='train'?'<span></span>':'<input type="checkbox" data-meal="'+s.key+'"'+(done?' checked':'')+(live?'':' disabled')+'>')+'</li>';
  }).join('')+'</ul>';
@@ -713,22 +720,46 @@ function renderEat(){
   '<p class="xs" style="margin-top:10px">'+phaseTxt+' Expenditure ≈ '+mac.tdee+' kcal (BMR '+mac.bmr+' × activity)'+(p.kcalAdj?' · adjusted '+(p.kcalAdj>0?'+':'')+p.kcalAdj:'')+'. Protein '+(mac.bmi>=30?'1.6':'2.0')+' g/kg — the number that matters most; kcal second; carbs vs fat last.</p></div>';
  h+='<div class="card"><h2>Weight trend</h2><p class="sm" style="margin-top:6px">'+(ta.rate!=null?'<b class="mono">'+(ta.rate>0?'+':'')+ta.rate.toFixed(2)+' kg/week</b> · ':'')+esc(ta.text)+'</p>'+(ta.adj?'<button class="btn small ghost" data-act="adj" data-adj="'+ta.adj+'" style="margin-top:10px">Apply '+(ta.adj>0?'+':'')+ta.adj+' kcal</button>':'')+'</div>';
  var pt=E.plan(iso,state),pTrain=Object.assign({},pt,{training:true,time:pt.time||(p.sched&&p.sched[1])||'16:00',day:pt.day||'A'}),pRest=Object.assign({},pt,{training:false});
- h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">Anchored on your session time. Carbs cluster around training; protein every 3–4 h.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
- h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">Same protein, slightly fewer carbs, a little more fat. Creatine still.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
+ h+=cookCard(p,mac,iso)+shakeCard();
+ h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">2 meals + 2 shakes. Meal 1 fuels the session, the shake starts recovery, meal 2 is the big one.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
+ h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">Same protein. The shake moves to the afternoon. Creatine still.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
  h+='<details class="card fold"><summary><h2>Supplements — what earns its place</h2></summary><div class="stack sm" style="margin-top:8px">'+
   '<p><b>Creatine monohydrate, 5 g every day.</b> The best-evidenced supplement there is: more reps per set, faster gains. No loading phase needed; any time of day; mix into anything. Cheapest own-brand is identical to expensive ones.</p>'+
-  '<p><b>Whey protein.</b> Just convenient protein — use it when a meal would otherwise miss the ~'+Math.round((mac.protein-35)/4)+' g target. Skyr does the same job.</p>'+
+  '<p><b>Whey protein.</b> Just convenient milk protein — your two shakes replace two meals. Any plain whey works; price and taste decide.</p>'+
   '<p><b>Casein / skyr before bed.</b> 30–40 g slow protein raises overnight muscle protein synthesis.</p>'+
   '<p><b>Caffeine 1–3 mg/kg, 30–60 min pre-session</b> if you want it. A coffee. Not after 15:00 if sleep suffers — sleep beats caffeine.</p>'+
   '<p><b>Vitamin D 20–40 µg/day Oct–Apr</b> at Danish latitude. Fish oil only if you eat no oily fish.</p>'+
   '<p class="xs">Skip: BCAAs (pointless with enough protein), fat burners, test boosters, pre-workouts beyond caffeine.</p></div></details>';
  h+='<details class="card fold"><summary><h2>The rules behind the numbers</h2></summary><div class="stack sm" style="margin-top:8px">'+
-  '<p>• Protein: 1.6–2.2 g/kg spread over 4 feeds of ~0.4 g/kg. Total per day matters most; spacing helps.</p>'+
+  '<p>• Protein: 1.6–2.2 g/kg a day. Total per day matters most; 2 meals + 2 shakes gives 4 feeds, which covers the small extra benefit of spreading it out.</p>'+
   '<p>• Pre-workout meal 1–3 h before: carbs + protein. Post-workout meal within ~2 h. The "anabolic window" is hours wide, not minutes.</p>'+
   '<p>• Weigh most mornings; judge by the 7-day average, adjust ±150 kcal only when the trend is outside the band for 2 weeks.</p>'+
   '<p>• Sleep 7–9 h. Under 6 h measurably cuts muscle gain and raises fat gain — it is a training variable.</p>'+
   '<p>• Alcohol blunts muscle protein synthesis for ~24 h. Keep it rare on training days.</p></div></details>';
  $('#v-eat').innerHTML=h;
+}
+
+/* Cooking plan: the next 7 days' cook days, what to buy and how to make 4 boxes. */
+function cookCard(p,mac,iso){
+ var tgt=E.mealTargets(mac),days=E.cookDays(p),d=E.parseISO(iso),cooks=[];
+ for(var i=0;i<7;i++){var x=new Date(d);x.setDate(d.getDate()+i);var ix=E.isoDate(x),b=E.batchFor(p,ix,2);if(b&&b.cookToday)cooks.push({iso:ix,b:b});}
+ return '<div class="card"><div class="row between"><h2>Cooking plan</h2><span class="chip acc">3× a week</span></div>'+
+  '<p class="xs" style="margin:4px 0 8px">Each cook makes 4 boxes: dinner that day, lunch + dinner the next day, lunch the day after. That covers 12 of 14 meals; the other 2 are no-cook meals.</p>'+
+  '<p class="eyebrow" style="margin-top:6px">Cook on</p><div class="seg" style="margin-top:6px">'+[1,2,3,4,5,6,0].map(function(n){return '<button data-cookday="'+n+'"'+(days.indexOf(n)>=0?' class="on"':'')+'>'+DOW[n].slice(0,2)+'</button>';}).join('')+'</div>'+
+  cooks.map(function(c){var pt=E.portion(c.b.recipe,tgt.P,tgt.kcal);
+   return '<details class="fold cook"><summary><div><b>'+niceDate(c.iso)+' · '+esc(c.b.recipe.name)+'</b><div class="xs">per box ~'+pt.P+' g protein · ~'+Math.round(pt.kcal/10)*10+' kcal</div></div></summary>'+
+    '<p class="eyebrow" style="margin-top:10px">Buy for 4 boxes</p><ul class="shop">'+pt.items.map(function(it){return '<li><b class="mono">'+(it.slices?it.slices*4+' slices':fmtG(it.g*4))+'</b> '+esc(it.name)+'</li>';}).join('')+'</ul>'+
+    '<p class="eyebrow" style="margin-top:8px">Make it</p><ol class="steps">'+c.b.recipe.steps.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol>'+
+    '<p class="xs" style="margin-top:6px">One box = '+pt.items.map(function(it){return (it.slices?it.slices+' slice'+(it.slices>1?'s':''):it.g+' g')+' '+esc(it.name);}).join(', ')+'.</p></details>';}).join('')+
+  '<details class="fold cook"><summary><div><b>No-cook meals</b><div class="xs">for the 2 meals without a box, or a busy day</div></div></summary><ul class="shop">'+E.NOCOOK.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul><p class="xs" style="margin-top:6px">Add fruit or an extra slice of bread if you are still hungry.</p></details></div>';
+}
+function fmtG(g){return g>=1000?(Math.round(g/100)/10)+' kg':g+' g';}
+function shakeCard(){
+ var S=E.SHAKES;
+ return '<div class="card"><h2>Shakes</h2><p class="xs" style="margin:4px 0 8px">Two a day do the job of two extra meals with no cooking. Whey is plain milk protein — safe for healthy kidneys; total daily protein is what matters.</p>'+
+  '<div class="grid2"><div class="stat"><div class="v">'+S.post.P+' g</div><div class="l">after training</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">'+esc(S.post.how)+'</p></div>'+
+  '<div class="stat"><div class="v">'+S.evening.P+' g</div><div class="l">evening</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">'+esc(S.evening.how)+'</p></div></div>'+
+  '<p class="xs" style="margin-top:8px">Weekly: about 280 g whey (a 1 kg bag lasts ~3 weeks) and 7 tubs of skyr (400 g), or more whey instead.</p></div>';
 }
 
 /* ---- Progress ---- */
@@ -828,7 +859,11 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen],[data-cookday]');if(!b)return;
+ if(b.dataset.cookday){var cd=E.cookDays(state.profile).slice(),n=+b.dataset.cookday,ci=cd.indexOf(n);
+  if(ci>=0)cd.splice(ci,1);else{if(cd.length>=3){toast('Three cook days — tap one off first');return;}cd.push(n);}
+  if(cd.length<1){toast('At least one cook day');return;}
+  state.profile.cookDays=cd;save();renderEat();if(cd.length<3)toast('Pick '+(3-cd.length)+' more for full coverage');return;}
  if(b.dataset.wuopen){var wk=b.dataset.wuopen;openWarm[wk]=!openWarm[wk];var wses=activeSession();if(!wses)return;var ww=wk==='gen'?E.WARMUP.general:E.WARMUP[wses.day].filter(function(x){return x.id===wk;})[0];var wel=$('#wu-'+wk);if(ww&&wel)wel.outerHTML=warmItem(wk,ww,wk==='gen'?fmtSec(ww.secs):ww.reps,wses.warm||{});return;}
  if(b.dataset.mealrow){if(ev.target.tagName==='INPUT')return;var mi=b.querySelector('input');if(mi&&!mi.disabled){mi.checked=!mi.checked;mi.dispatchEvent(new Event('change',{bubbles:true}));}return;}
  if(b.dataset.rest){rest.end+=(+b.dataset.rest)*1000;rest.total=Math.max(1,rest.total+(+b.dataset.rest));if(rest.end>Date.now())$('#rest').classList.remove('over');tickRest();return;}

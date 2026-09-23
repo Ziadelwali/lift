@@ -49,8 +49,19 @@ eq('week 2 hack squat kg', s4.ex[0].suggest.kg, 45);
 
 var tl = E.timeline(prof, E.plan('2026-09-21', st), m).map(function (s) { return s.time + ' ' + s.label; });
 console.log(tl.join('\n'));
-eq('timeline pre at 13:30', tl.some(function (x) { return x === '13:30 Pre-workout meal'; }), true);
-eq('timeline post at 17:25', tl.some(function (x) { return x === '17:25 Post-workout meal'; }), true);
+eq('timeline meal 1 at 13:30', tl.indexOf('13:30 Meal 1 (before training)') >= 0, true);
+eq('timeline shake at 17:10', tl.indexOf('17:10 Protein shake') >= 0, true);
+eq('timeline meal 2 at 18:45', tl.indexOf('18:45 Meal 2 (dinner)') >= 0, true);
+eq('timeline 2 meals + 2 shakes', tl.filter(function (x) { return /Meal \d|shake|Evening protein/i.test(x); }).length, 4);
+
+// simple eating: every portion reaches the meal's protein; 3 cooks cover 12 of 14 meals a week
+var tgt = E.mealTargets(m);
+eq('portions reach protein', E.RECIPES.filter(function (r) { return E.portion(r, tgt.P, tgt.kcal).P < tgt.P; }).map(function (r) { return r.key; }), []);
+eq('portions near kcal', E.RECIPES.filter(function (r) { return Math.abs(E.portion(r, tgt.P, tgt.kcal).kcal - tgt.kcal) > 120; }).map(function (r) { return r.key; }), []);
+var nocook = 0, keys = {};
+for (var dd = 0; dd < 14; dd++) { var di = E.isoDate(new Date(2026, 8, 27 + dd)); [1, 2].forEach(function (ml) { var bb = E.batchFor(prof, di, ml); if (!bb) nocook++; else if (bb.cookToday) keys[di] = bb.recipe.key; }); }
+eq('no-cook meals in 2 weeks', nocook, 4);
+eq('cook days rotate recipes', Object.keys(keys).length === 6 && Object.keys(keys).map(function (k) { return keys[k]; }).slice(0, 3).filter(function (v, i, a) { return a.indexOf(v) === i; }).length, 3);
 
 // weight trend
 var w = {}; for (var i = 0; i < 21; i++) { var d = new Date(2026, 8, 1 + i); w[E.isoDate(d)] = 112 - i * 0.07; }
