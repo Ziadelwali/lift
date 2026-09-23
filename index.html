@@ -220,6 +220,10 @@ svg.bm .o{fill:var(--bm-o)}
 svg.bm .m{fill:var(--bm-m)}
 svg.bm .m.p{fill:var(--acc)}svg.bm .m.s{fill:var(--acc);opacity:.45}
 
+/* ---------- eat next ---------- */
+.eatnext{border-color:var(--acc);box-shadow:var(--shadow),inset 0 0 0 1px var(--acc2)}
+.eatnext h2.what{font-size:21px;line-height:1.25;margin-top:6px}
+
 /* ---------- cooking plan ---------- */
 details.cook{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
 details.cook>summary b{font-size:15px}
@@ -557,6 +561,7 @@ function render(){
 function renderToday(){
  var iso=todayISO(),p=E.plan(iso,state),mac=E.macros(state.profile),ses=state.sessions[iso];
  var h='<p class="eyebrow" style="margin-top:6px">'+niceDate(iso)+' · week '+p.week+'</p>';
+ h+=nextFoodCard(iso,p,mac)+cookTodayCard(iso,mac);
  if(p.training){
   var exs=(ses?ses.ex.map(function(e){var c=E.findCfg(e.base)||{};return {id:e.id,prio:c.prio};}):p.exercises);
   h+='<div class="card"><div class="hero"><span class="num">'+(ses&&ses.done?'✓':esc(p.time||'—'))+'</span><div class="cap"><b>Session '+p.day+(ses&&ses.done?' done':'')+'</b><span>'+exs.length+' exercises · ~'+E.RULES.sessionMinutes+' min</span></div></div><div class="sunline"></div>'+
@@ -570,7 +575,8 @@ function renderToday(){
   h+='<div class="card"><div class="hero"><span class="num">Rest</span><div class="cap"><b>Recovery day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+nextSessionLine(iso)+'</div>';
  }
  h+=dailyCard(iso,mac);
- h+='<div class="card"><div class="row between"><h2>Eating today</h2><span class="xs">'+(mac?mac.kcal+' kcal · '+mac.protein+' g protein':'set up your profile')+'</span></div>'+timelineHTML(iso,p,mac,true)+'</div>';
+ var sl=E.timeline(state.profile,p,mac).filter(function(s){return s.key!=='train';}),ml=(state.daily[iso]||{}).meals||{},nd=sl.filter(function(s){return ml[s.key];}).length;
+ h+='<div class="card"><div class="row between"><h2>Eating today</h2><span class="chip'+(nd===sl.length?' acc':'')+'">'+nd+' of '+sl.length+' done</span></div><p class="xs" style="margin:2px 0 4px">'+(mac?mac.kcal+' kcal · '+mac.protein+' g protein in total. Tap a row when you have had it.':'set up your profile')+'</p>'+timelineHTML(iso,p,mac,true,true)+'</div>';
  $('#v-today').innerHTML=h;
 }
 function nextSessionLine(iso){
@@ -590,12 +596,41 @@ function dailyCard(iso,mac){
   '<label class="field" style="margin:0"><span class="l">Steps</span><input type="number" inputmode="numeric" step="500" data-daily="steps" value="'+(d.steps||'')+'" placeholder="8000"></label></div>'+
   '<p class="xs" style="margin-top:8px">Weigh in after the toilet, before breakfast. Single days mean nothing; the 7-day trend decides calories.</p></div>';
 }
-function timelineHTML(iso,p,mac,live){
+/* The one thing to eat next, big, with a Done button. */
+function nextFoodCard(iso,p,mac){
+ if(!mac)return '';
+ var slots=E.timeline(state.profile,p,mac).filter(function(s){return s.key!=='train';}),meals=(state.daily[iso]||{}).meals||{},now=nowMin(),nx=null;
+ slots.forEach(function(s){if(!nx&&!meals[s.key]&&s.t+45>=now)nx=s;});
+ if(!nx){var left=slots.filter(function(s){return !meals[s.key];});
+  var tm=new Date(E.parseISO(iso));tm.setDate(tm.getDate()+1);var ti=E.isoDate(tm),first=E.timeline(state.profile,E.plan(ti,state),mac).filter(function(s){return s.key!=='train';})[0];
+  return '<div class="card eatnext"><p class="eyebrow">Food</p><h2 style="margin-top:4px">'+(left.length?'Nothing more to eat today':'All eaten today ✓')+'</h2>'+
+   (left.length?'<p class="sm" style="margin-top:4px">'+left.length+' not ticked off — if you had them, tick them in the list below.</p>':'')+
+   (first?'<p class="sm" style="margin-top:8px">Tomorrow first: <b>'+first.time+' · '+esc(first.what||first.label)+'</b></p>':'')+'</div>';}
+ var when=nx.t>now?'in '+fmtDur(nx.t-now):'now';
+ return '<div class="card eatnext"><div class="row between"><p class="eyebrow">Eat next · '+nx.time+'</p><span class="chip acc">'+when+'</span></div>'+
+  '<h2 class="what">'+esc(nx.what||nx.label)+'</h2>'+(nx.detail?'<p class="sm" style="margin-top:4px">'+esc(nx.detail)+'</p>':'')+
+  (nx.what==='No-cook meal'?'<p class="xs" style="margin-top:6px">Add fruit or an extra slice of bread if you are still hungry.</p>':'')+(nx.protein&&nx.what!=='No-cook meal'?'<p class="xs mono" style="margin-top:6px">~'+nx.protein+' g protein'+(nx.kcal?' · ~'+nx.kcal+' kcal':'')+'</p>':'')+
+  '<button class="btn wide" data-mealdone="'+nx.key+'" style="margin-top:12px">Done ✓</button></div>';
+}
+/* On a cook day: what to buy and how to make the 4 boxes. */
+function cookTodayCard(iso,mac){
+ if(!mac)return '';var b=E.batchFor(state.profile,iso,2);if(!b||!b.cookToday)return '';
+ var tgt=E.mealTargets(mac),pt=E.portion(b.recipe,tgt.P,tgt.kcal);
+ return '<div class="card"><div class="row between"><h2>Cook today</h2><span class="chip warn">4 boxes</span></div><p class="sm" style="margin-top:4px"><b>'+esc(b.recipe.name)+'</b> — dinner tonight, lunch + dinner tomorrow, lunch the day after.</p>'+cookDetails(b.recipe,pt,false)+'</div>';
+}
+function cookDetails(recipe,pt,wrap){
+ var body='<p class="eyebrow" style="margin-top:10px">Buy for 4 boxes</p><ul class="shop">'+pt.items.map(function(it){return '<li><b class="mono">'+(it.slices?it.slices*4+' slices':fmtG(it.g*4))+'</b> '+esc(it.name)+'</li>';}).join('')+'</ul>'+
+  '<details class="fold"><summary><span class="eyebrow">How to make it</span></summary><ol class="steps">'+recipe.steps.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol></details>';
+ return body;
+}
+function timelineHTML(iso,p,mac,live,simple){
  var slots=E.timeline(state.profile,p,mac),now=nowMin(),d=state.daily[iso]||{},meals=d.meals||{},nextDone=false;
  var isToday=iso===todayISO();
  return '<ul class="tl">'+slots.map(function(s){
   var done=!!meals[s.key],past=isToday&&s.t+45<now,next=isToday&&!nextDone&&!done&&!past;if(next)nextDone=true;
   var cd=next?(s.t>now?'in '+fmtDur(s.t-now):'now'):'';
+  if(simple)return '<li'+(s.key!=='train'&&live?' data-mealrow="'+s.key+'"':'')+' class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.what||s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div>'+(s.detail?'<div class="foods">'+esc(s.detail)+'</div>':'')+'</div>'+
+   (s.key==='train'?'<span></span>':'<input type="checkbox" data-meal="'+s.key+'"'+(done?' checked':'')+(live?'':' disabled')+'>')+'</li>';
   return '<li'+(s.key!=='train'&&live?' data-mealrow="'+s.key+'"':'')+' class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div><div class="why">'+esc(s.why)+'</div>'+
    (s.cook?'<span class="chip warn" style="margin-top:4px">cook today</span>':'')+(s.foods?'<div class="foods">'+esc(s.foods[(hashDay(iso)+slots.indexOf(s))%s.foods.length])+'</div>':'')+
    (s.protein?'<div class="macro">~'+s.protein+' g protein'+(s.kcal?' · ~'+s.kcal+' kcal':'')+'</div>':'')+'</div>'+
@@ -752,8 +787,7 @@ function cookCard(p,mac,iso){
   '<p class="eyebrow" style="margin-top:6px">Cook on</p><div class="seg" style="margin-top:6px">'+[1,2,3,4,5,6,0].map(function(n){return '<button data-cookday="'+n+'"'+(days.indexOf(n)>=0?' class="on"':'')+'>'+DOW[n].slice(0,2)+'</button>';}).join('')+'</div>'+
   cooks.map(function(c){var pt=E.portion(c.b.recipe,tgt.P,tgt.kcal);
    return '<details class="fold cook"><summary><div><b>'+niceDate(c.iso)+' · '+esc(c.b.recipe.name)+'</b><div class="xs">per box ~'+pt.P+' g protein · ~'+Math.round(pt.kcal/10)*10+' kcal</div></div></summary>'+
-    '<p class="eyebrow" style="margin-top:10px">Buy for 4 boxes</p><ul class="shop">'+pt.items.map(function(it){return '<li><b class="mono">'+(it.slices?it.slices*4+' slices':fmtG(it.g*4))+'</b> '+esc(it.name)+'</li>';}).join('')+'</ul>'+
-    '<p class="eyebrow" style="margin-top:8px">Make it</p><ol class="steps">'+c.b.recipe.steps.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol>'+
+    cookDetails(c.b.recipe,pt)+
     '<p class="xs" style="margin-top:6px">One box = '+pt.items.map(function(it){return (it.slices?it.slices+' slice'+(it.slices>1?'s':''):it.g+' g')+' '+esc(it.name);}).join(', ')+'.</p></details>';}).join('')+
   '<details class="fold cook"><summary><div><b>No-cook meals</b><div class="xs">for the 2 meals without a box, or a busy day</div></div></summary><ul class="shop">'+E.NOCOOK.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul><p class="xs" style="margin-top:6px">Add fruit or an extra slice of bread if you are still hungry.</p></details></div>';
 }
@@ -879,7 +913,8 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen],[data-cookday]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen],[data-cookday],[data-mealdone]');if(!b)return;
+ if(b.dataset.mealdone){var di=todayISO();state.daily[di]=state.daily[di]||{};state.daily[di].meals=state.daily[di].meals||{};state.daily[di].meals[b.dataset.mealdone]=1;save();renderToday();toast('Nice — ticked off');return;}
  if(b.dataset.cookday){var cd=E.cookDays(state.profile).slice(),n=+b.dataset.cookday,ci=cd.indexOf(n);
   if(ci>=0)cd.splice(ci,1);else{if(cd.length>=3){toast('Three cook days — tap one off first');return;}cd.push(n);}
   if(cd.length<1){toast('At least one cook day');return;}
