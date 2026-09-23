@@ -71,6 +71,8 @@ nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:6;background:var(--bar-b
 nav.tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--ink3);padding:4px 0}
 nav.tabs button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 nav.tabs button.on{color:var(--acc)}
+nav.tabs button svg{box-sizing:content-box;padding:4px 16px;border-radius:999px;transition:background .2s}
+nav.tabs button.on svg{background:var(--acc2)}
 
 /* ---------- cards ---------- */
 .card{background:var(--card);border:1px solid var(--glass-edge);box-shadow:var(--shadow);border-radius:20px;padding:16px;margin:12px 0}
@@ -100,6 +102,10 @@ nav.tabs button.on{color:var(--acc)}
 .check input{flex:none;width:22px;height:22px;accent-color:var(--acc)}
 details summary{cursor:pointer;color:var(--acc);font-size:13px;list-style:none}
 details summary::-webkit-details-marker{display:none}
+details.fold{display:block}
+details.fold>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--ink);font-size:inherit;min-height:28px}
+details.fold>summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--ink3);border-bottom:2px solid var(--ink3);transform:rotate(45deg);margin:-4px 4px 0 0;transition:transform .2s;flex:none}
+details.fold[open]>summary::after{transform:rotate(225deg);margin-top:4px}
 details ol{margin:8px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink2)}
 details ol li{margin-bottom:5px}
 hr{border:0;border-top:1px solid var(--line);margin:12px 0}
@@ -191,7 +197,8 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .tl .foods{font-size:12.5px;color:var(--ink2);margin-top:4px}
 .tl .macro{font-family:var(--mono);font-size:11px;color:var(--ink3);margin-top:3px}
 .tl .cd{font-family:var(--mono);font-size:11px;color:var(--acc)}
-.tl input{width:22px;height:22px;accent-color:var(--ok);margin-top:4px;justify-self:end}
+.tl input{width:26px;height:26px;accent-color:var(--ok);margin-top:2px;justify-self:end}
+.tl li[data-mealrow]{cursor:pointer}
 .tl li.train .l{color:var(--acc)}
 
 /* ---------- charts ---------- */
@@ -221,6 +228,11 @@ svg.bm .m.p{fill:var(--acc)}svg.bm .m.s{fill:var(--acc);opacity:.45}
 .seg button.on{background:var(--acc);color:var(--on-acc);font-weight:600}
 #themebtn{width:34px;height:34px;border-radius:50%;display:inline-grid;place-items:center;background:var(--card2);color:var(--ink2);margin-left:10px;vertical-align:middle}
 #themebtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round}
+
+@media (prefers-reduced-motion:reduce){
+ .ex .media img{animation:none}.ex .media img.f1{opacity:0}
+ .track i,nav.tabs button svg,details.fold>summary::after{transition:none}
+}
 
 /* ---------- gate ---------- */
 #gate{min-height:100dvh;display:grid;place-items:center;padding:24px}
@@ -554,7 +566,7 @@ function timelineHTML(iso,p,mac,live){
  return '<ul class="tl">'+slots.map(function(s){
   var done=!!meals[s.key],past=isToday&&s.t+45<now,next=isToday&&!nextDone&&!done&&!past;if(next)nextDone=true;
   var cd=next?(s.t>now?'in '+fmtDur(s.t-now):'now'):'';
-  return '<li class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div><div class="why">'+esc(s.why)+'</div>'+
+  return '<li'+(s.key!=='train'&&live?' data-mealrow="'+s.key+'"':'')+' class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div><div class="why">'+esc(s.why)+'</div>'+
    (s.foods?'<div class="foods">'+esc(s.foods[(hashDay(iso)+slots.indexOf(s))%s.foods.length])+'</div>':'')+
    (s.protein?'<div class="macro">~'+s.protein+' g protein'+(s.kcal?' · ~'+s.kcal+' kcal':'')+'</div>':'')+'</div>'+
    (s.key==='train'?'<span></span>':'<input type="checkbox" data-meal="'+s.key+'"'+(done?' checked':'')+(live?'':' disabled')+'>')+'</li>';
@@ -592,6 +604,7 @@ function renderTrain(){
  clearInterval(renderTrain._t);renderTrain._t=setInterval(function(){var el=$('#elapsed');if(el&&activeSession())el.textContent=fmtSec((Date.now()-ses.started)/1000);else clearInterval(renderTrain._t);},1000);
 }
 /* Sticky session progress: picture per exercise, tap to jump. */
+var SMOOTH=!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)?'smooth':'auto';
 function exDone(e){return e.sets.length>0&&e.sets.every(function(s){return s.done;});}
 function trackBar(ses){
  var n=ses.ex.filter(exDone).length,cur=-1;
@@ -672,19 +685,19 @@ function renderEat(){
  var pt=E.plan(iso,state),pTrain=Object.assign({},pt,{training:true,time:pt.time||(p.sched&&p.sched[1])||'16:00',day:pt.day||'A'}),pRest=Object.assign({},pt,{training:false});
  h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">Anchored on your session time. Carbs cluster around training; protein every 3–4 h.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
  h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">Same protein, slightly fewer carbs, a little more fat. Creatine still.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
- h+='<div class="card"><h2>Supplements — what earns its place</h2><div class="stack sm" style="margin-top:8px">'+
+ h+='<details class="card fold"><summary><h2>Supplements — what earns its place</h2></summary><div class="stack sm" style="margin-top:8px">'+
   '<p><b>Creatine monohydrate, 5 g every day.</b> The best-evidenced supplement there is: more reps per set, faster gains. No loading phase needed; any time of day; mix into anything. Cheapest own-brand is identical to expensive ones.</p>'+
   '<p><b>Whey protein.</b> Just convenient protein — use it when a meal would otherwise miss the ~'+Math.round((mac.protein-35)/4)+' g target. Skyr does the same job.</p>'+
   '<p><b>Casein / skyr before bed.</b> 30–40 g slow protein raises overnight muscle protein synthesis.</p>'+
   '<p><b>Caffeine 1–3 mg/kg, 30–60 min pre-session</b> if you want it. A coffee. Not after 15:00 if sleep suffers — sleep beats caffeine.</p>'+
   '<p><b>Vitamin D 20–40 µg/day Oct–Apr</b> at Danish latitude. Fish oil only if you eat no oily fish.</p>'+
-  '<p class="xs">Skip: BCAAs (pointless with enough protein), fat burners, test boosters, pre-workouts beyond caffeine.</p></div></div>';
- h+='<div class="card"><h2>The rules behind the numbers</h2><div class="stack sm" style="margin-top:8px">'+
+  '<p class="xs">Skip: BCAAs (pointless with enough protein), fat burners, test boosters, pre-workouts beyond caffeine.</p></div></details>';
+ h+='<details class="card fold"><summary><h2>The rules behind the numbers</h2></summary><div class="stack sm" style="margin-top:8px">'+
   '<p>• Protein: 1.6–2.2 g/kg spread over 4 feeds of ~0.4 g/kg. Total per day matters most; spacing helps.</p>'+
   '<p>• Pre-workout meal 1–3 h before: carbs + protein. Post-workout meal within ~2 h. The "anabolic window" is hours wide, not minutes.</p>'+
   '<p>• Weigh most mornings; judge by the 7-day average, adjust ±150 kcal only when the trend is outside the band for 2 weeks.</p>'+
   '<p>• Sleep 7–9 h. Under 6 h measurably cuts muscle gain and raises fat gain — it is a training variable.</p>'+
-  '<p>• Alcohol blunts muscle protein synthesis for ~24 h. Keep it rare on training days.</p></div></div>';
+  '<p>• Alcohol blunts muscle protein synthesis for ~24 h. Keep it rare on training days.</p></div></details>';
  $('#v-eat').innerHTML=h;
 }
 
@@ -745,12 +758,12 @@ function volumeChart(){
  var order=['chest','shoulders','lats','middle back','triceps','biceps','quadriceps','hamstrings','glutes','calves','abdominals','lower back','traps','forearms'];
  var rows=order.filter(function(m){return vol[m]!=null||prio.indexOf(m)>=0||['chest','shoulders','lats','quadriceps','hamstrings'].indexOf(m)>=0;});
  if(!Object.keys(vol).length)return '<p class="xs">No completed sessions in the last 7 days.</p>';
- var W=340,rh=22,L=90,H=rows.length*rh+4,max=24;
+ var W=340,rh=22,L=118,H=rows.length*rh+4,max=24;
  var h='<svg class="chart" viewBox="0 0 '+W+' '+H+'">';
  rows.forEach(function(m,i){
   var v=vol[m]||0,isP=prio.indexOf(m)>=0,band=isP?E.RULES.volumeBand.priority:E.RULES.volumeBand.normal,y=i*rh+2;
   function X(n){return L+Math.min(n,max)/max*(W-L-30);}
-  h+='<text x="'+(L-6)+'" y="'+(y+14)+'" text-anchor="end">'+m+'</text>';
+  h+='<text x="'+(L-6)+'" y="'+(y+14)+'" text-anchor="end">'+esc(mw(m))+'</text>';
   h+='<rect class="band" x="'+X(band[0])+'" y="'+y+'" width="'+(X(band[1])-X(band[0]))+'" height="'+(rh-4)+'"/>';
   h+='<rect class="bar'+(isP?' prio':v<band[0]?' low':'')+'" x="'+L+'" y="'+(y+4)+'" width="'+Math.max(0,X(v)-L)+'" height="'+(rh-12)+'" rx="3"/>';
   h+='<text x="'+(X(v)+4)+'" y="'+(y+14)+'">'+(Math.round(v*10)/10)+'</text>';
@@ -785,9 +798,10 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow]');if(!b)return;
+ if(b.dataset.mealrow){if(ev.target.tagName==='INPUT')return;var mi=b.querySelector('input');if(mi&&!mi.disabled){mi.checked=!mi.checked;mi.dispatchEvent(new Event('change',{bubbles:true}));}return;}
  if(b.dataset.rest){rest.end+=(+b.dataset.rest)*1000;rest.total=Math.max(1,rest.total+(+b.dataset.rest));if(rest.end>Date.now())$('#rest').classList.remove('over');tickRest();return;}
- if(b.dataset.jump){var jc=$('#ex-'+b.dataset.jump);if(jc)jc.scrollIntoView({behavior:'smooth',block:'start'});return;}
+ if(b.dataset.jump){var jc=$('#ex-'+b.dataset.jump);if(jc)jc.scrollIntoView({behavior:SMOOTH,block:'start'});return;}
  if(b.dataset.toggle){var tg=+b.dataset.toggle;openCards[tg]=!openCards[tg];refreshCard(tg);return;}
  if(b.dataset.themeset){setTheme(b.dataset.themeset);return;}
  if(b.dataset.swapopen){var box=$('#swaps-'+b.dataset.swapopen);if(box)box.hidden=!box.hidden;return;}
@@ -802,7 +816,7 @@ document.addEventListener('click',function(ev){
   if(!st.done){if(!(st.kg>0)||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
    var cfg=E.findCfg(ex.base)||E.findCfg(ex.id);var lastSet=exDone(ex);startRest(lastSet?Math.min(cfg.rest,90):cfg.rest);
    var ei=+t[0];if(lastSet)delete openCards[ei];save();refreshCard(ei);
-   if(lastSet){var nx=-1;ses.ex.forEach(function(x,i){if(nx<0&&i>ei&&!exDone(x))nx=i;});if(nx>=0)setTimeout(function(){var c=$('#ex-'+nx);if(c)c.scrollIntoView({behavior:'smooth',block:'start'});},300);}
+   if(lastSet){var nx=-1;ses.ex.forEach(function(x,i){if(nx<0&&i>ei&&!exDone(x))nx=i;});if(nx>=0)setTimeout(function(){var c=$('#ex-'+nx);if(c)c.scrollIntoView({behavior:SMOOTH,block:'start'});},300);}
    return;}
   else st.done=false;
   save();refreshCard(+t[0]);return;}
