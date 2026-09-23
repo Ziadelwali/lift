@@ -289,14 +289,14 @@ ul.shop li,ol.steps li{margin-bottom:4px}
 <div id="gate" class="hidden">
  <div class="card">
   <p class="eyebrow">Lift</p>
-  <h1>Your sync passphrase</h1>
-  <p class="sm" style="margin:6px 0 14px">The passphrase unlocks the sync settings and is turned into a private key, so every device with the same words shares one training log. Without the words the log cannot be found.</p>
+  <h1>Password</h1>
+  <p class="sm" style="margin:6px 0 14px">Your training log is private. Use the same password on every device.</p>
   <form id="gateform" autocomplete="off">
-   <input id="gatep" class="mono" style="width:100%;min-height:48px;background:var(--card2);border:1px solid transparent;border-radius:10px;padding:0 12px;font-size:16px" type="password" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="four random words">
+   <input id="gatep" class="mono" style="width:100%;min-height:48px;background:var(--card2);border:1px solid transparent;border-radius:10px;padding:0 12px;font-size:16px" type="password" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Password" aria-label="Password">
    <button class="btn wide" type="submit" style="margin-top:10px">Continue</button>
   </form>
   <p class="sm" id="gatemsg" style="min-height:18px;margin-top:8px;color:var(--bad)"></p>
-  <p class="xs" style="margin-top:6px">Capitals, spaces and punctuation are ignored. <button id="gateskip" style="color:var(--acc)">Use this device only, no sync</button></p>
+  <p class="xs" style="margin-top:6px"><button id="gateskip" style="color:var(--acc)">Use this device only, no sync</button></p>
  </div>
 </div>
 
@@ -448,7 +448,7 @@ function startSync(){
   document.addEventListener('visibilitychange',function(){if(!document.hidden)pull();});
   addEventListener('online',function(){pull();});
   addEventListener('offline',function(){setSyncLine('Offline — syncs later',false);});
- }).catch(function(e){slog('start failed: '+(e&&e.name)+' '+(e&&e.message));setSyncLine('Passphrase does not match this build — saved here',false);});
+ }).catch(function(e){slog('start failed: '+(e&&e.name)+' '+(e&&e.message));setSyncLine('Password not accepted — saved on this device',false);});
 }
 
 /* ---------------- service worker ---------------- */
@@ -942,7 +942,7 @@ function volumeChart(){
 function renderProfile(){
  var p=state.profile,sched=p.sched||{1:'16:00',3:'16:00',5:'16:00'},prio=p.priority||['shoulders','back'];
  function opt(list,cur){return list.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===cur?' selected':'')+'>'+o[1]+'</option>';}).join('');}
- var h=(profileReady()?'':'<div class="card" style="margin-top:14px;border-color:var(--acc)"><h2>Welcome</h2><p class="sm" style="margin-top:6px">Fill this in once. It sets your calories, protein, and the training calendar. Everything is stored under your passphrase, nothing in the public page.</p></div>');
+ var h=(profileReady()?'':'<div class="card" style="margin-top:14px;border-color:var(--acc)"><h2>Welcome</h2><p class="sm" style="margin-top:6px">Fill this in once. It sets your calories, protein, and the training calendar. Everything is private to your password.</p></div>');
  h+='<div class="card"><h2>You</h2><div class="grid2">'+
   '<label class="field"><span class="l">Sex</span><select data-p="sex">'+opt([['m','Male'],['f','Female']],p.sex||'m')+'</select></label>'+
   '<label class="field"><span class="l">Age</span><input type="number" inputmode="numeric" data-p="age" value="'+(p.age||'')+'"></label>'+
@@ -960,7 +960,7 @@ function renderProfile(){
   '<div class="grid3"><label class="field"><span class="l">Wake</span><input type="time" data-p="wake" value="'+(p.wake||'06:30')+'"></label><label class="field"><span class="l">Lunch</span><input type="time" data-p="lunch" value="'+(p.lunch||'11:30')+'"></label><label class="field"><span class="l">Bed</span><input type="time" data-p="bed" value="'+(p.bed||'22:30')+'"></label></div><p class="xs">Meals are planned around these; nothing is scheduled in the last 3 hours before bed.</p></div>';
  var tm=themeMode();
  h+='<div class="card"><h2>Appearance</h2><p class="xs" style="margin:4px 0 10px">Auto follows your phone\'s light/dark setting.</p><div class="seg">'+[['auto','Auto'],['light','Light'],['dark','Dark']].map(function(o){return '<button data-themeset="'+o[0]+'"'+(tm===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div></div>';
- h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+$('#syncline').textContent+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+'</p><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button><button class="btn small ghost" data-act="forget">Change passphrase</button><button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div></div>';
+ h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+$('#syncline').textContent+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+'</p><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button><button class="btn small ghost" data-act="forget">Change password</button><button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div></div>';
  h+='<p class="xs" style="padding:0 4px 10px">Exercise photos and descriptions: free-exercise-db (public domain). Training and nutrition rules: Pelland 2025, Robinson 2024, Schoenfeld, ISSN position stands. This is a tool, not medical advice.</p>';
  $('#v-profile').innerHTML=h;
 }
@@ -1052,12 +1052,12 @@ function boot(){
  show(ses?'train':(profileReady()?'today':'profile'));
  setInterval(function(){if(view==='today'&&!document.hidden)renderToday();},60000);
 }
-$('#gateform').addEventListener('submit',function(e){e.preventDefault();var v=norm($('#gatep').value);if(!v){toast('Type a few words');return;}
+$('#gateform').addEventListener('submit',function(e){e.preventDefault();var v=norm($('#gatep').value);if(!v){toast('Type your password');return;}
  var btn=$('#gateform button'),msg=$('#gatemsg');btn.disabled=true;btn.textContent='Checking…';msg.textContent='';
  var ok=window.crypto&&crypto.subtle?unsealFresh(v).then(function(){return true;},function(){return false;}):Promise.resolve(true);
  ok.then(function(good){
   btn.disabled=false;btn.textContent='Continue';
-  if(!good){msg.textContent='That passphrase is not right.';return;}
+  if(!good){msg.textContent='Wrong password.';return;}
   try{localStorage.setItem(PK,v);}catch(e2){}
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});}catch(e3){}
   $('#gate').classList.add('hidden');boot();});});
