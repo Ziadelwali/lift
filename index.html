@@ -90,6 +90,8 @@ nav.tabs button.on svg{background:var(--acc2)}
 .big{font-size:34px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.grid2>*,.grid3>*{min-width:0}
+.field input[type=time]{padding:0 6px;min-width:0}
 .stat{background:var(--card2);border-radius:12px;padding:10px 12px}
 .stat .v{font-size:20px;font-weight:700;font-family:var(--mono)}
 .stat .l{font-size:11px;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em}
@@ -723,12 +725,12 @@ function renderEat(){
  h+='<div class="card"><h2>Weight trend</h2><p class="sm" style="margin-top:6px">'+(ta.rate!=null?'<b class="mono">'+(ta.rate>0?'+':'')+ta.rate.toFixed(2)+' kg/week</b> · ':'')+esc(ta.text)+'</p>'+(ta.adj?'<button class="btn small ghost" data-act="adj" data-adj="'+ta.adj+'" style="margin-top:10px">Apply '+(ta.adj>0?'+':'')+ta.adj+' kcal</button>':'')+'</div>';
  var pt=E.plan(iso,state),pTrain=Object.assign({},pt,{training:true,time:pt.time||(p.sched&&p.sched[1])||'16:00',day:pt.day||'A'}),pRest=Object.assign({},pt,{training:false});
  h+=cookCard(p,mac,iso)+shakeCard();
- h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">2 meals + 2 shakes. Meal 1 fuels the session, the shake starts recovery, meal 2 is the big one.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
+ h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">Morning protein, lunch, a shake after training, dinner — and nothing in the last 3 hours before bed.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
  h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">Same protein. The shake moves to the afternoon. Creatine still.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
  h+='<details class="card fold"><summary><h2>Supplements — what earns its place</h2></summary><div class="stack sm" style="margin-top:8px">'+
   '<p><b>Creatine monohydrate, 5 g every day.</b> The best-evidenced supplement there is: more reps per set, faster gains. No loading phase needed; any time of day; mix into anything. Cheapest own-brand is identical to expensive ones.</p>'+
   '<p><b>Whey protein.</b> Just convenient milk protein — your two shakes replace two meals. Any plain whey works; price and taste decide.</p>'+
-  '<p><b>Casein / skyr before bed.</b> 30–40 g slow protein raises overnight muscle protein synthesis.</p>'+
+  '<p><b>Skyr in the morning.</b> 30–40 g protein with zero cooking. (Protein right before bed is a small bonus some people use; with 4 feeds a day you do not need it.)</p>'+
   '<p><b>Caffeine 1–3 mg/kg, 30–60 min pre-session</b> if you want it. A coffee. Not after 15:00 if sleep suffers — sleep beats caffeine.</p>'+
   '<p><b>Vitamin D 20–40 µg/day Oct–Apr</b> at Danish latitude. Fish oil only if you eat no oily fish.</p>'+
   '<p class="xs">Skip: BCAAs (pointless with enough protein), fat burners, test boosters, pre-workouts beyond caffeine.</p></div></details>';
@@ -759,8 +761,8 @@ function fmtG(g){return g>=1000?(Math.round(g/100)/10)+' kg':g+' g';}
 function shakeCard(){
  var S=E.SHAKES;
  return '<div class="card"><h2>Shakes</h2><p class="xs" style="margin:4px 0 8px">Two a day do the job of two extra meals with no cooking. Whey is plain milk protein — safe for healthy kidneys; total daily protein is what matters.</p>'+
-  '<div class="grid2"><div class="stat"><div class="v">'+S.post.P+' g</div><div class="l">after training</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">'+esc(S.post.how)+'</p></div>'+
-  '<div class="stat"><div class="v">'+S.evening.P+' g</div><div class="l">evening</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">'+esc(S.evening.how)+'</p></div></div>'+
+  '<div class="grid2"><div class="stat"><div class="v">'+S.post.P+' g</div><div class="l">after training / afternoon</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">'+esc(S.post.how)+'</p></div>'+
+  '<div class="stat"><div class="v">'+S.morning.P+' g</div><div class="l">morning</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">'+esc(S.morning.how)+'</p></div></div>'+
   '<p class="xs" style="margin-top:8px">Weekly: about 280 g whey (a 1 kg bag lasts ~3 weeks) and 7 tubs of skyr (400 g), or more whey instead.</p></div>';
 }
 
@@ -867,7 +869,7 @@ function renderProfile(){
   Object.keys(E.PRIORITY).map(function(k){return '<label class="check"><input type="checkbox" data-prio="'+k+'"'+(prio.indexOf(k)>=0?' checked':'')+'><span>'+E.PRIORITY[k].label+'</span></label>';}).join('')+'</div>';
  h+='<div class="card"><h2>Training days</h2><p class="xs" style="margin:4px 0 6px">Three days with a rest day between is the default. The start time anchors your meals.</p>'+
   [1,2,3,4,5,6,0].map(function(d){return '<div class="row" style="min-height:44px"><label class="check" style="flex:1"><input type="checkbox" data-day="'+d+'"'+(sched[d]!=null?' checked':'')+'><span>'+DOW[d]+'</span></label><input type="time" class="rir" style="width:110px" data-time="'+d+'" value="'+(sched[d]||'16:00')+'"'+(sched[d]!=null?'':' disabled')+'></div>';}).join('')+
-  '<div class="grid2"><label class="field"><span class="l">Wake</span><input type="time" data-p="wake" value="'+(p.wake||'06:30')+'"></label><label class="field"><span class="l">Bed</span><input type="time" data-p="bed" value="'+(p.bed||'22:30')+'"></label></div></div>';
+  '<div class="grid3"><label class="field"><span class="l">Wake</span><input type="time" data-p="wake" value="'+(p.wake||'06:30')+'"></label><label class="field"><span class="l">Lunch</span><input type="time" data-p="lunch" value="'+(p.lunch||'11:30')+'"></label><label class="field"><span class="l">Bed</span><input type="time" data-p="bed" value="'+(p.bed||'22:30')+'"></label></div><p class="xs">Meals are planned around these; nothing is scheduled in the last 3 hours before bed.</p></div>';
  var tm=themeMode();
  h+='<div class="card"><h2>Appearance</h2><p class="xs" style="margin:4px 0 10px">Auto follows your phone\'s light/dark setting.</p><div class="seg">'+[['auto','Auto'],['light','Light'],['dark','Dark']].map(function(o){return '<button data-themeset="'+o[0]+'"'+(tm===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div></div>';
  h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+$('#syncline').textContent+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+'</p><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button><button class="btn small ghost" data-act="forget">Change passphrase</button><button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div></div>';

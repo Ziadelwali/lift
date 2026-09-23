@@ -49,10 +49,12 @@ eq('week 2 hack squat kg', s4.ex[0].suggest.kg, 45);
 
 var tl = E.timeline(prof, E.plan('2026-09-21', st), m).map(function (s) { return s.time + ' ' + s.label; });
 console.log(tl.join('\n'));
-eq('timeline meal 1 at 13:30', tl.indexOf('13:30 Meal 1 (before training)') >= 0, true);
+eq('timeline morning protein 07:30', tl.indexOf('07:30 Morning protein') >= 0, true);
+eq('timeline lunch at 11:30', tl.indexOf('11:30 Meal 1 (lunch)') >= 0, true);
+eq('nothing after 19:30 (bed 22:30)', E.timeline(prof, E.plan('2026-09-21', st), m).concat(E.timeline(prof, E.plan('2026-09-22', st), m)).filter(function (x) { return x.t > E.hm('19:30'); }).length, 0);
 eq('timeline shake at 17:10', tl.indexOf('17:10 Protein shake') >= 0, true);
 eq('timeline meal 2 at 18:45', tl.indexOf('18:45 Meal 2 (dinner)') >= 0, true);
-eq('timeline 2 meals + 2 shakes', tl.filter(function (x) { return /Meal \d|shake|Evening protein/i.test(x); }).length, 4);
+eq('timeline 2 meals + 2 shakes', tl.filter(function (x) { return /Meal \d|shake|Morning protein/i.test(x); }).length, 4);
 
 // simple eating: every portion reaches the meal's protein; 3 cooks cover 12 of 14 meals a week
 var tgt = E.mealTargets(m);
