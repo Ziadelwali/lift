@@ -106,5 +106,15 @@ eq('all have plain names', allIds.filter(function (id) { return !E.LABEL[id]; })
 var warm = [E.WARMUP.general].concat(E.WARMUP.A, E.WARMUP.B);
 eq('warm-ups explain how', warm.filter(function (w) { return !(w.how && w.how.length); }).map(function (w) { return w.id; }), []);
 
+// weekly shopping: 3 cooks, 2 no-cook meals, daily shakes; family scales the pots only
+var wk = E.weekShopping(prof, '2026-09-23', m);
+eq('shop: 3 cooks, 2 no-cook', [wk.cooks.length, wk.nocook], [3, 2]);
+function qty(w, name) { var q = 0; w.groups.forEach(function (g) { g.items.forEach(function (it) { if (it.name === name) q += it.qty; }); }); return q; }
+eq('shop: whey for 7 shakes', qty(wk, 'whey protein'), 280);
+var fam = Object.assign({}, prof, { family: { adults: 1, kids: 1 } });
+eq('family servings 6.4', E.batchServings(fam), 6.4);
+var wkf = E.weekShopping(fam, '2026-09-23', m);
+eq('family: more meat, same whey', [qty(wkf, 'beef mince 5 % (raw)') > qty(wk, 'beef mince 5 % (raw)'), qty(wkf, 'whey protein')], [true, 280]);
+
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);

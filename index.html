@@ -224,7 +224,18 @@ svg.bm .m.p{fill:var(--acc)}svg.bm .m.s{fill:var(--acc);opacity:.45}
 .eatnext{border-color:var(--acc);box-shadow:var(--shadow),inset 0 0 0 1px var(--acc2)}
 .eatnext h2.what{font-size:21px;line-height:1.25;margin-top:6px}
 
+/* ---------- shopping list ---------- */
+.shopweek>summary h2{font-size:17px}
+.shopitem{display:grid;grid-template-columns:28px 92px 1fr;align-items:center;gap:6px;min-height:40px;border-top:1px solid var(--line);font-size:14.5px;cursor:pointer}
+.shopitem input{width:22px;height:22px;accent-color:var(--ok)}
+.shopitem .q{font-size:13px;color:var(--ink2)}
+.shopitem.got span{text-decoration:line-through;opacity:.5}
+
 /* ---------- cooking plan ---------- */
+.famrow{display:flex;align-items:center;justify-content:space-between;min-height:48px;border-top:1px solid var(--line);font-size:14.5px}
+.step.small{display:inline-flex;width:auto}
+.step.small b{min-width:34px;text-align:center}
+.step.small button{width:44px;height:40px}
 details.cook{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
 details.cook>summary b{font-size:15px}
 ul.shop,ol.steps{margin:6px 0 0;padding-left:20px;font-size:14px;color:var(--ink2)}
@@ -619,7 +630,9 @@ function cookTodayCard(iso,mac){
  return '<div class="card"><div class="row between"><h2>Cook today</h2><span class="chip warn">4 boxes</span></div><p class="sm" style="margin-top:4px"><b>'+esc(b.recipe.name)+'</b> — dinner tonight, lunch + dinner tomorrow, lunch the day after.</p>'+cookDetails(b.recipe,pt,false)+'</div>';
 }
 function cookDetails(recipe,pt,wrap){
- var body='<p class="eyebrow" style="margin-top:10px">Buy for 4 boxes</p><ul class="shop">'+pt.items.map(function(it){return '<li><b class="mono">'+(it.slices?it.slices*4+' slices':fmtG(it.g*4))+'</b> '+esc(it.name)+'</li>';}).join('')+'</ul>'+
+ var f=E.family(state.profile),fam=f.adults+f.kids;
+ var body='<p class="eyebrow" style="margin-top:10px">Buy for your 4 boxes'+(fam?' + '+famText(f)+' at dinner':'')+'</p><ul class="shop">'+E.batchBuy(recipe,pt,state.profile).map(function(it){return '<li><b class="mono">'+esc(E.fmtQty(it))+'</b> '+esc(it.name)+'</li>';}).join('')+'</ul>'+
+  (fam?'<p class="xs" style="margin-top:4px">Fill your 4 boxes first (one box = '+pt.items.map(function(it){return (it.slices?it.slices+' slice'+(it.slices>1?'s':''):it.g+' g')+' '+esc(it.name);}).join(', ')+'); the rest is for the family dinners.</p>':'')+
   '<details class="fold"><summary><span class="eyebrow">How to make it</span></summary><ol class="steps">'+recipe.steps.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol></details>';
  return body;
 }
@@ -759,7 +772,7 @@ function renderEat(){
   '<p class="xs" style="margin-top:10px">'+phaseTxt+' Expenditure ≈ '+mac.tdee+' kcal (BMR '+mac.bmr+' × activity)'+(p.kcalAdj?' · adjusted '+(p.kcalAdj>0?'+':'')+p.kcalAdj:'')+'. Protein '+(mac.bmi>=30?'1.6':'2.0')+' g/kg — the number that matters most; kcal second; carbs vs fat last.</p></div>';
  h+='<div class="card"><h2>Weight trend</h2><p class="sm" style="margin-top:6px">'+(ta.rate!=null?'<b class="mono">'+(ta.rate>0?'+':'')+ta.rate.toFixed(2)+' kg/week</b> · ':'')+esc(ta.text)+'</p>'+(ta.adj?'<button class="btn small ghost" data-act="adj" data-adj="'+ta.adj+'" style="margin-top:10px">Apply '+(ta.adj>0?'+':'')+ta.adj+' kcal</button>':'')+'</div>';
  var pt=E.plan(iso,state),pTrain=Object.assign({},pt,{training:true,time:pt.time||(p.sched&&p.sched[1])||'16:00',day:pt.day||'A'}),pRest=Object.assign({},pt,{training:false});
- h+=cookCard(p,mac,iso)+shakeCard();
+ h+=shopCard(p,mac,iso)+cookCard(p,mac,iso)+shakeCard();
  h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">Morning protein, lunch, a shake after training, dinner — and nothing in the last 3 hours before bed.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
  h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">Same protein. The shake moves to the afternoon. Creatine still.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
  h+='<details class="card fold"><summary><h2>Supplements — what earns its place</h2></summary><div class="stack sm" style="margin-top:8px">'+
@@ -784,12 +797,35 @@ function cookCard(p,mac,iso){
  for(var i=0;i<7;i++){var x=new Date(d);x.setDate(d.getDate()+i);var ix=E.isoDate(x),b=E.batchFor(p,ix,2);if(b&&b.cookToday)cooks.push({iso:ix,b:b});}
  return '<div class="card"><div class="row between"><h2>Cooking plan</h2><span class="chip acc">3× a week</span></div>'+
   '<p class="xs" style="margin:4px 0 8px">Each cook makes 4 boxes: dinner that day, lunch + dinner the next day, lunch the day after. That covers 12 of 14 meals; the other 2 are no-cook meals.</p>'+
-  '<p class="eyebrow" style="margin-top:6px">Cook on</p><div class="seg" style="margin-top:6px">'+[1,2,3,4,5,6,0].map(function(n){return '<button data-cookday="'+n+'"'+(days.indexOf(n)>=0?' class="on"':'')+'>'+DOW[n].slice(0,2)+'</button>';}).join('')+'</div>'+
+  '<p class="eyebrow" style="margin-top:6px">Cook on</p><div class="seg" style="margin-top:6px">'+[1,2,3,4,5,6,0].map(function(n){return '<button data-cookday="'+n+'"'+(days.indexOf(n)>=0?' class="on"':'')+'>'+DOW[n].slice(0,2)+'</button>';}).join('')+'</div>'+familyPicker()+
   cooks.map(function(c){var pt=E.portion(c.b.recipe,tgt.P,tgt.kcal);
    return '<details class="fold cook"><summary><div><b>'+niceDate(c.iso)+' · '+esc(c.b.recipe.name)+'</b><div class="xs">per box ~'+pt.P+' g protein · ~'+Math.round(pt.kcal/10)*10+' kcal</div></div></summary>'+
     cookDetails(c.b.recipe,pt)+
     '<p class="xs" style="margin-top:6px">One box = '+pt.items.map(function(it){return (it.slices?it.slices+' slice'+(it.slices>1?'s':''):it.g+' g')+' '+esc(it.name);}).join(', ')+'.</p></details>';}).join('')+
   '<details class="fold cook"><summary><div><b>No-cook meals</b><div class="xs">for the 2 meals without a box, or a busy day</div></div></summary><ul class="shop">'+E.NOCOOK.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul><p class="xs" style="margin-top:6px">Add fruit or an extra slice of bread if you are still hungry.</p></details></div>';
+}
+/* Shopping list for the next 7 days, tick items off in the shop; ticks are kept per week. */
+function shopCard(p,mac,iso){
+ var w=E.weekShopping(p,iso,mac),ticks=shopTicks(),total=0,got=0;
+ w.groups.forEach(function(g){g.items.forEach(function(it){total++;if(ticks[it.key])got++;});});
+ return '<details class="card fold shopweek"'+(shopCard.open?' open':'')+'><summary><div><h2>Shopping list · 7 days</h2><div class="xs">'+niceDate(w.from)+' – '+niceDate(w.to)+' · '+w.cooks.length+' cooks'+(E.family(p).adults+E.family(p).kids?' (incl. '+famText(E.family(p))+' at dinner)':'')+', '+w.nocook+' no-cook meals, shakes · '+got+' of '+total+' in the basket</div></div></summary>'+
+  w.groups.map(function(g){return '<p class="eyebrow" style="margin-top:12px">'+esc(g.label)+'</p>'+g.items.map(function(it){var on=!!ticks[it.key];
+   return '<label class="shopitem'+(on?' got':'')+'"><input type="checkbox" data-shop="'+esc(it.key)+'"'+(on?' checked':'')+'><span class="q mono">'+esc(E.fmtQty(it))+'</span><span>'+esc(it.name)+'</span></label>';}).join('');}).join('')+
+  '<div class="row" style="margin-top:12px;gap:8px"><button class="btn small ghost" data-act="copyshop">Copy list</button><button class="btn small ghost" data-act="clearshop">Untick all</button></div>'+
+  '<p class="xs" style="margin-top:8px">Covers: '+w.cooks.map(function(c){return niceDate(c.date)+' '+esc(c.name);}).join(' · ')+'. Check the cupboard for oil and spices first.</p></details>';
+}
+/* Ticks live for 7 days from the first tick, then start fresh. */
+function shopTicks(){var s=state.settings.shop,d=new Date();d.setDate(d.getDate()-6);return s&&s.since&&s.since>=E.isoDate(d)?(s.ticks||{}):{};}
+function shopText(){
+ var w=E.weekShopping(state.profile,todayISO(),E.macros(state.profile));
+ return 'Shopping '+niceDate(w.from)+' – '+niceDate(w.to)+'\n'+w.groups.map(function(g){return '\n'+g.label+'\n'+g.items.map(function(it){return '- '+E.fmtQty(it)+' '+it.name;}).join('\n');}).join('\n');
+}
+function famText(f){var a=[];if(f.adults)a.push(f.adults+' adult'+(f.adults>1?'s':''));if(f.kids)a.push(f.kids+' child'+(f.kids>1?'ren':''));return a.join(' + ');}
+function familyPicker(){
+ var f=E.family(state.profile);
+ function step(k,label,max){return '<div class="famrow"><span>'+label+'</span><span class="step small"><button data-fam="'+k+':-1" aria-label="fewer">−</button><b class="mono">'+f[k]+'</b><button data-fam="'+k+':1" aria-label="more">+</button></span></div>';}
+ return '<p class="eyebrow" style="margin-top:12px">Also eating the cooked dinners</p>'+step('adults','Adults (e.g. your wife)',3)+step('kids','Children',4)+
+  '<p class="xs" style="margin-top:4px">Their plates are estimated smaller than yours (adult ~70 %, child ~50 %). Your own boxes stay the same.</p>';
 }
 function fmtG(g){return g>=1000?(Math.round(g/100)/10)+' kg':g+' g';}
 function shakeCard(){
@@ -913,7 +949,8 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen],[data-cookday],[data-mealdone]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen],[data-cookday],[data-mealdone],[data-fam]');if(!b)return;
+ if(b.dataset.fam){var fa=b.dataset.fam.split(':'),fm=E.family(state.profile);fm[fa[0]]=Math.max(0,Math.min(fa[0]==='adults'?3:4,fm[fa[0]]+(+fa[1])));state.profile.family=fm;save();var fy=scrollY;renderEat();scrollTo(0,fy);return;}
  if(b.dataset.mealdone){var di=todayISO();state.daily[di]=state.daily[di]||{};state.daily[di].meals=state.daily[di].meals||{};state.daily[di].meals[b.dataset.mealdone]=1;save();renderToday();toast('Nice — ticked off');return;}
  if(b.dataset.cookday){var cd=E.cookDays(state.profile).slice(),n=+b.dataset.cookday,ci=cd.indexOf(n);
   if(ci>=0)cd.splice(ci,1);else{if(cd.length>=3){toast('Three cook days — tap one off first');return;}cd.push(n);}
@@ -950,6 +987,8 @@ document.addEventListener('click',function(ev){
   if(E.recentStalls(state,state.profile,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;toast('Two lifts stalled — next 3 sessions are a deload');}
   save();stopRest();keepAwake(false);show('today');return;}
  if(act==='abandon'){if(!ses)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[todayISO()];save();stopRest();keepAwake(false);renderTrain();return;}
+ if(act==='copyshop'){var txt=shopText();(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){toast('List copied — paste it in Notes or a message');},function(){prompt('Copy the list:',txt);});return;}
+ if(act==='clearshop'){state.settings.shop={since:todayISO(),ticks:{}};save();shopCard.open=true;renderEat();return;}
  if(act==='adj'){state.profile.kcalAdj=(state.profile.kcalAdj||0)+ +b.dataset.adj;save();renderEat();toast('Calories adjusted');return;}
  if(act==='update'){if(!('serviceWorker' in navigator)){location.reload();return;}toast('Checking…');navigator.serviceWorker.getRegistration().then(function(r){return r?r.update():null;}).then(function(){setTimeout(function(){location.reload();},1500);});return;}
  if(act==='forget'){try{localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}
@@ -972,6 +1011,9 @@ document.addEventListener('change',function(ev){
  if(t.dataset.warm){ses.warm=ses.warm||{};ses.warm[t.dataset.warm]=t.checked?1:0;save();return;}
  if(t.dataset.daily){var iso=todayISO();var dv=num(t.value);if(t.dataset.daily==='weight'){if(dv!=null){state.weight[iso]=dv;state.profile.weight=dv;}else delete state.weight[iso];}
   else{state.daily[iso]=state.daily[iso]||{};state.daily[iso][t.dataset.daily]=dv;}save();if(t.dataset.daily==='waist'&&view==='progress'){var sy=scrollY;renderProgress();scrollTo(0,sy);}return;}
+ if(t.dataset.shop){var cur=shopTicks();if(!Object.keys(cur).length)state.settings.shop={since:todayISO(),ticks:{}};
+  var sw=state.settings.shop.ticks;if(t.checked)sw[t.dataset.shop]=1;else delete sw[t.dataset.shop];
+  save();shopCard.open=true;var sy=scrollY;renderEat();scrollTo(0,sy);return;}
  if(t.dataset.meal){var iso2=todayISO();state.daily[iso2]=state.daily[iso2]||{};state.daily[iso2].meals=state.daily[iso2].meals||{};state.daily[iso2].meals[t.dataset.meal]=t.checked?1:0;save();renderToday();return;}
  if(t.dataset.p){var v=t.value;if(['age','height','weight','goal1','goal2'].indexOf(t.dataset.p)>=0)v=num(v);state.profile[t.dataset.p]=v;save();return;}
  if(t.dataset.prio){var list=(state.profile.priority||['shoulders','back']).slice();if(t.checked){if(list.length>=2){t.checked=false;toast('Two at most');return;}list.push(t.dataset.prio);}else list=list.filter(function(x){return x!==t.dataset.prio;});state.profile.priority=list;save();return;}
