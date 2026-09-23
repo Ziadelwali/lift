@@ -201,19 +201,27 @@
     arms: { label: 'Arms', muscles: ['biceps', 'triceps'] }
   };
 
+  var SQUAT_HOW = ['Feet shoulder-width apart, arms straight out in front.', 'Sit down slowly as if onto a low chair, chest up, heels on the floor.', 'Stand back up. 10 slow ones.'];
   var WARMUP = {
-    general: { id: 'Bicycling_Stationary', label: 'Easy bike or rower', secs: 210, note: 'Conversational pace. Just warm, not tired.' },
+    general: { id: 'Bicycling_Stationary', label: 'Easy bike or rower', secs: 210, note: 'Conversational pace. Just warm, not tired.',
+      how: ['Sit on an exercise bike (or the rowing machine).', 'Pedal easily, slow enough that you could talk.', 'Aim to feel warm, not tired.'] },
     A: [
-      { id: 'Standing_Hip_Circles', label: 'Hip circles', reps: '8 each way, each leg' },
-      { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow' },
-      { id: 'Reverse_Flyes', label: 'Light dumbbell reverse fly', reps: '15' },
-      { id: 'Arm_Circles', label: 'Arm circles', reps: '10 each way' }
+      { id: 'Standing_Hip_Circles', label: 'Hip circles', reps: '8 each way, each leg',
+        how: ['Stand on one leg and hold on to something.', 'Lift the other knee up to hip height.', 'Draw big, slow circles with that knee, out to the side and back. 8 each way, then switch legs.'] },
+      { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow', how: SQUAT_HOW },
+      { id: 'Reverse_Flyes', label: 'Light dumbbell reverse fly', reps: '15',
+        how: ['Take very light dumbbells (2–5 kg).', 'Lie chest-down on a bench tilted up, arms hanging down.', 'Lift the arms out to the sides until level with your body, squeeze the shoulder blades together, lower slowly.'] },
+      { id: 'Arm_Circles', label: 'Arm circles', reps: '10 each way',
+        how: ['Stand tall, arms straight out to the sides at shoulder height.', 'Draw small circles with your hands, slowly getting bigger.', '10 circles forwards, then 10 backwards.'] }
     ],
     B: [
-      { id: 'Cat_Stretch', label: 'Cat–cow', reps: '8 slow' },
-      { id: 'Single_Leg_Glute_Bridge', label: 'Single-leg glute bridge', reps: '8 each side' },
-      { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow' },
-      { id: 'External_Rotation', label: 'Light dumbbell external rotation', reps: '12 each arm' }
+      { id: 'Cat_Stretch', label: 'Cat–cow', reps: '8 slow',
+        how: ['Get on your hands and knees (use a mat).', 'Round your back up toward the ceiling and let your head drop (the cat).', 'Then let your belly sink and lift your head (the cow). Move slowly between the two, 8 times.'] },
+      { id: 'Single_Leg_Glute_Bridge', label: 'Single-leg glute bridge', reps: '8 each side',
+        how: ['Lie on your back, knees bent, feet flat on the floor.', 'Pull one knee toward your chest and keep it there.', 'Push through the heel of the other foot and lift your hips up, squeeze your buttocks, lower slowly. 8, then switch sides.'] },
+      { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow', how: SQUAT_HOW },
+      { id: 'External_Rotation', label: 'Light dumbbell external rotation', reps: '12 each arm',
+        how: ['Lie on your side on a bench, a very light dumbbell (1–3 kg) in your top hand.', 'Bend that elbow to 90° and keep it glued to your side, forearm across your belly.', 'Rotate the forearm up toward the ceiling, keep the elbow in place, lower slowly. 12, then the other arm.'] }
     ],
     ramp: [[0.5, 8], [0.7, 5], [0.85, 2]]   // fraction of working load × reps, first compound only
   };
