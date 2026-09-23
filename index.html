@@ -245,6 +245,27 @@ ul.shop li,ol.steps li{margin-bottom:4px}
 .lasttime{margin-top:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink3)}
 .lasttime b{font-size:15px;color:var(--ink)}
 
+/* ---------- week view ---------- */
+.wkstrip{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.wkday{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0 5px;border-radius:12px;background:var(--card2);min-height:70px}
+.wkday .dn{font-size:10.5px;color:var(--ink3);text-transform:uppercase;letter-spacing:.06em}
+.wkday b{font-size:17px;font-weight:600}
+.wkday.today{box-shadow:inset 0 0 0 1.5px var(--acc)}
+.wkday.on{background:var(--acc);color:var(--on-acc)}.wkday.on .dn{color:inherit;opacity:.8}
+.wkday.past{opacity:.55}
+.tags{display:flex;gap:2px;min-height:18px;align-items:center}
+.tg{font-style:normal;font-size:10px;line-height:1;padding:3px 5px;border-radius:6px}
+.tg.train{background:var(--acc2);color:var(--acc-ink);font-family:var(--mono);font-weight:600}
+.wkday.on .tg.train{background:rgba(255,255,255,.25);color:inherit}
+.tg.cook{font-size:12px;padding:0}
+.wknav{width:36px;height:36px;border-radius:50%;background:var(--card2);font-size:20px;color:var(--ink2)}
+.wknav:disabled{opacity:.35}
+.wkdetail{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.wklist{list-style:none;margin:8px 0 0;padding:0}
+.wklist li{display:grid;grid-template-columns:50px 1fr;gap:8px;padding:5px 0;font-size:14px;border-top:1px solid var(--line)}
+.wklist li:first-child{border-top:0}
+.wklist .mono{color:var(--ink3);font-size:13px}
+
 /* ---------- warm-up moves ---------- */
 .wu{display:flex;align-items:center;gap:4px;min-height:62px}
 .wuwrap+.wuwrap{border-top:1px solid var(--line)}
@@ -487,7 +508,7 @@ function remindersCard(){
  var ev=E.reminderEvents(state.profile,mac,todayISO(),true),DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
  return '<div class="card"><h2>Reminders</h2><p class="sm" style="margin-top:6px">Put your training and meal times in your phone\'s calendar — it reminds you even when Lift is closed.</p>'+
   '<div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn small" data-act="ics" data-meals="1">Training + meals</button><button class="btn small ghost" data-act="ics" data-meals="0">Training only</button></div>'+
-  '<p class="xs" style="margin-top:8px">Downloads one file. Samsung phones: tap it → Samsung Calendar → Save. If it opens nothing, use the Google Calendar links below (one tap each).</p>'+
+  '<p class="xs" style="margin-top:8px">Downloads one file. Tip: put it in its own calendar called “Lift”, so you can hide or delete all reminders in one go — Google: calendar.google.com → Settings → Create new calendar “Lift” → Import the file into it. Samsung Calendar: create a “Lift” calendar and pick it when saving. No luck? Use the Google Calendar links below (one tap each).</p>'+
   '<details class="fold" style="margin-top:8px"><summary><span class="eyebrow">Add one by one to Google Calendar</span></summary><ul class="shop">'+
   ev.map(function(g){return '<li><a href="'+E.googleCalLink(g)+'" target="_blank" rel="noopener">'+esc(g.time+' '+g.title.replace('Lift: ',''))+'</a> <span class="xs">'+g.days.map(function(d){return DN[d];}).join(' ')+'</span></li>';}).join('')+'</ul></details>'+
   '<p class="xs" style="margin-top:6px">Changed your training days or times? Add them again (and delete the old ones in the calendar).</p></div>';
@@ -619,6 +640,7 @@ function renderToday(){
  }else{
   h+='<div class="card"><div class="hero"><span class="num">Rest</span><div class="cap"><b>Recovery day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+nextSessionLine(iso)+'</div>';
  }
+ h+=weekCard(mac);
  h+=dailyCard(iso,mac);
  var sl=E.timeline(state.profile,p,mac).filter(function(s){return s.key!=='train';}),ml=(state.daily[iso]||{}).meals||{},nd=sl.filter(function(s){return ml[s.key];}).length;
  h+='<div class="card"><div class="row between"><h2>Eating today</h2><span class="chip'+(nd===sl.length?' acc':'')+'">'+nd+' of '+sl.length+' done</span></div><p class="xs" style="margin:2px 0 4px">'+(mac?mac.kcal+' kcal · '+mac.protein+' g protein in total. Tap a row when you have had it.':'set up your profile')+'</p>'+timelineHTML(iso,p,mac,true,true)+'</div>';
@@ -635,6 +657,36 @@ function clockTick(force){
 }
 setInterval(clockTick,60000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden)clockTick(true);});
+/* Week view: 7 days at a glance (training, cook days), tap a day for its plan. Up to 4 weeks ahead. */
+var wkv={off:0,sel:null};
+function mondayOf(iso){var d=E.parseISO(iso),x=(d.getDay()+6)%7;d.setDate(d.getDate()-x);return d;}
+function dayPlan(iso){
+ var today=todayISO(),p=E.plan(iso,state),ses=state.sessions[iso];
+ if(iso>today&&p.training){   // which session (A/B) it will be: count scheduled sessions from today
+  var k=0,d=E.parseISO(today);var t=state.sessions[today];
+  for(;E.isoDate(d)<iso;d.setDate(d.getDate()+1)){var pi=E.plan(E.isoDate(d),state);if(pi.training&&!(E.isoDate(d)===today&&t&&t.done))k++;}
+  p=Object.assign({},p,{day:(p.n+k)%2===0?'A':'B'});
+ }
+ return {p:p,done:!!(ses&&ses.done),cook:!!(function(){var b=E.batchFor(state.profile,iso,2);return b&&b.cookToday;})()};
+}
+function weekCard(mac){
+ if(!mac)return '';
+ var today=todayISO(),m=mondayOf(today);m.setDate(m.getDate()+wkv.off*7);
+ var days=[];for(var i=0;i<7;i++){var d=new Date(m);d.setDate(m.getDate()+i);days.push(E.isoDate(d));}
+ var sel=wkv.sel&&days.indexOf(wkv.sel)>=0?wkv.sel:(days.indexOf(today)>=0?today:days[0]);
+ var DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+ var strip=days.map(function(di){var dp=dayPlan(di),d=E.parseISO(di);
+  return '<button class="wkday'+(di===sel?' on':'')+(di<today?' past':'')+(di===today?' today':'')+'" data-wkday="'+di+'"><span class="dn">'+DN[d.getDay()]+'</span><b>'+d.getDate()+'</b>'+
+   '<span class="tags">'+(dp.p.training?'<i class="tg train" title="training">'+(dp.done?'✓':dp.p.day)+'</i>':'')+(dp.cook?'<i class="tg cook" title="cook">🍲</i>':'')+'</span></button>';}).join('');
+ var dp=dayPlan(sel),slots=E.timeline(state.profile,dp.p,mac).filter(function(s){return s.key!=='cr';});
+ var head=dp.p.training?(dp.done?'Session '+dp.p.day+' done ✓':'Training · session '+dp.p.day+' at '+dp.p.time):'Rest day';
+ var ws=niceDate(days[0])+' – '+niceDate(days[6]);
+ return '<div class="card weekcard"><div class="row between"><h2>Week ahead</h2><div class="row" style="gap:4px"><button class="wknav" data-wknav="-1"'+(wkv.off<=0?' disabled':'')+' aria-label="Previous week">‹</button><span class="xs mono">'+(wkv.off===0?'this week':wkv.off===1?'next week':'in '+wkv.off+' weeks')+'</span><button class="wknav" data-wknav="1"'+(wkv.off>=3?' disabled':'')+' aria-label="Next week">›</button></div></div>'+
+  '<p class="xs" style="margin:2px 0 8px">'+ws+' · <i class="tg train">A</i> training · 🍲 cook day</p>'+
+  '<div class="wkstrip">'+strip+'</div>'+
+  '<div class="wkdetail"><p class="eyebrow">'+niceDate(sel)+(sel===today?' · today':'')+'</p><h3 style="margin-top:4px">'+head+(dp.cook?' · <span style="color:var(--warn)">cook 4 boxes</span>':'')+'</h3>'+
+  '<ul class="wklist">'+slots.map(function(s){return '<li><span class="mono">'+s.time+'</span><span>'+esc(s.what==='No-cook meal'?'No-cook: '+s.detail:(s.what||s.label))+'</span></li>';}).join('')+'</ul></div></div>';
+}
 function nextSessionLine(iso){
  var d=E.parseISO(iso);for(var i=1;i<=7;i++){d.setDate(d.getDate()+1);var n=E.isoDate(d),pp=E.plan(n,state);if(pp.training)return '<p class="xs" style="margin-top:8px">Next: session '+pp.day+' · '+niceDate(n)+' '+pp.time+'</p>';}
  return '';
@@ -1004,7 +1056,9 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen],[data-cookday],[data-mealdone],[data-fam]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen],[data-cookday],[data-mealdone],[data-fam],[data-wkday],[data-wknav]');if(!b)return;
+ if(b.dataset.wkday){wkv.sel=b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
+ if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
  if(b.dataset.fam){var fa=b.dataset.fam.split(':'),fm=E.family(state.profile);fm[fa[0]]=Math.max(0,Math.min(fa[0]==='adults'?3:4,fm[fa[0]]+(+fa[1])));state.profile.family=fm;save();var fy=scrollY;renderEat();scrollTo(0,fy);return;}
  if(b.dataset.mealdone){var di=todayISO();state.daily[di]=state.daily[di]||{};state.daily[di].meals=state.daily[di].meals||{};state.daily[di].meals[b.dataset.mealdone]=1;save();renderToday();toast('Nice — ticked off');return;}
  if(b.dataset.cookday){var cd=E.cookDays(state.profile).slice(),n=+b.dataset.cookday,ci=cd.indexOf(n);
