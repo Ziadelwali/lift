@@ -242,6 +242,9 @@ ul.shop,ol.steps{margin:6px 0 0;padding-left:20px;font-size:14px;color:var(--ink
 ul.shop li,ol.steps li{margin-bottom:4px}
 .seg button[data-cookday]{min-height:40px;font-size:13px}
 
+.lasttime{margin-top:10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--ink3)}
+.lasttime b{font-size:15px;color:var(--ink)}
+
 /* ---------- warm-up moves ---------- */
 .wu{display:flex;align-items:center;gap:4px;min-height:62px}
 .wuwrap+.wuwrap{border-top:1px solid var(--line)}
@@ -750,6 +753,7 @@ function exBody(e,ei,ses){
  var inf=E.info(e.id)||cfg;
  return '<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+
   '<details style="margin-top:6px"><summary>Step by step</summary><ol>'+ex.instructions.map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol></details>'+
+  lastTime(e.id)+
   '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?sg.kg+' kg × '+sg.reps:'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
   '<div class="sethead"><span></span><span>kg</span><span>reps</span><span></span></div>'+
   e.sets.map(function(s,si){
@@ -768,6 +772,14 @@ function refreshCard(ei){
  if(!collapsed&&media){el.querySelector('.head').outerHTML=exHead(e,ei,ses);el.querySelector('.body').innerHTML=exBody(e,ei,ses);}
  else el.innerHTML=exInner(e,ei,ses,collapsed);
  updateTrack();
+}
+/* "Last time" line: what you did the previous time you did this exercise. */
+function lastTime(id){
+ var hs=E.history(state,id),l=hs[hs.length-1];
+ if(!l)return '<p class="lasttime">First time — no history yet.</p>';
+ var same=l.sets.every(function(s){return s.kg===l.sets[0].kg;});
+ var txt=same?l.sets[0].kg+' kg × '+l.sets.map(function(s){return s.reps;}).join(', '):l.sets.map(function(s){return s.kg+'×'+s.reps;}).join(' · ');
+ return '<p class="lasttime"><span>Last time · '+niceDate(l.date)+'</span><b class="mono">'+txt+'</b></p>';
 }
 function num(v){v=String(v==null?'':v).trim().replace(',','.');return v===''||isNaN(+v)?null:+v;}
 function stepper(kind,ei,si,val,inc){
