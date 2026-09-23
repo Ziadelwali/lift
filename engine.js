@@ -23,7 +23,8 @@
     activity: { desk: 1.35, feet: 1.5, active: 1.65 },
     trendTarget: { lean: [-0.6, -0.3], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] }, // kg/week
     creatineG: 5, presleepProteinG: 35,
-    volumeBand: { normal: [10, 16], priority: [14, 20] }
+    volumeBand: { normal: [10, 16], priority: [14, 20] },
+    dumbbellMaxKg: 30 // heaviest dumbbell at B1973 Fitness (per hand)
   };
 
   /* ---------- program ---------- */
@@ -40,11 +41,11 @@
       { id: 'Wide-Grip_Lat_Pulldown', sets: 3, reps: [8, 12], inc: 2.5, rest: 120,
         where: 'Nautilus lat pulldown: seat, knee pad and two separate handles overhead.',
         tip: 'Lean back slightly, pull the handles down to the upper chest with the elbows, pause, control the way up.',
-        alts: ['Close-Grip_Front_Lat_Pulldown', 'Chin-Up'] },
+        alts: ['Close-Grip_Front_Lat_Pulldown'] },
       { id: 'Seated_Leg_Curl', sets: 3, reps: [10, 15], inc: 5, rest: 90,
         where: 'Machine where you sit and curl a pad down with the backs of your legs.',
         tip: 'Hips pinned by the lap pad. Curl all the way, then control the return for 2–3 seconds.',
-        alts: ['Romanian_Deadlift'] },
+        alts: ['Smith_Machine_Stiff-Legged_Deadlift'] },
       { id: 'Dumbbell_Shoulder_Press', sets: 3, reps: [8, 12], inc: 2, rest: 120,
         where: 'Upright bench (back at ~85°), dumbbells at shoulder height.',
         tip: 'Start with dumbbells beside the ears, press up until arms are nearly straight. Ribs down, no arching.',
@@ -64,7 +65,7 @@
       { id: 'Ab_Crunch_Machine', sets: 2, reps: [10, 15], inc: 2.5, rest: 60,
         where: 'Nautilus abdominal crunch machine.',
         tip: 'Crunch the ribs toward the hips, let the abs do it, not the arms. Slow on the way back.',
-        alts: ['Cable_Crunch', 'Hanging_Leg_Raise', 'Plank'] }
+        alts: ['Cable_Crunch', 'Plank'] }
     ],
     B: [
       { id: 'Smith_Machine_Squat', sets: 3, reps: [6, 10], inc: 5, rest: 150, ramp: true,
@@ -74,7 +75,7 @@
       { id: 'Stiff-Legged_Dumbbell_Deadlift', sets: 3, reps: [8, 12], inc: 2, rest: 150, ramp: true,
         where: 'Two dumbbells, standing. This is the Romanian deadlift done with dumbbells.',
         tip: 'Soft knees, push the hips back, dumbbells slide down the thighs until you feel the hamstrings stretch. Flat back always.',
-        alts: ['Romanian_Deadlift'] },
+        alts: ['Smith_Machine_Stiff-Legged_Deadlift'] },
       { id: 'Incline_Dumbbell_Press', sets: 3, reps: [8, 12], inc: 2, rest: 150,
         where: 'Bench set to ~30° incline, dumbbells.',
         tip: 'Same as flat press but the bench is tilted — upper chest does more. Lower to the upper chest.',
@@ -94,7 +95,7 @@
       { id: 'Dumbbell_Bicep_Curl', sets: 2, reps: [10, 15], inc: 1, rest: 75,
         where: 'Dumbbells, standing or seated.',
         tip: 'Elbows stay at the sides, curl all the way up, lower for 2–3 seconds.',
-        alts: ['Hammer_Curls', 'Preacher_Curl'] },
+        alts: ['Hammer_Curls', 'Standing_Biceps_Cable_Curl'] },
       { id: 'Calf_Press_On_The_Leg_Press_Machine', sets: 3, reps: [10, 15], inc: 5, rest: 75,
         where: 'Leg press, only the balls of your feet on the bottom edge of the footplate.',
         tip: 'Legs almost straight, let the heels drop for a full stretch (pause 1 s), push up onto the toes. No bouncing.',
@@ -105,6 +106,11 @@
         alts: ['Cable_Rear_Delt_Fly', 'Reverse_Flyes'] }
     ]
   };
+
+  /* Exercises loaded with dumbbells: capped at RULES.dumbbellMaxKg. */
+  var DUMBBELL = ['Dumbbell_Bench_Press', 'Incline_Dumbbell_Press', 'Dumbbell_Shoulder_Press', 'Side_Lateral_Raise',
+    'Seated_Side_Lateral_Raise', 'Stiff-Legged_Dumbbell_Deadlift', 'One-Arm_Dumbbell_Row', 'Dumbbell_Incline_Row',
+    'Dumbbell_Bicep_Curl', 'Hammer_Curls', 'Goblet_Squat', 'Reverse_Flyes', 'Standing_Dumbbell_Calf_Raise'];
 
   /* Muscles each priority tag covers (free-exercise-db names). */
   var PRIORITY = {
@@ -189,6 +195,19 @@
     if (opts.deload) {
       return { kg: roundTo(kg * RULES.deloadLoad, cfg.inc), reps: lo, sets: Math.max(1, Math.round(sets * RULES.deloadSets)),
         state: 'deload', note: 'Deload: lighter, fewer sets, stop with 3–4 reps in reserve. Recovery is the point.' };
+    }
+    var cap = DUMBBELL.indexOf(cfg.id) !== -1 ? RULES.dumbbellMaxKg : null;
+    if (allTop && cap && kg + cfg.inc > cap) {
+      // Out of heavier dumbbells: keep the heaviest pair, earn progress with reps, then move to a machine.
+      var alt = (cfg.alts || []).filter(function (a) { return DUMBBELL.indexOf(a) === -1; })[0];
+      var swapTo = alt ? ' Swap to ' + alt.replace(/_/g, ' ') + ' to keep adding weight.' : '';
+      var more = Math.min(hi + 5, minReps + 1);
+      if (minReps >= hi + 5) {
+        return { kg: cap, reps: hi + 5, sets: sets, state: 'maxed',
+          note: cap + ' kg is the heaviest dumbbell here and you own it.' + (swapTo || ' Slow the lowering to 3–4 s to keep it hard.') };
+      }
+      return { kg: cap, reps: more, sets: sets, state: 'maxed',
+        note: cap + ' kg is the heaviest dumbbell here. Stay at ' + cap + ' kg and go for ' + more + ' reps, lowering in 3 s.' + swapTo };
     }
     if (allTop) {
       return { kg: roundTo(kg + cfg.inc, cfg.inc), reps: lo, sets: sets, state: 'up',
@@ -423,7 +442,7 @@
 
   return {
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
-    RULES: RULES, PROGRAM: PROGRAM, PRIORITY: PRIORITY, WARMUP: WARMUP, FOODS: FOODS,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, PRIORITY: PRIORITY, WARMUP: WARMUP, FOODS: FOODS,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, recentStalls: recentStalls, plan: plan, buildSession: buildSession, rampSets: rampSets,
