@@ -22,7 +22,7 @@
     phase: { lean: 0.85, maintain: 1.0, bulk: 1.10 },
     activity: { desk: 1.35, feet: 1.5, active: 1.65 },
     trendTarget: { lean: [-0.6, -0.3], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] }, // kg/week
-    creatineG: 5, presleepProteinG: 35,
+    creatineG: 5,
     volumeBand: { normal: [10, 16], priority: [14, 20] },
     dumbbellMaxKg: 30 // heaviest dumbbell at B1973 Fitness (per hand)
   };
@@ -385,48 +385,115 @@
     return { bmr: Math.round(bmr), tdee: Math.round(tdee), kcal: kcal, protein: protein, fat: fat, carbs: carbs, phase: phase, bmi: bmi(p) };
   }
 
-  var FOODS = {
-    breakfast: ['Skyr 300 g + oats 60 g + berries', '4 eggs + 2 slices rugbrød + tomato', 'Protein oats: oats 70 g, whey 30 g, banana'],
-    snack: ['Whey shake 30 g + a piece of fruit', 'Skyr 250 g + nuts 20 g', 'Cottage cheese 200 g + rugbrød'],
-    pre: ['Chicken 150 g + rice (80 g dry) + veg', 'Rugbrød 3 slices + tuna + cottage cheese', 'Pasta 90 g dry + lean mince 150 g'],
-    post: ['Lean beef or chicken 200 g + potatoes 300 g + veg', 'Salmon 180 g + rice + broccoli', 'Big wrap: chicken 180 g, rice, beans, salsa'],
-    dinner: ['Chicken 180 g + potatoes + big salad', 'Fish 200 g + rice + veg', 'Lean mince 180 g + wholegrain pasta + veg'],
-    presleep: ['Skyr or quark 300 g', 'Casein shake 35 g', 'Cottage cheese 250 g']
+  /* ---------- simple eating: 2 meals + 2 shakes, cook 3× a week ----------
+     Total daily protein matters most; 4 feeds (2 meals + 2 shakes) covers the
+     "spread it out" bonus without cooking 4 times. Each cook makes 4 portions:
+     dinner that day, lunch + dinner the next day, lunch the day after. Three cooks
+     = 12 of 14 weekly meals; the 2 left are no-cook meals. */
+  var SHAKES = {
+    post: { label: 'Protein shake', P: 50, kcal: 420, how: 'Whey 40 g + 500 ml skimmed milk + 1 banana. Right after training (or mid-afternoon on rest days).' },
+    evening: { label: 'Evening protein', P: 40, kcal: 250, how: 'Skyr 400 g — or whey 30 g in 300 ml milk. Slow protein for the night.' }
   };
+  /* per 100 g raw/dry */
+  var FOOD = {
+    chicken: { name: 'chicken breast (raw)', P: 23, kcal: 110 },
+    beef: { name: 'beef mince 5 % (raw)', P: 21, kcal: 125 },
+    pork: { name: 'pork tenderloin (raw)', P: 22, kcal: 110 },
+    salmon: { name: 'salmon fillet (raw)', P: 20, kcal: 200 },
+    rice: { name: 'rice (dry)', P: 7, kcal: 360 },
+    potato: { name: 'potatoes (raw)', P: 2, kcal: 77 },
+    pasta: { name: 'wholegrain pasta (dry)', P: 13, kcal: 350 }
+  };
+  var RECIPES = [
+    { key: 'chicken-rice', name: 'Chicken, rice & wok veg', protein: 'chicken', carb: 'rice',
+      extra: { name: 'frozen wok vegetables', g: 250, P: 5, kcal: 75 }, oil: 10,
+      steps: ['Rice: boil all of it in one big pot.', 'Chicken: cut in strips, oven tray at 200 °C for 20–25 min with salt, pepper, paprika.', 'Veg: fry in a pan 8 min with a little oil and soy sauce.', 'Split into 4 boxes, fridge.'] },
+    { key: 'chili', name: 'Chili con carne with rice', protein: 'beef', carb: 'rice',
+      extra: { name: 'beans, chopped tomatoes, onion & pepper', g: 250, P: 7, kcal: 110 }, oil: 5,
+      steps: ['Fry onion and pepper, add the mince and brown it.', 'Add 1 can kidney beans, 2 cans chopped tomatoes, chili spice; simmer 20 min.', 'Rice in one big pot.', 'Split into 4 boxes, fridge.'] },
+    { key: 'pork-potato', name: 'Pork tenderloin, potatoes & greens', protein: 'pork', carb: 'potato',
+      extra: { name: 'broccoli or green beans', g: 250, P: 7, kcal: 80 }, oil: 10,
+      steps: ['Potatoes in wedges on an oven tray, 200 °C for 35 min with oil and salt.', 'Pork: whole in the oven for the last 20 min (or pan-fry in slices).', 'Greens: boil or steam 5 min.', 'Slice the pork, split into 4 boxes.'] },
+    { key: 'salmon-potato', name: 'Salmon, potatoes & broccoli', protein: 'salmon', carb: 'potato',
+      extra: { name: 'broccoli', g: 250, P: 7, kcal: 85 }, oil: 0,
+      steps: ['Potatoes in wedges, oven 200 °C for 35 min.', 'Salmon on the same tray for the last 15 min.', 'Broccoli: steam 5 min.', 'Split into 4 boxes; eat the salmon within 2 days.'] }
+  ];
+  var NOCOOK = [
+    'Rugbrød 3 slices + 1 can tuna + cottage cheese 200 g + cucumber',
+    'Half a roast chicken from the supermarket + 2 wraps + salad',
+    '4 eggs + 3 slices rugbrød + skyr 200 g',
+    'Smoked mackerel or salmon 150 g + rugbrød 3 slices + cottage cheese 150 g'
+  ];
+  function r10(g) { return Math.max(0, Math.round(g / 10) * 10); }
+  /* One portion: enough protein food to reach the meal's protein, carbs up to a sensible
+     plate size for the remaining kcal, and rugbrød on the side if still short. */
+  var CARB_CAP = { rice: 150, pasta: 150, potato: 600 };
+  function portion(recipe, mealP, mealK) {
+    var pf = FOOD[recipe.protein], cf = FOOD[recipe.carb], ex = recipe.extra, oilK = recipe.oil * 9;
+    var y = r10(Math.max(120, (mealP - ex.P) / pf.P * 100));
+    var left = mealK - ex.kcal - oilK - pf.kcal * y / 100;
+    var x = r10(Math.min(CARB_CAP[recipe.carb], Math.max(0, left / cf.kcal * 100)));
+    left -= cf.kcal * x / 100;
+    var bread = Math.max(0, Math.min(3, Math.round(left / 110)));   // rugbrød slice ≈ 50 g, 110 kcal, 3 g protein
+    var items = [{ name: pf.name, g: y }, { name: cf.name, g: x }, { name: ex.name, g: ex.g }];
+    if (recipe.oil) items.push({ name: 'oil', g: recipe.oil });
+    if (bread) items.push({ name: 'rugbrød', g: bread * 50, slices: bread });
+    return { items: items, P: Math.round(pf.P * y / 100 + cf.P * x / 100 + ex.P + bread * 3), kcal: Math.round(pf.kcal * y / 100 + cf.kcal * x / 100 + ex.kcal + oilK + bread * 110) };
+  }
+  function mealTargets(mac) {
+    var P = mac ? mac.protein : 160, K = mac ? mac.kcal : 2400;
+    return { P: Math.round((P - SHAKES.post.P - SHAKES.evening.P) / 2), kcal: Math.round((K - SHAKES.post.kcal - SHAKES.evening.kcal) / 20) * 10 };
+  }
+  /* Which batch feeds meal 1 (lunch) / meal 2 (dinner) on a date. */
+  var COOK_DEFAULT = [0, 2, 4];   // Sun, Tue, Thu
+  function cookDays(profile) { var c = profile && profile.cookDays; return (c && c.length ? c : COOK_DEFAULT).slice().sort(); }
+  function batchFor(profile, iso, meal) {
+    var d = parseISO(iso), days = cookDays(profile);
+    // a batch cooked on day c covers: c dinner, c+1 lunch+dinner, c+2 lunch
+    var offs = meal === 2 ? [0, 1] : [1, 2];
+    for (var i = 0; i < offs.length; i++) {
+      var c = new Date(d); c.setDate(d.getDate() - offs[i]);
+      var idx = days.indexOf(c.getDay());
+      if (idx >= 0) {
+        var wk = Math.floor(Math.round((c.getTime() - new Date(2026, 0, 4).getTime()) / 864e5) / 7); // weeks since a Sunday (round: DST)
+        return { recipe: RECIPES[(idx + wk * days.length) % RECIPES.length], cookedOn: isoDate(c), cookToday: offs[i] === 0 };
+      }
+    }
+    return null;
+  }
+  function mealText(profile, iso, meal, tgt) {
+    var b = batchFor(profile, iso, meal);
+    if (!b) return { text: 'No-cook meal: ' + NOCOOK[parseISO(iso).getDate() % NOCOOK.length], cook: false };
+    var pt = portion(b.recipe, tgt.P, tgt.kcal);
+    return { text: (b.cookToday ? 'Cook today (4 boxes): ' : 'From the fridge: ') + b.recipe.name + ' — ' +
+      pt.items.map(function (it) { return (it.slices ? it.slices + ' slice' + (it.slices > 1 ? 's' : '') : it.g + ' g') + ' ' + it.name; }).join(', '), cook: b.cookToday, recipe: b.recipe.key };
+  }
 
-  /* Clock-time eating schedule for a date. */
+  /* Clock-time eating schedule for a date: 2 meals + 2 shakes (+ creatine). */
   function timeline(profile, p, mac) {
     var wake = hm(profile.wake || '06:30'), bed = hm(profile.bed || '22:30');
     if (bed <= wake) bed += 1440;
-    var P = mac ? mac.protein : 160, K = mac ? mac.kcal : 2400;
-    var feedP = Math.round((P - RULES.presleepProteinG) / 4);
-    var slots = [];
-    function slot(t, key, label, why, pShare, kShare, foods) {
-      slots.push({ t: t, time: fmtHM(t), key: key, label: label, why: why, protein: pShare, kcal: Math.round(K * kShare / 10) * 10, foods: FOODS[foods] });
+    var tgt = mealTargets(mac), iso = p.date, slots = [];
+    function slot(t, key, label, why, P, kcal, foods, extra) {
+      slots.push(Object.assign({ t: t, time: fmtHM(t), key: key, label: label, why: why, protein: P, kcal: kcal ? Math.round(kcal / 10) * 10 : 0, foods: foods ? [foods] : null }, extra || {}));
     }
+    var m1 = mealText(profile, iso, 1, tgt), m2 = mealText(profile, iso, 2, tgt);
     if (p.training && p.time) {
       var T = hm(p.time); if (T < wake) T += 1440;
-      var pre = T - 150, post = T + RULES.sessionMinutes + 20;
-      slot(wake + 30, 'b', 'Breakfast', 'Protein feed 1. Start the day\'s protein early.', feedP, 0.2, 'breakfast');
-      if (pre - (wake + 30) >= 150) {
-        slot(Math.round(((wake + 30) + pre) / 2), 's', 'Snack', 'Protein feed 2, keeps feeds ~3–4 h apart.', feedP, 0.15, 'snack');
-        slot(pre, 'pre', 'Pre-workout meal', 'Carbs + protein 2–3 h before training — fuel for hard sets.', feedP, 0.25, 'pre');
-      } else {
-        slots[0].label = 'Breakfast = pre-workout meal'; slots[0].why = 'Training is early: carbs + protein now, 1–2 h before.'; slots[0].kcal = Math.round(K * 0.3 / 10) * 10;
-      }
-      slot(T - 15, 'cr', 'Creatine 5 g + water', 'Timing barely matters — daily consistency does. Shaker, coffee, anything.', 0, 0, null);
+      var end = T + RULES.sessionMinutes;
+      var t1 = Math.max(wake + 30, T - 150);
+      slot(t1, 'm1', t1 <= wake + 30 ? 'Meal 1 (breakfast, before training)' : 'Meal 1 (before training)', 'Carbs + protein 2–3 h before training — fuel for hard sets.', tgt.P, tgt.kcal, m1.text, { cook: m1.cook });
+      slot(T - 15, 'cr', 'Creatine 5 g + water', 'Every day. Timing barely matters — consistency does.', 0, 0, null);
       slot(T, 'train', 'Train', 'Session ' + p.day + ' · ~' + RULES.sessionMinutes + ' min incl. warm-up.', 0, 0, null);
-      slot(post, 'post', 'Post-workout meal', 'Biggest meal of the day: protein + carbs within ~2 h. Recovery starts here.', feedP, 0.3, 'post');
-      if (bed - 60 - post >= 180) slot(post + 180, 'd', 'Light dinner / snack', 'Only if the gap to bed is long. Protein-led.', Math.round(feedP / 2), 0.0, 'snack');
-      slot(bed - 60, 'ps', 'Pre-sleep protein', 'Skyr/casein 30–40 g: overnight muscle protein synthesis.', RULES.presleepProteinG, 0.1, 'presleep');
+      slot(end + 5, 'sh1', SHAKES.post.label, 'Straight after training: fast protein while you head home.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how);
+      slot(Math.min(end + 100, bed - 150), 'm2', 'Meal 2 (dinner)', 'The big meal: protein + carbs + veg. Recovery happens here.', tgt.P, tgt.kcal, m2.text, { cook: m2.cook });
     } else {
-      slot(wake + 30, 'b', 'Breakfast', 'Protein feed 1.', feedP, 0.25, 'breakfast');
-      slot(wake + 30 + 210, 's', 'Lunch', 'Protein feed 2.', feedP, 0.25, 'pre');
-      slot(wake + 30 + 420, 'sn', 'Afternoon snack', 'Protein feed 3. Rest day: carbs a bit lower, fat a bit higher.', feedP, 0.15, 'snack');
-      slot(Math.min(wake + 30 + 660, bed - 180), 'd', 'Dinner', 'Protein feed 4.', feedP, 0.25, 'dinner');
+      slot(wake + 330, 'm1', 'Meal 1 (lunch)', 'First real meal. Coffee or water before it is fine.', tgt.P, tgt.kcal, m1.text, { cook: m1.cook });
       slot(wake + 60, 'cr', 'Creatine 5 g', 'Every day, training or not.', 0, 0, null);
-      slot(bed - 60, 'ps', 'Pre-sleep protein', 'Skyr/casein 30–40 g.', RULES.presleepProteinG, 0.1, 'presleep');
+      slot(wake + 540, 'sh1', SHAKES.post.label, 'Mid-afternoon on rest days — keeps protein coming.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how);
+      slot(Math.min(wake + 720, bed - 180), 'm2', 'Meal 2 (dinner)', 'Protein + carbs + veg.', tgt.P, tgt.kcal, m2.text, { cook: m2.cook });
     }
+    slot(bed - 60, 'sh2', SHAKES.evening.label, 'An hour before bed: 30–40 g slow protein supports overnight muscle building.', SHAKES.evening.P, SHAKES.evening.kcal, SHAKES.evening.how);
     slots.sort(function (a, b) { return a.t - b.t; });
     return slots;
   }
@@ -531,7 +598,7 @@
 
   return {
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, FOODS: FOODS,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, recentStalls: recentStalls, plan: plan, buildSession: buildSession, rampSets: rampSets,
