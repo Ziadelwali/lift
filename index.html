@@ -72,7 +72,7 @@ nav.tabs button.on{color:var(--acc)}
 .field input:focus,.field select:focus{outline:none;border-color:var(--acc)}
 .field input[type=time]{font-family:var(--mono)}
 .check{display:flex;align-items:center;gap:12px;min-height:44px;padding:4px 0}
-.check input{width:22px;height:22px;accent-color:var(--acc)}
+.check input{flex:none;width:22px;height:22px;accent-color:var(--acc)}
 details summary{cursor:pointer;color:var(--acc);font-size:13px;list-style:none}
 details summary::-webkit-details-marker{display:none}
 details ol{margin:8px 0 0;padding-left:18px;font-size:13.5px;color:var(--ink2)}
@@ -107,6 +107,19 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .note.up{border-left:3px solid var(--ok)}.note.drop,.note.hold{border-left:3px solid var(--warn)}.note.calibrate{border-left:3px solid var(--acc)}.note.deload{border-left:3px solid var(--warn)}.note.maxed{border-left:3px solid var(--acc)}
 .muscles{font-size:12px;color:var(--ink3);margin-top:4px}
 .muscles b{color:var(--acc);font-weight:500}
+.official{font-size:11px;color:var(--ink3);margin-top:2px}
+.th{width:48px;height:32px;object-fit:cover;border-radius:6px;flex:none;background:#000}
+.exrow{display:flex;align-items:center;gap:10px;min-width:0}
+.exlist{display:grid;gap:6px;margin-top:4px}
+.exlist .exrow{background:var(--card2);border-radius:10px;padding:5px 8px 5px 5px;font-size:13.5px}
+.exlist .exrow.prio{box-shadow:inset 3px 0 0 var(--prio)}
+.swaps{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-top:10px}
+.swaps[hidden]{display:none}
+.tile{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:0;overflow:hidden;text-align:left;color:var(--ink);font:inherit;cursor:pointer}
+.tile img{width:100%;aspect-ratio:850/567;object-fit:cover;display:block;background:#000}
+.tile span{display:block;font-size:13px;line-height:1.3;padding:6px 8px 2px}
+.tile small{display:block;font-size:11px;color:var(--ink3);padding:0 8px 8px}
+.tile.back{border-color:var(--acc)}
 
 /* ---------- rest bar ---------- */
 #rest{position:fixed;left:0;right:0;bottom:calc(var(--sab) + 66px);z-index:7;max-width:520px;margin:0 auto;padding:0 14px;display:none}
@@ -321,6 +334,18 @@ if('serviceWorker' in navigator&&location.hostname!=='localhost'){
 }
 
 /* ---------------- body map ---------------- */
+/* Plain words for everything the user sees: exercise names, muscles, equipment. */
+var MUSCLE_WORDS={abdominals:'belly',abductors:'outer hip',adductors:'inner thigh',biceps:'front of upper arm',calves:'calves',chest:'chest',
+ forearms:'forearms',glutes:'buttocks',hamstrings:'back of thigh',lats:'sides of the back',
+ 'lower back':'lower back','middle back':'middle of the back',neck:'neck',quadriceps:'front of thigh',shoulders:'shoulders',
+ traps:'top of the shoulders',triceps:'back of upper arm'};
+var EQUIP_WORDS={machine:'machine',dumbbell:'dumbbells',cable:'cable pulley',barbell:'bar','e-z curl bar':'curl bar','body only':'no equipment',kettlebells:'one dumbbell',bands:'band'};
+function mw(m){return MUSCLE_WORDS[m]||m;}
+function nm(id){return E.LABEL[id]||(EX[id]?EX[id].name:id);}
+var GYM_EQUIP={'Wide-Grip_Lat_Pulldown':'machine','Close-Grip_Front_Lat_Pulldown':'machine',Seated_Cable_Rows:'machine'}; // cable in the photo, Nautilus machine at the gym
+function equipWord(id){var x=EX[id];if(GYM_EQUIP[id])return GYM_EQUIP[id];return x&&x.equipment?(EQUIP_WORDS[x.equipment]||x.equipment):'no equipment';}
+function thumb(id){var x=EX[id];return x?'<img class="th" src="'+x.images[0]+'" alt="" loading="lazy">':'';}
+function exRow(id,extra,cls){return '<div class="exrow'+(cls?' '+cls:'')+'">'+thumb(id)+'<span style="flex:1;min-width:0">'+esc(nm(id))+'</span>'+(extra||'')+'</div>';}
 function bodyMap(primary,secondary){
  var P={},S={};(primary||[]).forEach(function(m){P[m]=1;});(secondary||[]).forEach(function(m){if(!P[m])S[m]=1;});
  function m(name,shape){return '<g class="m'+(P[name]?' p':S[name]?' s':'')+'">'+shape+'</g>';}
@@ -417,7 +442,7 @@ function renderToday(){
   h+='<div class="card"><div class="row between"><h2>Session '+p.day+(ses&&ses.done?' — done':'')+'</h2>'+
    (p.calibration?'<span class="badge calib">calibration week</span>':p.deload?'<span class="badge deload">deload week</span>':'<span class="badge">'+p.time+' · ~'+E.RULES.sessionMinutes+' min</span>')+'</div>'+
    '<p class="sm" style="margin:6px 0 10px">'+(p.calibration?'This week is about finding your weights: 2 sets per exercise, stop with 3 reps in the tank, log honestly. Next week the app starts pushing.':p.deload?'Lighter loads, half the sets. You grow while you recover; skipping this week is how people get hurt.':'Full body. Compounds first, 1–3 reps in reserve on every working set.')+'</p>'+
-   '<div>'+exs.map(function(c){return '<span class="chip'+(c.prio?' prio':'')+'">'+esc(EX[c.id].name)+'</span>';}).join('')+'</div>'+
+   '<div class="exlist">'+exs.map(function(c){return exRow(c.id,'',c.prio?'prio':'');}).join('')+'</div>'+
    (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>':'<button class="btn wide" data-act="start" style="margin-top:14px">'+(ses?'Continue session':'Start session')+'</button>')+
    '</div>';
  }else{
@@ -476,9 +501,9 @@ function renderTrain(){
  for(var i=0;i<ses.ex.length;i++){var c=E.findCfg(ses.ex[i].base);if(c&&c.ramp&&ses.ex[i].sets[0].kg){firstRamp=ses.ex[i];break;}}
  var wdone=ses.warm||{};
  h+='<div class="card"><div class="row between"><h2>Warm-up</h2><span class="xs">≤ '+E.RULES.warmupMinutes+' min</span></div>'+
-  '<label class="check"><input type="checkbox" data-warm="gen"'+(wdone.gen?' checked':'')+'><div><b>'+wl.general.label+'</b> · '+fmtSec(wl.general.secs)+'<div class="xs">'+wl.general.note+'</div></div></label>'+
-  wl[ses.day].map(function(w){return '<label class="check"><input type="checkbox" data-warm="'+w.id+'"'+(wdone[w.id]?' checked':'')+'><div><b>'+w.label+'</b> · '+w.reps+'</div></label>';}).join('')+
-  (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(EX[firstRamp.id].name)+': '+E.rampSets(firstRamp.sets[0].kg).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
+  '<label class="check"><input type="checkbox" data-warm="gen"'+(wdone.gen?' checked':'')+'>'+thumb(wl.general.id)+'<div><b>'+wl.general.label+'</b> · '+fmtSec(wl.general.secs)+'<div class="xs">'+wl.general.note+'</div></div></label>'+
+  wl[ses.day].map(function(w){return '<label class="check"><input type="checkbox" data-warm="'+w.id+'"'+(wdone[w.id]?' checked':'')+'>'+thumb(w.id)+'<div><b>'+esc(w.label)+'</b> · '+w.reps+'</div></label>';}).join('')+
+  (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(nm(firstRamp.id))+': '+E.rampSets(firstRamp.sets[0].kg).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
   '</div>';
  /* exercises */
  ses.ex.forEach(function(e,ei){h+=exerciseCard(e,ei,ses);});
@@ -489,8 +514,9 @@ function renderTrain(){
 function exerciseCard(e,ei,ses){
  var ex=EX[e.id],cfg=E.findCfg(e.base)||E.findCfg(e.id),sg=e.suggest||{},allDone=e.sets.every(function(s){return s.done;});
  var alts=(cfg.alts||[]).concat(e.id!==e.base?[e.base]:[]).filter(function(a){return a!==e.id&&EX[a];});
- return '<div class="card ex" data-ei="'+ei+'"><div class="head"><div class="row between"><h2>'+(ei+1)+'. '+esc(ex.name)+'</h2>'+(cfg.prio?'<span class="chip prio">priority</span>':'')+'</div>'+
-  '<p class="muscles">'+ex.primary.map(function(m){return '<b>'+m+'</b>';}).join(', ')+(ex.secondary.length?' · '+ex.secondary.join(', '):'')+'</p></div>'+
+ return '<div class="card ex" data-ei="'+ei+'"><div class="head"><div class="row between"><h2>'+(ei+1)+'. '+esc(nm(e.id))+'</h2>'+(cfg.prio?'<span class="chip prio">priority</span>':'')+'</div>'+
+  '<p class="official">'+esc(ex.name)+' · '+esc(equipWord(e.id))+'</p>'+
+  '<p class="muscles">Works: '+ex.primary.map(function(m){return '<b>'+mw(m)+'</b>';}).join(', ')+(ex.secondary.length?' · also '+ex.secondary.map(mw).join(', '):'')+'</p></div>'+
   '<div class="media"><img src="'+ex.images[0]+'" alt="" loading="lazy"><img class="f1" src="'+ex.images[1]+'" alt="" loading="lazy"><div class="map">'+bodyMap(ex.primary,ex.secondary)+'</div></div>'+
   '<div class="body"><p class="sm"><b>Where:</b> '+esc(cfg.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(cfg.tip)+'</p>'+
   '<details style="margin-top:6px"><summary>Step by step</summary><ol>'+ex.instructions.map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol></details>'+
@@ -501,7 +527,8 @@ function exerciseCard(e,ei,ses){
     '<td><select class="rir" data-rir="'+ei+':'+si+'">'+[null,0,1,2,3,4].map(function(r){return '<option value="'+(r==null?'':r)+'"'+((s.rir==null?'':s.rir)===(r==null?'':r)?' selected':'')+'>'+(r==null?'–':r)+'</option>';}).join('')+'</select></td>'+
     '<td class="ok"><button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'">✓</button></td></tr>';
   }).join('')+'</table>'+
-  '<div class="row between" style="margin-top:10px"><button class="btn small ghost" data-addset="'+ei+'">+ set</button>'+(alts.length?'<select class="rir" style="width:auto;padding:0 10px" data-swap="'+ei+'"><option value="">swap…</option>'+alts.map(function(a){return '<option value="'+a+'">'+esc(EX[a].name)+'</option>';}).join('')+'</select>':'')+(allDone?'<span class="xs" style="color:var(--ok)">done</span>':'')+'</div>'+
+  '<div class="row between" style="margin-top:10px"><button class="btn small ghost" data-addset="'+ei+'">+ set</button>'+(alts.length?'<button class="btn small ghost" data-swapopen="'+ei+'">⇄ Other options ('+alts.length+')</button>':'')+(allDone?'<span class="xs" style="color:var(--ok)">done</span>':'')+'</div>'+
+  (alts.length?'<div class="swaps" id="swaps-'+ei+'" hidden>'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div>':'')+
   '</div></div>';
 }
 function stepper(kind,ei,si,val,inc){
@@ -510,7 +537,7 @@ function stepper(kind,ei,si,val,inc){
 function programCard(){
  var pr=state.profile;
  return '<div class="card"><h2>The program</h2><p class="sm" style="margin:6px 0 10px">Full body, A/B alternating, 3 days a week. Every muscle 3× a week at 10–20 hard sets. Compounds 6–10 reps, isolation 10–15, all with 1–3 reps in reserve. Progress by reps first, then weight (double progression). Every 6th week is a deload.</p>'+
-  ['A','B'].map(function(d){return '<p class="eyebrow" style="margin-top:8px">Session '+d+'</p>'+E.exercisesFor(d,pr).map(function(c){return '<div class="row between" style="padding:6px 0;border-top:1px solid var(--line)"><span class="sm">'+esc(EX[c.id].name)+(c.prio?' <span class="chip prio">prio</span>':'')+'</span><span class="mono xs">'+c.sets+'×'+c.reps[0]+'–'+c.reps[1]+'</span></div>';}).join('');}).join('')+'</div>';
+  ['A','B'].map(function(d){return '<p class="eyebrow" style="margin-top:8px">Session '+d+'</p><div class="exlist">'+E.exercisesFor(d,pr).map(function(c){return exRow(c.id,'<span class="mono xs">'+c.sets+'×'+c.reps[0]+'–'+c.reps[1]+'</span>',c.prio?'prio':'');}).join('')+'</div>';}).join('')+'</div>';
 }
 
 /* ---- Eat ---- */
@@ -552,7 +579,7 @@ function renderProgress(){
  Object.keys(state.sessions).forEach(function(k){(state.sessions[k].ex||[]).forEach(function(e){if(ids.indexOf(e.id)<0)ids.push(e.id);});});
  var withHist=ids.filter(function(id){return E.history(state,id).length;});
  var sel=renderProgress.sel||withHist[0]||ids[0];renderProgress.sel=sel;
- h+='<div class="card"><div class="row between"><h2>Lifts</h2><select class="rir" style="width:auto;max-width:200px;padding:0 10px" data-act="pick"><option>'+ids.map(function(id){return '<option value="'+id+'"'+(id===sel?' selected':'')+'>'+esc(EX[id]?EX[id].name:id)+'</option>';}).join('')+'</select></div>'+liftChart(sel)+'</div>';
+ h+='<div class="card"><div class="row between"><h2>Lifts</h2><select class="rir" style="width:auto;max-width:200px;padding:0 10px" data-act="pick"><option>'+ids.map(function(id){return '<option value="'+id+'"'+(id===sel?' selected':'')+'>'+esc(nm(id))+'</option>';}).join('')+'</select></div>'+liftChart(sel)+'</div>';
  h+='<div class="card"><h2>Hard sets per muscle, last 7 days</h2><p class="xs" style="margin:4px 0 8px">Target band 10–16 (priority muscles 14–20). Secondary muscles count half.</p>'+volumeChart()+'</div>';
  $('#v-progress').innerHTML=h;
 }
@@ -637,7 +664,9 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto]');if(!b)return;
+ if(b.dataset.swapopen){var box=$('#swaps-'+b.dataset.swapopen);if(box)box.hidden=!box.hidden;return;}
+ if(b.dataset.swapto){var sw=b.dataset.swapto.split(':');doSwap(+sw[0],sw.slice(1).join(':'));return;}
  var ses=activeSession();
  if(b.dataset.step){var a=b.dataset.step.split(':'),e=ses.ex[+a[1]],s=e.sets[+a[2]],inc=+a[3];var cur=+s[a[0]]||0;s[a[0]]=Math.max(0,Math.round((cur+inc)*100)/100);
   if(a[0]==='kg'&&!s.done)e.sets.forEach(function(x,i){if(i>+a[2]&&!x.done&&(x.kg==null||x.kg===cur))x.kg=s.kg;});
@@ -662,6 +691,13 @@ document.addEventListener('click',function(ev){
  if(act==='export'){var blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'}),u=URL.createObjectURL(blob),a2=document.createElement('a');a2.href=u;a2.download='lift-'+todayISO()+'.json';document.body.appendChild(a2);a2.click();a2.remove();return;}
  if(act==='wipe'){if(!confirm('Remove all data from this device? The synced copy stays in the cloud.'))return;try{localStorage.removeItem(LS);localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}
 });
+function doSwap(ei,id){
+ var ses=activeSession();if(!ses)return;var e=ses.ex[ei],cfg=Object.assign({},E.findCfg(e.base),{id:id});
+ e.id=id;e.suggest=E.suggest(cfg,E.history(state,id),{calibration:ses.calibration,deload:ses.deload});
+ e.sets=e.sets.map(function(x){return x.done?x:{kg:e.suggest.kg,reps:e.suggest.reps,rir:null,done:false};});
+ state.settings.swaps=state.settings.swaps||{};if(id===e.base)delete state.settings.swaps[e.base];else state.settings.swaps[e.base]=id;
+ save();renderTrain();toast('Swapped to '+nm(id));
+}
 document.addEventListener('change',function(ev){
  var t=ev.target,ses=activeSession();
  if(t.dataset.val){var a=t.dataset.val.split(':'),ex0=ses.ex[+a[1]],s=ex0.sets[+a[2]],old=s[a[0]],nv=t.value===''?null:+t.value;s[a[0]]=nv;
@@ -669,11 +705,6 @@ document.addEventListener('change',function(ev){
   save();return;}
  if(t.dataset.rir){var r=t.dataset.rir.split(':');ses.ex[+r[0]].sets[+r[1]].rir=t.value===''?null:+t.value;save();return;}
  if(t.dataset.warm){ses.warm=ses.warm||{};ses.warm[t.dataset.warm]=t.checked?1:0;save();return;}
- if(t.dataset.swap&&t.value){var e=ses.ex[+t.dataset.swap],cfg=Object.assign({},E.findCfg(e.base),{id:t.value});
-  e.id=t.value;e.suggest=E.suggest(cfg,E.history(state,t.value),{calibration:ses.calibration,deload:ses.deload});
-  e.sets=e.sets.map(function(x){return x.done?x:{kg:e.suggest.kg,reps:e.suggest.reps,rir:null,done:false};});
-  state.settings.swaps=state.settings.swaps||{};if(t.value===e.base)delete state.settings.swaps[e.base];else state.settings.swaps[e.base]=t.value;
-  save();renderTrain();return;}
  if(t.dataset.daily){var iso=todayISO();if(t.dataset.daily==='weight'){if(t.value)state.weight[iso]=+t.value;else delete state.weight[iso];if(t.value)state.profile.weight=+t.value;}
   else{state.daily[iso]=state.daily[iso]||{};state.daily[iso][t.dataset.daily]=t.value===''?null:+t.value;}save();return;}
  if(t.dataset.meal){var iso2=todayISO();state.daily[iso2]=state.daily[iso2]||{};state.daily[iso2].meals=state.daily[iso2].meals||{};state.daily[iso2].meals[t.dataset.meal]=t.checked?1:0;save();renderToday();return;}
