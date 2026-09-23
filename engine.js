@@ -398,68 +398,121 @@
   var FOOD = {
     chicken: { name: 'chicken breast (raw)', P: 23, kcal: 110, cat: 'meat' },
     turkey: { name: 'turkey mince 7 % (raw)', P: 20, kcal: 140, cat: 'meat' },
+    turkeystrips: { name: 'turkey breast (raw)', P: 23, kcal: 105, cat: 'meat' },
+    pollock: { name: 'pollock (sej) fillet (raw or frozen)', P: 19, kcal: 80, cat: 'meat' },
+    shrimp: { name: 'peeled shrimp (raw or frozen)', P: 20, kcal: 85, cat: 'meat' },
     beef: { name: 'beef mince 5 % (raw)', P: 21, kcal: 125, cat: 'meat' },
     beefstrips: { name: 'lean beef strips (raw)', P: 22, kcal: 120, cat: 'meat' },
     salmon: { name: 'salmon fillet (raw)', P: 20, kcal: 200, cat: 'meat' },
     cod: { name: 'cod fillet (raw or frozen)', P: 18, kcal: 80, cat: 'meat' },
     brownrice: { name: 'brown rice (dry)', P: 8, kcal: 360, cat: 'carb' },
+    basmati: { name: 'basmati rice (dry)', P: 8, kcal: 355, cat: 'carb' },
+    quinoa: { name: 'quinoa (dry)', P: 14, kcal: 370, cat: 'carb' },
     potato: { name: 'potatoes (raw)', P: 2, kcal: 77, cat: 'veg' },
     sweetpotato: { name: 'sweet potatoes (raw)', P: 1.6, kcal: 86, cat: 'veg' },
     pasta: { name: 'wholegrain pasta (dry)', P: 13, kcal: 350, cat: 'carb' },
     bulgur: { name: 'bulgur (dry)', P: 12, kcal: 350, cat: 'carb' },
     couscous: { name: 'wholegrain couscous (dry)', P: 13, kcal: 360, cat: 'carb' }
   };
-  /* Nine recipes in three groups. The week rotates poultry → fish → (red meat one week,
-     poultry the next), so there is fish every week and lean red meat only every other
-     week. Each batch is seasoned two ways, so lunch and dinner in a row never taste the same. */
-  var RECIPES = [
-    { key: 'chicken-rice', group: 'poultry', name: 'Chicken, brown rice & wok veg', protein: 'chicken', carb: 'brownrice', flavours: ['paprika & garlic', 'mild curry'],
-      buy: [['veg', 'frozen wok vegetables', 1000, 'g'], ['veg', 'garlic', 1, 'bulb'], ['cupboard', 'paprika', 1, 'jar'], ['cupboard', 'mild curry powder', 1, 'jar']],
-      extra: { name: 'frozen wok vegetables', g: 250, P: 5, kcal: 75 }, oil: 10,
-      steps: ['Rice: boil all of it in one big pot (brown rice ~25 min).', 'Chicken: cut in strips, spread on two oven trays at 200 °C for 20–25 min.', 'Veg: fry in a pan 8 min with a little oil, garlic and salt.'] },
-    { key: 'chicken-bulgur', group: 'poultry', name: 'Shawarma chicken, bulgur & salad', protein: 'chicken', carb: 'bulgur', flavours: ['shawarma spice', 'lemon & herbs'],
-      buy: [['veg', 'tomatoes', 4, 'pcs'], ['veg', 'cucumber', 1, 'pcs'], ['veg', 'red onion', 2, 'pcs'], ['veg', 'lemon', 1, 'pcs'], ['dairy', 'Greek yoghurt', 200, 'g'], ['cupboard', 'shawarma spice', 1, 'jar']],
-      extra: { name: 'tomato, cucumber, onion & a spoon of yoghurt dressing', g: 250, P: 5, kcal: 80 }, oil: 10,
-      steps: ['Bulgur: pour boiling water over it (twice its volume), lid on, 15 min.', 'Chicken: thin strips, fry hot in a pan in two rounds.', 'Salad: chop tomato, cucumber and onion; keep it separate so it stays crisp; add the yoghurt when you eat.'] },
-    { key: 'chicken-sweetpotato', group: 'poultry', name: 'Chicken, sweet potato & green beans', protein: 'chicken', carb: 'sweetpotato', flavours: ['harissa', 'lemon & garlic'],
-      buy: [['veg', 'frozen green beans', 1000, 'g'], ['veg', 'lemon', 1, 'pcs'], ['veg', 'garlic', 1, 'bulb'], ['cupboard', 'harissa', 1, 'jar']],
-      extra: { name: 'green beans', g: 250, P: 5, kcal: 75 }, oil: 10,
-      steps: ['Sweet potatoes in cubes on an oven tray, 200 °C for 30 min with a little oil and salt.', 'Chicken on a second tray for the last 20–25 min.', 'Green beans: boil 5 min.'] },
-    { key: 'turkey-pasta', group: 'poultry', name: 'Turkey meatballs, tomato sauce & wholegrain pasta', protein: 'turkey', carb: 'pasta', flavours: ['basil', 'oregano & chili'],
-      buy: [['cupboard', 'chopped tomatoes', 2, 'can'], ['veg', 'fresh spinach', 300, 'g'], ['veg', 'onion', 1, 'pcs'], ['veg', 'garlic', 1, 'bulb'], ['cupboard', 'dried basil or oregano', 1, 'jar']],
-      extra: { name: 'tomato sauce with spinach', g: 250, P: 4, kcal: 90 }, oil: 5,
-      steps: ['Meatballs: mix the mince with salt, pepper and grated onion, roll small balls, oven 200 °C for 15 min.', 'Sauce: garlic in a pot, 2 cans chopped tomatoes, simmer 10 min, stir in the spinach at the end.', 'Pasta in one big pot; keep sauce and pasta in the same box.'] },
-    { key: 'salmon-potato', group: 'fish', name: 'Salmon, potatoes & broccoli', protein: 'salmon', carb: 'potato', flavours: ['lemon & dill', 'garlic & paprika'],
-      buy: [['veg', 'broccoli', 1000, 'g'], ['veg', 'lemon', 1, 'pcs'], ['cupboard', 'dried dill', 1, 'jar']],
-      extra: { name: 'broccoli', g: 250, P: 7, kcal: 85 }, oil: 0,
-      steps: ['Potatoes in wedges, oven 200 °C for 35 min.', 'Salmon on the same tray for the last 15 min.', 'Broccoli: steam 5 min. Eat the salmon boxes within 2 days.'] },
-    { key: 'cod-curry', group: 'fish', name: 'Cod curry with peas & brown rice', protein: 'cod', carb: 'brownrice', flavours: ['mild curry', 'tomato & ginger'],
-      buy: [['veg', 'frozen peas', 500, 'g'], ['cupboard', 'chopped tomatoes', 2, 'can'], ['veg', 'onion', 2, 'pcs'], ['veg', 'fresh ginger', 1, 'pcs'], ['cupboard', 'curry paste', 1, 'jar']],
-      extra: { name: 'peas, tomato & onion sauce', g: 250, P: 8, kcal: 110 }, oil: 10,
-      steps: ['Sauce: fry onion and ginger, add curry paste and 2 cans chopped tomatoes, simmer 10 min.', 'Add the cod in chunks and the peas, 8 min on low heat.', 'Brown rice in one big pot (~25 min).'] },
-    { key: 'salmon-couscous', group: 'fish', name: 'Oven salmon, couscous & roasted veg', protein: 'salmon', carb: 'couscous', flavours: ['lemon & herbs', 'harissa'],
-      buy: [['veg', 'squash (zucchini)', 2, 'pcs'], ['veg', 'bell pepper', 2, 'pcs'], ['veg', 'red onion', 2, 'pcs'], ['veg', 'lemon', 1, 'pcs']],
-      extra: { name: 'roasted squash, pepper & onion', g: 250, P: 3, kcal: 70 }, oil: 10,
-      steps: ['Veg in chunks on an oven tray, 200 °C for 25 min.', 'Salmon on a second tray for 15 min.', 'Couscous: boiling water over it, lid on, 5 min. Eat the salmon boxes within 2 days.'] },
-    { key: 'chili', group: 'red', name: 'Chili con carne with beans & brown rice', protein: 'beef', carb: 'brownrice', flavours: ['classic chili', 'smoky paprika'],
-      buy: [['cupboard', 'kidney beans', 1, 'can'], ['cupboard', 'chopped tomatoes', 2, 'can'], ['veg', 'onion', 2, 'pcs'], ['veg', 'bell pepper', 2, 'pcs'], ['cupboard', 'chili spice', 1, 'jar']],
-      extra: { name: 'beans, chopped tomatoes, onion & pepper', g: 250, P: 7, kcal: 110 }, oil: 5,
-      steps: ['Fry onion and pepper, add the mince and brown it.', 'Add the beans and 2 cans chopped tomatoes; simmer 20 min.', 'Brown rice in one big pot (~25 min).'] },
-    { key: 'beef-bulgur', group: 'red', name: 'Kebab-style beef strips, bulgur & salad', protein: 'beefstrips', carb: 'bulgur', flavours: ['kebab spice', 'cumin & lemon'],
-      buy: [['veg', 'tomatoes', 4, 'pcs'], ['veg', 'cucumber', 1, 'pcs'], ['veg', 'red onion', 2, 'pcs'], ['veg', 'lemon', 1, 'pcs'], ['dairy', 'Greek yoghurt', 200, 'g'], ['cupboard', 'kebab spice (or cumin + paprika)', 1, 'jar']],
-      extra: { name: 'tomato, cucumber, onion & a spoon of yoghurt dressing', g: 250, P: 5, kcal: 80 }, oil: 10,
-      steps: ['Bulgur: pour boiling water over it (twice its volume), lid on, 15 min.', 'Beef strips: fry hot in a pan in two rounds.', 'Salad: chop tomato, cucumber and onion; keep it separate; add the yoghurt when you eat.'] }
-  ];
-  function byGroup(g) { return RECIPES.filter(function (r) { return r.group === g; }); }
   function mod(a, n) { return ((a % n) + n) % n; }
-  /* Recipe for cook slot `slot` (0, 1, 2 = 1st, 2nd, 3rd cook day of the week) in week `wk`. */
-  function pickRecipe(slot, wk) {
-    var poultry = byGroup('poultry'), fish = byGroup('fish'), red = byGroup('red');
-    var redWeek = mod(wk, 2) === 0, base = wk + Math.floor(wk / 2);   // poultry batches before this week
-    if (slot === 1) return fish[mod(wk, fish.length)];
-    if (slot === 2 && redWeek) return red[mod(Math.floor(wk / 2), red.length)];
-    return poultry[mod(base + (slot === 2 ? 1 : 0), poultry.length)];
+  /* ---------- dishes are put together from parts, so they keep changing ----------
+     Each cook = one protein + one grain/potato + one vegetable + two seasonings.
+     Rules: poultry → fish → (lean red meat one week, poultry the next); the grain and
+     the vegetable differ from the other cooks that week; the same protein+grain+veg
+     never comes back within 6 weeks; seasonings differ from the previous cook. */
+  var PROTEIN_PARTS = {
+    poultry: [{ k: 'chicken', how: 'strips', short: 'Chicken' }, { k: 'turkeystrips', how: 'strips', short: 'Turkey' }, { k: 'turkey', how: 'mince', short: 'Turkey mince' }],
+    fish: [{ k: 'salmon', how: 'fillet', short: 'Salmon' }, { k: 'cod', how: 'fillet', short: 'Cod' }, { k: 'pollock', how: 'fillet', short: 'Pollock' }, { k: 'shrimp', how: 'shrimp', short: 'Shrimp' }],
+    red: [{ k: 'beef', how: 'mince', short: 'Beef mince' }, { k: 'beefstrips', how: 'strips', short: 'Beef strips' }]
+  };
+  var CARB_PARTS = [
+    { k: 'brownrice', short: 'brown rice', step: 'Boil the brown rice in one big pot, ~25 min.' },
+    { k: 'basmati', short: 'basmati rice', step: 'Boil the basmati rice, ~12 min.' },
+    { k: 'bulgur', short: 'bulgur', step: 'Bulgur: pour boiling water over it (twice its volume), lid on, 15 min.' },
+    { k: 'couscous', short: 'couscous', step: 'Couscous: pour boiling water over it, lid on, 5 min.' },
+    { k: 'pasta', short: 'wholegrain pasta', step: 'Boil the pasta as the bag says (~10 min).' },
+    { k: 'quinoa', short: 'quinoa', step: 'Rinse the quinoa and boil it 15 min.' },
+    { k: 'potato', short: 'potatoes', step: 'Potatoes in wedges on an oven tray, 200 °C for 35 min with a little oil and salt.' },
+    { k: 'sweetpotato', short: 'sweet potato', step: 'Sweet potatoes in cubes on an oven tray, 200 °C for 30 min.' }
+  ];
+  var VEG_PARTS = [
+    { k: 'wok', short: 'wok veg', name: 'wok vegetables', P: 5, kcal: 75, buy: [['veg', 'frozen wok vegetables', 1000, 'g']], step: 'Fry the wok vegetables 8 min in a hot pan.' },
+    { k: 'broccoli', short: 'broccoli', name: 'broccoli', P: 7, kcal: 85, buy: [['veg', 'broccoli', 1000, 'g']], step: 'Steam or boil the broccoli 5 min.' },
+    { k: 'beans', short: 'green beans', name: 'green beans', P: 5, kcal: 75, buy: [['veg', 'frozen green beans', 1000, 'g']], step: 'Boil the green beans 5 min.' },
+    { k: 'peas', short: 'peas and carrots', name: 'peas & carrots', P: 8, kcal: 110, buy: [['veg', 'frozen peas & carrots', 1000, 'g']], step: 'Boil the peas & carrots 4 min.' },
+    { k: 'roast', short: 'roasted veg', name: 'roasted squash, pepper & onion', P: 3, kcal: 70, buy: [['veg', 'squash (zucchini)', 2, 'pcs'], ['veg', 'bell pepper', 2, 'pcs'], ['veg', 'red onion', 2, 'pcs']], step: 'Squash, pepper and onion in chunks on an oven tray, 200 °C for 25 min.' },
+    { k: 'cauli', short: 'cauliflower', name: 'cauliflower', P: 5, kcal: 65, buy: [['veg', 'frozen cauliflower', 1000, 'g']], step: 'Roast the cauliflower at 200 °C for 20 min (or steam 6 min).' },
+    { k: 'salad', short: 'salad', name: 'tomato, cucumber & onion salad with yoghurt', P: 5, kcal: 80, buy: [['veg', 'tomatoes', 4, 'pcs'], ['veg', 'cucumber', 1, 'pcs'], ['veg', 'red onion', 1, 'pcs'], ['dairy', 'Greek yoghurt', 200, 'g']], step: 'Chop tomato, cucumber and onion; keep the salad separate so it stays crisp; add yoghurt when you eat.' },
+    { k: 'sauce', short: 'tomato-spinach sauce', name: 'tomato sauce with spinach', P: 4, kcal: 90, buy: [['cupboard', 'chopped tomatoes', 2, 'can'], ['veg', 'fresh spinach', 300, 'g'], ['veg', 'onion', 1, 'pcs']], step: 'Sauce: soften the onion, add 2 cans chopped tomatoes, simmer 10 min, stir in the spinach at the end.' },
+    { k: 'spinachbeans', short: 'bean & tomato stew', name: 'kidney beans, tomato & pepper', P: 7, kcal: 110, buy: [['cupboard', 'kidney beans', 1, 'can'], ['cupboard', 'chopped tomatoes', 2, 'can'], ['veg', 'bell pepper', 2, 'pcs']], step: 'Pot: pepper, beans and 2 cans chopped tomatoes, simmer 15 min.' }
+  ];
+  var VEG_STYLE = { wok: ['asia'], sauce: ['med', 'mex', 'mideast'], salad: ['mideast', 'med', 'asia'], spinachbeans: ['mex', 'med'] };
+  var CARB_STYLE = { pasta: ['med', 'mex'], basmati: ['asia', 'mideast'], bulgur: ['mideast', 'med'], couscous: ['mideast', 'med'], potato: ['med', 'nordic', 'mex'], sweetpotato: ['mex', 'mideast', 'med'] };
+  var FLAVOURS = [
+    { name: 'paprika & garlic', style: 'med', buy: [['cupboard', 'paprika', 1, 'jar'], ['veg', 'garlic', 1, 'bulb']] },
+    { name: 'mild curry', style: 'asia', buy: [['cupboard', 'mild curry powder', 1, 'jar']] },
+    { name: 'shawarma', style: 'mideast', buy: [['cupboard', 'shawarma spice', 1, 'jar'], ['veg', 'lemon', 1, 'pcs']] },
+    { name: 'lemon & herbs', style: 'med', buy: [['veg', 'lemon', 2, 'pcs'], ['cupboard', 'dried mixed herbs', 1, 'jar']] },
+    { name: 'harissa', style: 'mideast', buy: [['cupboard', 'harissa', 1, 'jar']] },
+    { name: 'tandoori', style: 'asia', buy: [['cupboard', 'tandoori spice', 1, 'jar'], ['dairy', 'Greek yoghurt', 150, 'g']] },
+    { name: 'cumin, chili & lime', style: 'mex', buy: [['cupboard', 'cumin', 1, 'jar'], ['cupboard', 'chili flakes', 1, 'jar'], ['veg', 'lime', 2, 'pcs']] },
+    { name: 'Italian herbs', style: 'med', buy: [['cupboard', 'Italian herbs', 1, 'jar'], ['veg', 'garlic', 1, 'bulb']] },
+    { name: 'cumin & cinnamon', style: 'mideast', buy: [['cupboard', 'cumin', 1, 'jar'], ['cupboard', 'cinnamon', 1, 'jar']] },
+    { name: 'oregano & lemon', style: 'med', buy: [['cupboard', 'oregano', 1, 'jar'], ['veg', 'lemon', 1, 'pcs']] },
+    { name: 'ginger & garlic', style: 'asia', buy: [['veg', 'fresh ginger', 1, 'pcs'], ['veg', 'garlic', 1, 'bulb']] },
+    { name: 'smoky BBQ rub', style: 'mex', buy: [['cupboard', 'BBQ spice rub', 1, 'jar']] },
+    { name: 'lemon & dill', style: 'nordic', buy: [['veg', 'lemon', 1, 'pcs'], ['cupboard', 'dried dill', 1, 'jar']] }
+  ];
+  var PROTEIN_STEP = {
+    strips: function (p) { return 'Cut the ' + p + ' in strips; split in two bowls and season each half; oven trays at 200 °C for 20–25 min (or fry hot in a pan in rounds).'; },
+    fillet: function (p) { return 'Split the ' + p + ' on two oven trays, season each tray; 200 °C for 12–15 min. Eat the fish boxes within 2 days.'; },
+    shrimp: function (p) { return 'Fry the ' + p + ' in two rounds, 3–4 min each, seasoning each round differently.'; },
+    mince: function (p, veg) { return veg === 'sauce' ? 'Mix the ' + p + ' with salt and pepper, roll small meatballs, oven 200 °C for 15 min; season half the balls each way, then into the sauce.' : 'Brown the ' + p + ' in a pan 8–10 min; split in two and season each half.'; }
+  };
+  /* small deterministic random (same week → same dishes on every phone) */
+  function rng(seed) { var s = seed >>> 0 || 1; return function () { s = (s + 0x6D2B79F5) >>> 0; var t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function pickOne(list, r) { return list[Math.floor(r() * list.length)]; }
+  function groupFor(slot, wk) { return slot === 1 ? 'fish' : slot === 2 && mod(wk, 2) === 0 ? 'red' : 'poultry'; }
+  var COOKS = {};   // memo: cook number -> dish
+  function cookNo(wk, slot) { return wk * 3 + slot; }
+  function buildDish(n) {
+    if (COOKS[n]) return COOKS[n];
+    var wk = Math.floor(n / 3), slot = mod(n, 3), r = rng(n * 7919 + 17), group = groupFor(slot, wk);
+    var prev = [], sameWeek = [];
+    for (var j = 1; j <= 18; j++) { var m = n - j; if (m >= 0 && m < n) { var d = buildDish(m); prev.push(d); if (Math.floor(m / 3) === wk) sameWeek.push(d); } }
+    var best = null;
+    for (var tries = 0; tries < 400; tries++) {
+      var pr = pickOne(PROTEIN_PARTS[group], r), cb = pickOne(CARB_PARTS, r), vg = pickOne(VEG_PARTS, r);
+      var f1 = pickOne(FLAVOURS, r), f2 = pickOne(FLAVOURS, r);
+      best = { pr: pr, cb: cb, vg: vg, f1: f1, f2: f2 };
+      if (f1 === f2) continue;
+      var ok = function (f) { return (f.style !== 'nordic' || group === 'fish') && (!VEG_STYLE[vg.k] || VEG_STYLE[vg.k].indexOf(f.style) >= 0) && (!CARB_STYLE[cb.k] || CARB_STYLE[cb.k].indexOf(f.style) >= 0); };
+      if (!ok(f1) || !ok(f2)) continue;
+      if (pr.how === 'fillet' && vg.k === 'sauce') continue;                        // fish fillets and meatball sauce don't mix
+      if ((cb.k === 'potato' || cb.k === 'sweetpotato') && vg.k === 'sauce') continue;
+      if (sameWeek.some(function (d) { return d.carb === cb.k || d.vegKey === vg.k; })) continue;
+      if (prev.slice(0, 2).some(function (d) { return d.vegKey === vg.k; })) continue;
+      if (prev[0] && (prev[0].carb === cb.k || prev[0].flavours.indexOf(f1.name) >= 0 || prev[0].flavours.indexOf(f2.name) >= 0)) continue;
+      var lastSame = prev.filter(function (d) { return d.group === group; })[0];
+      if (lastSame && lastSame.protein === pr.k) continue;                          // e.g. not shrimp two fish weeks running
+      var combo = pr.k + '|' + cb.k + '|' + vg.k;
+      if (prev.some(function (d) { return d.combo === combo; })) continue;
+      break;
+    }
+    var p = best.pr, c = best.cb, v = best.vg, pf = FOOD[p.k];
+    var dish = {
+      key: p.k + '-' + c.k + '-' + v.k, combo: p.k + '|' + c.k + '|' + v.k, group: group, carb: c.k, vegKey: v.k,
+      name: p.short + ', ' + c.short + ' & ' + v.short, protein: p.k, extra: { name: v.name, g: 250, P: v.P, kcal: v.kcal },
+      oil: p.k === 'salmon' ? 0 : 10, flavours: [best.f1.name, best.f2.name],
+      buy: v.buy.concat(best.f1.buy, best.f2.buy),
+      steps: [c.step, PROTEIN_STEP[p.how](pf.name.split(' (')[0], v.k), v.step]
+    };
+    dish.carbKey = c.k; dish.carb = c.k;
+    COOKS[n] = dish; return dish;
   }
+  function pickRecipe(slot, wk) { return wk < 0 ? buildDishFree(slot, wk) : buildDish(cookNo(wk, slot)); }
+  function buildDishFree(slot, wk) { var n = cookNo(mod(wk, 52), slot); return buildDish(n); }
+  var RECIPES = [];   // kept for compatibility; dishes are generated
   /* Morning protein changes every day (no cooking in any of them). */
   var MORNING = [
     { short: 'Skyr 400 g + a handful of frozen berries', P: 42, kcal: 290, buy: [['dairy', 'skyr (400 g tubs)', 1, 'pcs'], ['veg', 'frozen berries', 80, 'g']] },
@@ -506,7 +559,7 @@
   /* Everything to buy for the 7 days from fromIso: the cook days' batches, the no-cook
      meals, the daily shakes, skyr and creatine. Same items are added together. */
   function weekShopping(profile, fromIso, mac) {
-    var tgt = mealTargets(mac), d0 = parseISO(fromIso), items = {}, cooks = [], nocook = 0;
+    var tgt = mealTargets(mac, profile), d0 = parseISO(fromIso), items = {}, cooks = [], nocook = 0;
     function add(cat, name, qty, unit) { var k = cat + '|' + name + '|' + unit; if (!items[k]) items[k] = { key: k, cat: cat, name: name, qty: 0, unit: unit }; items[k].qty += qty; }
     for (var i = 0; i < 7; i++) {
       var dt = new Date(d0); dt.setDate(d0.getDate() + i); var iso = isoDate(dt);
@@ -542,7 +595,7 @@
   function r10(g) { return Math.max(0, Math.round(g / 10) * 10); }
   /* One portion: enough protein food to reach the meal's protein, carbs up to a sensible
      plate size for the remaining kcal, and rugbrød on the side if still short. */
-  var CARB_CAP = { brownrice: 150, pasta: 150, bulgur: 150, couscous: 150, potato: 600, sweetpotato: 600 };
+  var CARB_CAP = { brownrice: 150, basmati: 150, pasta: 150, bulgur: 150, couscous: 150, quinoa: 150, potato: 600, sweetpotato: 600 };
   function portion(recipe, mealP, mealK) {
     var pf = FOOD[recipe.protein], cf = FOOD[recipe.carb], ex = recipe.extra, oilK = recipe.oil * 9;
     var y = r10(Math.max(120, (mealP - ex.P) / pf.P * 100));
@@ -555,8 +608,11 @@
     if (bread) items.push({ name: 'rugbrød', g: bread * 50, slices: bread });
     return { items: items, P: Math.round(pf.P * y / 100 + cf.P * x / 100 + ex.P + bread * 3), kcal: Math.round(pf.kcal * y / 100 + cf.kcal * x / 100 + ex.kcal + oilK + bread * 110) };
   }
-  function mealTargets(mac) {
-    var P = mac ? mac.protein : 160, K = mac ? mac.kcal : 2400;
+  var LATTE = { kcal: 95, P: 9 };   // ~250 ml mini-mælk (0.5 % fat) + sweetener
+  function lattes(profile) { return Math.max(0, Math.min(3, +(profile && profile.lattes) || 0)); }
+  function mealTargets(mac, profile) {
+    var P = mac ? mac.protein : 160, K = mac ? mac.kcal : 2400, n = lattes(profile) * 5 / 7;
+    P -= Math.round(n * LATTE.P); K -= Math.round(n * LATTE.kcal);
     return { P: Math.round((P - SHAKES.post.P - SHAKES.morning.P) / 2), kcal: Math.round((K - SHAKES.post.kcal - SHAKES.morning.kcal) / 20) * 10 };
   }
   /* Which batch feeds meal 1 (lunch) / meal 2 (dinner) on a date. */
@@ -592,7 +648,7 @@
   function timeline(profile, p, mac) {
     var wake = hm(profile.wake || '06:30'), bed = hm(profile.bed || '22:30');
     if (bed <= wake) bed += 1440;
-    var tgt = mealTargets(mac), iso = p.date, slots = [];
+    var tgt = mealTargets(mac, profile), iso = p.date, slots = [];
     function slot(t, key, label, why, P, kcal, foods, extra) {
       slots.push(Object.assign({ t: t, time: fmtHM(t), key: key, label: label, why: why, protein: P, kcal: kcal ? Math.round(kcal / 10) * 10 : 0, foods: foods ? [foods] : null }, extra || {}));
     }
@@ -612,6 +668,11 @@
       slot(lunch, 'm1', 'Meal 1 (lunch)', 'Protein + carbs + veg.', tgt.P, tgt.kcal, m1.text, { cook: m1.cook, what: m1.what, detail: m1.detail });
       slot(Math.min(lunch + 240, last - 180), 'sh1', SHAKES.post.label, 'Mid-afternoon on rest days — keeps protein coming.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how, { what: SHAKES.post.short, detail: SHAKES.post.how });
       slot(Math.min(wake + 720, last), 'm2', 'Meal 2 (dinner)', 'Protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, m2.text, { cook: m2.cook, what: m2.what, detail: m2.detail });
+    }
+    var wd = parseISO(iso).getDay(), nl = lattes(profile);
+    if (wd >= 1 && wd <= 5) for (var li = 0; li < nl; li++) {
+      var lt = li === 0 ? wake + 150 : li === 1 ? Math.min(lunch + 120, hm('14:45')) : Math.min(lunch + 60, hm('14:45'));
+      slot(lt, 'la' + (li + 1), 'Caffe latte', 'Counted in your day: less food in the meals to make room. Last one before 15:00 for sleep.', LATTE.P, LATTE.kcal, null, { what: 'Caffe latte (mini-mælk, sweetener)', detail: '~' + LATTE.kcal + ' kcal · ' + LATTE.P + ' g protein — already counted. Last one before 15:00.' });
     }
     slots.sort(function (a, b) { return a.t - b.t; });
     return slots;
@@ -717,7 +778,7 @@
 
   return {
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, weekShopping: weekShopping, MORNING: MORNING, morningFor: morningFor, pickRecipe: pickRecipe, fmtQty: fmtQty, family: family, batchServings: batchServings, batchBuy: batchBuy, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, weekShopping: weekShopping, LATTE: LATTE, lattes: lattes, buildDish: buildDish, VEG_PARTS: VEG_PARTS, CARB_PARTS: CARB_PARTS, FLAVOURS: FLAVOURS, PROTEIN_PARTS: PROTEIN_PARTS, MORNING: MORNING, morningFor: morningFor, pickRecipe: pickRecipe, fmtQty: fmtQty, family: family, batchServings: batchServings, batchBuy: batchBuy, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, recentStalls: recentStalls, plan: plan, buildSession: buildSession, rampSets: rampSets,

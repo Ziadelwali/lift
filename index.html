@@ -637,7 +637,7 @@ function nextFoodCard(iso,p,mac){
 /* On a cook day: what to buy and how to make the 4 boxes. */
 function cookTodayCard(iso,mac){
  if(!mac)return '';var b=E.batchFor(state.profile,iso,2);if(!b||!b.cookToday)return '';
- var tgt=E.mealTargets(mac),pt=E.portion(b.recipe,tgt.P,tgt.kcal);
+ var tgt=E.mealTargets(mac,state.profile),pt=E.portion(b.recipe,tgt.P,tgt.kcal);
  return '<div class="card"><div class="row between"><h2>Cook today</h2><span class="chip warn">4 boxes</span></div><p class="sm" style="margin-top:4px"><b>'+esc(b.recipe.name)+'</b> — dinner tonight, lunch + dinner tomorrow, lunch the day after.</p>'+cookDetails(b.recipe,pt,false)+'</div>';
 }
 function cookDetails(recipe,pt,wrap){
@@ -803,10 +803,10 @@ function renderEat(){
 
 /* Cooking plan: the next 7 days' cook days, what to buy and how to make 4 boxes. */
 function cookCard(p,mac,iso){
- var tgt=E.mealTargets(mac),days=E.cookDays(p),d=E.parseISO(iso),cooks=[];
+ var tgt=E.mealTargets(mac,state.profile),days=E.cookDays(p),d=E.parseISO(iso),cooks=[];
  for(var i=0;i<7;i++){var x=new Date(d);x.setDate(d.getDate()+i);var ix=E.isoDate(x),b=E.batchFor(p,ix,2);if(b&&b.cookToday)cooks.push({iso:ix,b:b});}
  return '<div class="card"><div class="row between"><h2>Cooking plan</h2><span class="chip acc">3× a week</span></div>'+
-  '<p class="xs" style="margin:4px 0 8px">Each cook makes 4 boxes: dinner that day, lunch + dinner the next day, lunch the day after. That covers 12 of 14 meals; the other 2 are no-cook meals. Each week: one chicken or turkey dish, one fish dish, and lean red meat every other week (chicken again the other week) — 9 recipes in turn, each seasoned two ways.</p>'+
+  '<p class="xs" style="margin:4px 0 8px">Each cook makes 4 boxes: dinner that day, lunch + dinner the next day, lunch the day after. That covers 12 of 14 meals; the other 2 are no-cook meals. Dishes are put together fresh each time from a protein, a grain or potato, a vegetable and two seasonings: chicken or turkey, fish, and lean red meat every other week; no grain or vegetable twice in a week, and the same dish does not come back for at least 6 weeks.</p>'+
   '<p class="eyebrow" style="margin-top:6px">Cook on</p><div class="seg" style="margin-top:6px">'+[1,2,3,4,5,6,0].map(function(n){return '<button data-cookday="'+n+'"'+(days.indexOf(n)>=0?' class="on"':'')+'>'+DOW[n].slice(0,2)+'</button>';}).join('')+'</div>'+familyPicker()+
   cooks.map(function(c){var pt=E.portion(c.b.recipe,tgt.P,tgt.kcal);
    return '<details class="fold cook"><summary><div><b>'+niceDate(c.iso)+' · '+esc(c.b.recipe.name)+'</b><div class="xs">per box ~'+pt.P+' g protein · ~'+Math.round(pt.kcal/10)*10+' kcal</div></div></summary>'+
@@ -942,6 +942,7 @@ function renderProfile(){
   '<label class="field"><span class="l">Height cm</span><input type="number" inputmode="numeric" data-p="height" value="'+(p.height||'')+'"></label>'+
   '<label class="field"><span class="l">Weight kg</span><input type="text" inputmode="decimal" autocomplete="off" data-p="weight" value="'+(p.weight||'')+'"></label></div>'+
   '<div class="grid2"><label class="field"><span class="l">First goal kg</span><input type="text" inputmode="decimal" autocomplete="off" data-p="goal1" value="'+(p.goal1||100)+'"></label><label class="field"><span class="l">Final goal kg</span><input type="text" inputmode="decimal" autocomplete="off" data-p="goal2" value="'+(p.goal2||93)+'"></label></div>'+
+  '<label class="field"><span class="l">Caffe lattes on work days (mini-mælk)</span><select data-p="lattes">'+opt([['0','None'],['1','1 a day'],['2','2 a day'],['3','3 a day']],String(p.lattes||0))+'</select></label>'+
   '<label class="field"><span class="l">Daily activity outside the gym</span><select data-p="activity">'+opt([['desk','Mostly sitting (desk job)'],['feet','On my feet a fair bit'],['active','Physically active job']],p.activity||'feet')+'</select></label>'+
   '<label class="field"><span class="l">Phase</span><select data-p="phase">'+opt([['lean','Build & lean — muscle first, modest deficit'],['maintain','Maintain'],['bulk','Lean bulk (+10 %)']],p.phase||'lean')+'</select></label>'+
   '</div>';
@@ -1025,7 +1026,7 @@ document.addEventListener('change',function(ev){
   var sw=state.settings.shop.ticks;if(t.checked)sw[t.dataset.shop]=1;else delete sw[t.dataset.shop];
   save();shopCard.open=true;var sy=scrollY;renderEat();scrollTo(0,sy);return;}
  if(t.dataset.meal){var iso2=todayISO();state.daily[iso2]=state.daily[iso2]||{};state.daily[iso2].meals=state.daily[iso2].meals||{};state.daily[iso2].meals[t.dataset.meal]=t.checked?1:0;save();renderToday();return;}
- if(t.dataset.p){var v=t.value;if(['age','height','weight','goal1','goal2'].indexOf(t.dataset.p)>=0)v=num(v);state.profile[t.dataset.p]=v;save();return;}
+ if(t.dataset.p){var v=t.value;if(['age','height','weight','goal1','goal2','lattes'].indexOf(t.dataset.p)>=0)v=num(v);state.profile[t.dataset.p]=v;save();return;}
  if(t.dataset.prio){var list=(state.profile.priority||['shoulders','back']).slice();if(t.checked){if(list.length>=2){t.checked=false;toast('Two at most');return;}list.push(t.dataset.prio);}else list=list.filter(function(x){return x!==t.dataset.prio;});state.profile.priority=list;save();return;}
  if(t.dataset.day||t.dataset.time){var sched=Object.assign({},state.profile.sched||{1:'16:00',3:'16:00',5:'16:00'});
   if(t.dataset.day){if(t.checked)sched[t.dataset.day]='16:00';else delete sched[t.dataset.day];}
