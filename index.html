@@ -208,6 +208,8 @@ svg.chart .grid{stroke:var(--line);stroke-width:1}
 svg.chart .band{fill:var(--chart);opacity:.14}
 svg.chart .line{fill:none;stroke:var(--chart);stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 svg.chart .dot{fill:var(--ink3)}
+svg.chart .goal{stroke:var(--sun);stroke-width:1.5;stroke-dasharray:5 4}
+svg.chart text.goaltext{fill:var(--sun);font-weight:500}
 svg.chart .bar{fill:var(--acc)}svg.chart .bar.prio{fill:var(--prio)}svg.chart .bar.low{fill:var(--ink3)}
 
 /* ---------- body map ---------- */
@@ -767,7 +769,7 @@ function renderProgress(){
  var h='',done=E.completedSessions(state);
  var wk=weekSessions(),streak=streakWeeks();
  h+='<div class="grid3" style="margin-top:14px"><div class="stat"><div class="v">'+done.length+'</div><div class="l">sessions</div></div><div class="stat"><div class="v">'+wk+'/3</div><div class="l">this week</div></div><div class="stat"><div class="v">'+streak+'</div><div class="l">weeks streak</div></div></div>';
- h+='<div class="card"><h2>Bodyweight</h2>'+weightChart()+'</div>';
+ h+='<div class="card"><h2>Bodyweight</h2>'+weightChart()+'</div>'+waistCard();
  var ids=[];E.PROGRAM.A.concat(E.PROGRAM.B).forEach(function(c){if(ids.indexOf(c.id)<0)ids.push(c.id);});
  Object.keys(state.sessions).forEach(function(k){(state.sessions[k].ex||[]).forEach(function(e){if(ids.indexOf(e.id)<0)ids.push(e.id);});});
  var withHist=ids.filter(function(id){return E.history(state,id).length;});
@@ -790,11 +792,13 @@ function lineChart(pts,opts){
  var W=340,H=160,L=34,R=8,T=10,B=22;
  if(pts.length<2)return '<p class="xs" style="padding:10px 0">Not enough data yet — '+(opts.empty||'log a few more.')+'</p>';
  var xs=pts.map(function(p){return p.x;}),ys=pts.map(function(p){return p.y;}).concat(pts.map(function(p){return p.y2;}).filter(function(v){return v!=null;}));
+ (opts.goals||[]).forEach(function(g){ys.push(g.y);});
  var x0=Math.min.apply(null,xs),x1=Math.max.apply(null,xs),y0=Math.min.apply(null,ys),y1=Math.max.apply(null,ys);
  var pad=(y1-y0)*0.15||1;y0-=pad;y1+=pad;
  function X(v){return L+(v-x0)/((x1-x0)||1)*(W-L-R);}function Y(v){return T+(1-(v-y0)/(y1-y0))*(H-T-B);}
  var h='<svg class="chart" viewBox="0 0 '+W+' '+H+'">';
  for(var i=0;i<=3;i++){var yv=y0+(y1-y0)*i/3;h+='<line class="grid" x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(yv)+'" y2="'+Y(yv)+'"/><text x="0" y="'+(Y(yv)+3)+'">'+yv.toFixed(opts.dec==null?1:opts.dec)+'</text>';}
+ (opts.goals||[]).forEach(function(g){h+='<line class="goal" x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(g.y)+'" y2="'+Y(g.y)+'"/><text class="goaltext" x="'+(W-R)+'" y="'+(Y(g.y)-4)+'" text-anchor="end">'+esc(g.label)+'</text>';});
  h+='<text x="'+L+'" y="'+(H-6)+'">'+opts.fmtX(x0)+'</text><text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end">'+opts.fmtX(x1)+'</text>';
  pts.forEach(function(p){h+='<circle class="dot" cx="'+X(p.x)+'" cy="'+Y(p.y)+'" r="2.2"/>';});
  var line=pts.filter(function(p){return p.y2!=null;});
@@ -803,10 +807,23 @@ function lineChart(pts,opts){
  return h+'</svg>';
 }
 function fmtX(ms){var d=new Date(ms);return d.getDate()+' '+MON[d.getMonth()];}
+function goals(){var p=state.profile;return {g1:p.goal1||100,g2:p.goal2||93,waist:Math.round((p.height||186)/2)};}
 function weightChart(){
  var t=E.weightTrend(state).slice(-60),pts=t.map(function(p){return {x:E.parseISO(p.date).getTime(),y:p.kg,y2:p.avg};});
- var last=t[t.length-1];
- return (last?'<p class="sm" style="margin:4px 0 6px">Latest <b class="mono">'+last.kg.toFixed(1)+'</b> · 7-day avg <b class="mono">'+last.avg.toFixed(1)+'</b> kg</p>':'')+lineChart(pts,{fmtX:fmtX,empty:'weigh in on the Today tab.'});
+ var last=t[t.length-1],g=goals(),cur=last?last.avg:state.profile.weight,next=cur>g.g1?g.g1:g.g2,ta=E.trendAdvice(state),line='';
+ if(cur){var left=Math.round((cur-next)*10)/10;
+  line=left>0?'<b class="mono">'+left+' kg</b> to '+(next===g.g1?'your first goal':'your goal')+' ('+next+' kg)'+(ta.rate!=null&&ta.rate<-0.05?' · at your pace ~'+Math.ceil(left/-ta.rate)+' weeks':''):'Goal reached — '+next+' kg. Set the next one under Profile.';}
+ return (last?'<p class="sm" style="margin:4px 0 2px">Latest <b class="mono">'+last.kg.toFixed(1)+'</b> · 7-day avg <b class="mono">'+last.avg.toFixed(1)+'</b> kg</p>':'')+
+  (line?'<p class="sm" style="margin:0 0 6px">'+line+'</p>':'')+
+  lineChart(pts,{fmtX:fmtX,empty:'weigh in on the Today tab.',goals:[{y:g.g1,label:'first goal '+g.g1},{y:g.g2,label:'goal '+g.g2}]});
+}
+function waistCard(){
+ var iso=todayISO(),g=goals(),rows=Object.keys(state.daily).sort().filter(function(k){return state.daily[k]&&state.daily[k].waist>0;}),
+  pts=rows.map(function(k){return {x:E.parseISO(k).getTime(),y:state.daily[k].waist};}),first=rows[0],last=rows[rows.length-1],today=(state.daily[iso]||{}).waist;
+ var info=last?'Latest <b class="mono">'+state.daily[last].waist+' cm</b>'+(first!==last?' · '+(state.daily[last].waist-state.daily[first].waist>0?'+':'')+(Math.round((state.daily[last].waist-state.daily[first].waist)*10)/10)+' cm since '+niceDate(first):'')+' · goal under <b class="mono">'+g.waist+' cm</b>':'Goal: under <b class="mono">'+g.waist+' cm</b> (half your height).';
+ return '<div class="card"><h2>Waist</h2><p class="xs" style="margin:4px 0 8px">Once a week, same morning: tape around your belly at the belly button, relaxed, not pulled tight. Better than the scale when you are also building muscle.</p>'+
+  '<div class="row" style="gap:10px"><label class="field" style="margin:0;flex:1"><span class="l">Today, cm</span><input type="text" inputmode="decimal" autocomplete="off" data-daily="waist" value="'+(today||'')+'" placeholder="e.g. 108"></label></div>'+
+  '<p class="sm" style="margin:10px 0 6px">'+info+'</p>'+lineChart(pts,{fmtX:fmtX,dec:0,empty:'measure again next week to see the line.',goals:[{y:g.waist,label:'goal '+g.waist}]})+'</div>';
 }
 function liftChart(id){
  var bs=E.bestSets(state,id);
@@ -842,6 +859,7 @@ function renderProfile(){
   '<label class="field"><span class="l">Age</span><input type="number" inputmode="numeric" data-p="age" value="'+(p.age||'')+'"></label>'+
   '<label class="field"><span class="l">Height cm</span><input type="number" inputmode="numeric" data-p="height" value="'+(p.height||'')+'"></label>'+
   '<label class="field"><span class="l">Weight kg</span><input type="text" inputmode="decimal" autocomplete="off" data-p="weight" value="'+(p.weight||'')+'"></label></div>'+
+  '<div class="grid2"><label class="field"><span class="l">First goal kg</span><input type="text" inputmode="decimal" autocomplete="off" data-p="goal1" value="'+(p.goal1||100)+'"></label><label class="field"><span class="l">Final goal kg</span><input type="text" inputmode="decimal" autocomplete="off" data-p="goal2" value="'+(p.goal2||93)+'"></label></div>'+
   '<label class="field"><span class="l">Daily activity outside the gym</span><select data-p="activity">'+opt([['desk','Mostly sitting (desk job)'],['feet','On my feet a fair bit'],['active','Physically active job']],p.activity||'feet')+'</select></label>'+
   '<label class="field"><span class="l">Phase</span><select data-p="phase">'+opt([['lean','Build & lean — muscle first, modest deficit'],['maintain','Maintain'],['bulk','Lean bulk (+10 %)']],p.phase||'lean')+'</select></label>'+
   '</div>';
@@ -916,9 +934,9 @@ document.addEventListener('change',function(ev){
  if(t.dataset.rir){var r=t.dataset.rir.split(':');ses.ex[+r[0]].sets[+r[1]].rir=t.value===''?null:+t.value;save();return;}
  if(t.dataset.warm){ses.warm=ses.warm||{};ses.warm[t.dataset.warm]=t.checked?1:0;save();return;}
  if(t.dataset.daily){var iso=todayISO();var dv=num(t.value);if(t.dataset.daily==='weight'){if(dv!=null){state.weight[iso]=dv;state.profile.weight=dv;}else delete state.weight[iso];}
-  else{state.daily[iso]=state.daily[iso]||{};state.daily[iso][t.dataset.daily]=dv;}save();return;}
+  else{state.daily[iso]=state.daily[iso]||{};state.daily[iso][t.dataset.daily]=dv;}save();if(t.dataset.daily==='waist'&&view==='progress'){var sy=scrollY;renderProgress();scrollTo(0,sy);}return;}
  if(t.dataset.meal){var iso2=todayISO();state.daily[iso2]=state.daily[iso2]||{};state.daily[iso2].meals=state.daily[iso2].meals||{};state.daily[iso2].meals[t.dataset.meal]=t.checked?1:0;save();renderToday();return;}
- if(t.dataset.p){var v=t.value;if(['age','height','weight'].indexOf(t.dataset.p)>=0)v=num(v);state.profile[t.dataset.p]=v;save();return;}
+ if(t.dataset.p){var v=t.value;if(['age','height','weight','goal1','goal2'].indexOf(t.dataset.p)>=0)v=num(v);state.profile[t.dataset.p]=v;save();return;}
  if(t.dataset.prio){var list=(state.profile.priority||['shoulders','back']).slice();if(t.checked){if(list.length>=2){t.checked=false;toast('Two at most');return;}list.push(t.dataset.prio);}else list=list.filter(function(x){return x!==t.dataset.prio;});state.profile.priority=list;save();return;}
  if(t.dataset.day||t.dataset.time){var sched=Object.assign({},state.profile.sched||{1:'16:00',3:'16:00',5:'16:00'});
   if(t.dataset.day){if(t.checked)sched[t.dataset.day]='16:00';else delete sched[t.dataset.day];}
