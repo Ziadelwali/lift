@@ -1,299 +1,35 @@
 {
-  "_note": "Equipment in the user's gym, classified from photos. status: confirmed | check (needs a look at the placard/label in the gym). Exercise ids refer to exercises.js.",
+  "_note": "B1973 Fitness, Elverhøjen 64, Herlev. Source: the club's equipment list (https://www.b1973fitness.dk/newlook/proc_info.asp, 'Motionsudstyr') plus what the user reported. status: listed = on the official list; reported = user says it's there but it's not on the list; check = unclear. Exercise ids refer to exercises.js.",
   "equipment": [
-    {
-      "id": "lateral_raise_machine",
-      "name": "Lateral raise machine (Cybex)",
-      "type": "machine",
-      "trains": [
-        "side delts"
-      ],
-      "status": "check",
-      "check": "Placard should say 'Lateral Raise'. If it says 'Rear Delt' or 'Pec Fly', tell me.",
-      "unlocks": [
-        "Seated_Side_Lateral_Raise"
-      ]
-    },
-    {
-      "id": "lat_pulldown",
-      "name": "Lat pulldown (Cybex, high pulley)",
-      "type": "cable",
-      "trains": [
-        "lats",
-        "upper back",
-        "biceps"
-      ],
-      "status": "confirmed",
-      "unlocks": [
-        "Wide-Grip_Lat_Pulldown",
-        "Close-Grip_Front_Lat_Pulldown",
-        "Straight-Arm_Pulldown",
-        "Rope_Straight-Arm_Pulldown"
-      ]
-    },
-    {
-      "id": "seated_leg_curl",
-      "name": "Seated leg curl (Life Fitness)",
-      "type": "machine",
-      "trains": [
-        "hamstrings"
-      ],
-      "status": "check",
-      "check": "Pad presses down on top of the thighs and the roller sits behind the ankles = leg curl. Roller in front of the shins = leg extension.",
-      "unlocks": [
-        "Seated_Leg_Curl"
-      ]
-    },
-    {
-      "id": "dumbbells",
-      "name": "Dumbbells (hex, rack)",
-      "type": "free weight",
-      "trains": [
-        "everything"
-      ],
-      "status": "check",
-      "check": "Heaviest pair in kg?",
-      "unlocks": [
-        "Dumbbell_Bench_Press",
-        "Dumbbell_Shoulder_Press",
-        "Side_Lateral_Raise",
-        "Stiff-Legged_Dumbbell_Deadlift",
-        "Dumbbell_Bicep_Curl",
-        "Hammer_Curls",
-        "Dumbbell_Incline_Row",
-        "Goblet_Squat"
-      ]
-    },
-    {
-      "id": "medicine_ball",
-      "name": "Medicine ball (4 kg)",
-      "type": "accessory",
-      "trains": [
-        "core"
-      ],
-      "status": "confirmed",
-      "unlocks": []
-    },
-    {
-      "id": "stability_ball",
-      "name": "Stability / Swiss ball",
-      "type": "accessory",
-      "trains": [
-        "core"
-      ],
-      "status": "confirmed",
-      "unlocks": []
-    },
-    {
-      "id": "smith_machine",
-      "name": "Smith machine (Hammer Strength)",
-      "type": "machine",
-      "trains": [
-        "legs",
-        "chest",
-        "shoulders",
-        "back"
-      ],
-      "status": "confirmed",
-      "unlocks": []
-    },
-    {
-      "id": "multi_gym",
-      "name": "Multi-station home gym (Body-Solid EXM2500 style)",
-      "type": "machine",
-      "trains": [
-        "chest",
-        "lats",
-        "upper back",
-        "quads",
-        "hamstrings",
-        "biceps",
-        "triceps"
-      ],
-      "status": "check",
-      "check": "Confirm which stations yours has: press/fly arms, high pulldown bar, low pulley, leg extension/curl rollers.",
-      "stations": [
-        "chest press arms (convert to pec fly / rear-delt fly)",
-        "high pulley lat pulldown",
-        "low pulley (rows, curls)",
-        "leg extension",
-        "leg curl (standing or lying, depends on model)"
-      ],
-      "unlocks": [
-        "Machine_Bench_Press",
-        "Leg_Extensions",
-        "Reverse_Machine_Flyes"
-      ]
-    },
-    {
-      "id": "cable_crossover",
-      "name": "Cable crossover / dual adjustable pulley, with chin-up bar",
-      "type": "cable",
-      "trains": [
-        "everything"
-      ],
-      "status": "confirmed",
-      "unlocks": [
-        "Seated_Cable_Rows",
-        "Triceps_Pushdown",
-        "Triceps_Pushdown_-_Rope_Attachment",
-        "Cable_Crunch",
-        "Face_Pull",
-        "Cable_Rear_Delt_Fly",
-        "Straight-Arm_Pulldown",
-        "Rope_Straight-Arm_Pulldown",
-        "Chin-Up"
-      ]
-    },
-    {
-      "id": "treadmill",
-      "name": "Treadmill (Freemotion)",
-      "type": "cardio",
-      "status": "confirmed",
-      "unlocks": []
-    },
-    {
-      "id": "spin_bike",
-      "name": "Indoor cycle / spin bike (Freemotion)",
-      "type": "cardio",
-      "status": "confirmed",
-      "unlocks": [
-        "Bicycling_Stationary"
-      ]
-    },
-    {
-      "id": "elliptical",
-      "name": "Elliptical cross-trainer (Precor)",
-      "type": "cardio",
-      "status": "confirmed",
-      "unlocks": []
-    },
-    {
-      "id": "stair_climber",
-      "name": "Stair climber (StairMaster StepMill)",
-      "type": "cardio",
-      "status": "confirmed",
-      "unlocks": []
-    },
-    {
-      "id": "rower",
-      "name": "Rowing machine (WaterRower)",
-      "type": "cardio",
-      "status": "confirmed",
-      "unlocks": [
-        "Rowing_Stationary"
-      ]
-    },
-    {
-      "id": "power_rack",
-      "name": "Power rack / squat rack + Olympic barbell + plates",
-      "type": "free weight",
-      "trains": [
-        "legs",
-        "chest",
-        "back",
-        "shoulders"
-      ],
-      "status": "confirmed",
-      "unlocks": [
-        "Romanian_Deadlift"
-      ]
-    },
-    {
-      "id": "adjustable_bench",
-      "name": "Adjustable bench (flat/incline)",
-      "type": "free weight",
-      "trains": [
-        "chest",
-        "shoulders",
-        "back"
-      ],
-      "status": "confirmed",
-      "unlocks": [
-        "Dumbbell_Bench_Press",
-        "Incline_Dumbbell_Press",
-        "Dumbbell_Incline_Row",
-        "Seated_Side_Lateral_Raise"
-      ]
-    },
-    {
-      "id": "ab_crunch_machine",
-      "name": "Seated ab crunch machine",
-      "type": "machine",
-      "trains": [
-        "abs"
-      ],
-      "status": "confirmed",
-      "unlocks": []
-    },
-    {
-      "id": "seated_leg_press",
-      "name": "Seated leg press (selectorized)",
-      "type": "machine",
-      "trains": [
-        "quads",
-        "glutes"
-      ],
-      "status": "confirmed",
-      "unlocks": [
-        "Leg_Press",
-        "Calf_Press_On_The_Leg_Press_Machine"
-      ]
-    },
-    {
-      "id": "hamstring_glute_machine",
-      "name": "Hamstring/glute machine (type unknown)",
-      "type": "machine",
-      "trains": [
-        "hamstrings",
-        "glutes"
-      ],
-      "status": "check",
-      "check": "Which one: glute kickback, hip thrust, lying leg curl?",
-      "unlocks": []
-    },
-    {
-      "id": "chest_press_machine",
-      "name": "Seated chest press machine",
-      "type": "machine",
-      "trains": [
-        "chest",
-        "triceps",
-        "front delts"
-      ],
-      "status": "confirmed",
-      "unlocks": [
-        "Machine_Bench_Press",
-        "Leverage_Chest_Press"
-      ]
-    },
-    {
-      "id": "preacher_bench",
-      "name": "Preacher curl bench + EZ curl bar",
-      "type": "free weight",
-      "trains": [
-        "biceps"
-      ],
-      "status": "confirmed",
-      "unlocks": [
-        "EZ-Bar_Curl"
-      ]
-    },
-    {
-      "id": "horizontal_leg_press",
-      "name": "Horizontal (flat) plate-loaded leg press",
-      "type": "machine",
-      "trains": [
-        "quads",
-        "glutes",
-        "hamstrings"
-      ],
-      "status": "check",
-      "check": "Only the flat one, or the 45-degree angled one too? Is it the same machine as seated_leg_press?",
-      "unlocks": [
-        "Leg_Press",
-        "Calf_Press_On_The_Leg_Press_Machine"
-      ]
-    }
+    { "id": "dumbbells", "name": "Dumbbells, max 30 kg", "type": "free weight", "status": "listed",
+      "note": "30 kg per hand is the ceiling: once a dumbbell lift passes it, move to the machine/Smith alternative.",
+      "unlocks": ["Dumbbell_Bench_Press", "Incline_Dumbbell_Press", "Dumbbell_Shoulder_Press", "Side_Lateral_Raise", "Seated_Side_Lateral_Raise", "Stiff-Legged_Dumbbell_Deadlift", "One-Arm_Dumbbell_Row", "Dumbbell_Incline_Row", "Dumbbell_Bicep_Curl", "Hammer_Curls", "Goblet_Squat", "Reverse_Flyes", "External_Rotation", "Standing_Dumbbell_Calf_Raise"] },
+    { "id": "leg_extension", "name": "Leg extension (Nautilus One S6LE)", "type": "machine", "status": "listed", "trains": ["quads"], "unlocks": ["Leg_Extensions"] },
+    { "id": "seated_leg_curl", "name": "Seated leg curl (Nautilus One S6LC)", "type": "machine", "status": "listed", "trains": ["hamstrings"], "unlocks": ["Seated_Leg_Curl"] },
+    { "id": "leg_press", "name": "Leg press (Nautilus One)", "type": "machine", "status": "listed", "trains": ["quads", "glutes"], "unlocks": ["Leg_Press", "Calf_Press_On_The_Leg_Press_Machine"] },
+    { "id": "ab_crunch", "name": "Abdominal crunch (Nautilus One)", "type": "machine", "status": "listed", "trains": ["abs"], "unlocks": ["Ab_Crunch_Machine"] },
+    { "id": "dual_pulley_row", "name": "Dual pulley row (Nautilus F3DROW, plate-loaded, two separate handles)", "type": "machine", "status": "listed", "trains": ["upper back", "lats"], "unlocks": ["Seated_Cable_Rows"] },
+    { "id": "dual_pulley_lat_pulldown", "name": "Dual pulley lat pulldown (Nautilus F3DLATP, plate-loaded, two separate handles)", "type": "machine", "status": "listed", "trains": ["lats"], "unlocks": ["Wide-Grip_Lat_Pulldown", "Close-Grip_Front_Lat_Pulldown"] },
+    { "id": "low_back", "name": "Low back / back extension (Nautilus One)", "type": "machine", "status": "listed", "trains": ["lower back", "glutes"],
+      "note": "Probably the 'back thighs and glutes' machine the user mentioned.", "unlocks": [] },
+    { "id": "chest_press", "name": "Chest press (Nautilus One)", "type": "machine", "status": "listed", "trains": ["chest", "triceps"], "unlocks": ["Machine_Bench_Press"] },
+    { "id": "shoulder_press", "name": "Shoulder press (Nautilus One)", "type": "machine", "status": "listed", "trains": ["shoulders", "triceps"], "unlocks": ["Leverage_Shoulder_Press"] },
+    { "id": "smith_machine", "name": "Smith machine (Nautilus)", "type": "machine", "status": "listed", "trains": ["legs", "chest", "shoulders"],
+      "unlocks": ["Smith_Machine_Squat", "Smith_Machine_Bench_Press", "Smith_Machine_Incline_Bench_Press", "Smith_Machine_Overhead_Shoulder_Press", "Smith_Machine_Calf_Raise"] },
+    { "id": "bench_press_station", "name": "Bench press station (Nautilus)", "type": "free weight", "status": "listed", "trains": ["chest"], "unlocks": [] },
+    { "id": "dip_machine", "name": "Dip machine (Nautilus)", "type": "machine", "status": "listed", "trains": ["triceps", "chest"], "unlocks": ["Dip_Machine"] },
+    { "id": "multistation", "name": "Multi-station (Nautilus): high and low pulley", "type": "cable", "status": "listed",
+      "check": "Which attachments are there: rope, straight bar, single handle? Can the pulley be set at face height?",
+      "unlocks": ["Triceps_Pushdown", "Triceps_Pushdown_-_Rope_Attachment", "Straight-Arm_Pulldown", "Rope_Straight-Arm_Pulldown", "Face_Pull", "Cable_Crunch", "Cable_Seated_Lateral_Raise", "Cable_Rear_Delt_Fly"] },
+    { "id": "pullup_bar", "name": "Pull-up bar / wall bars", "type": "bodyweight", "status": "reported", "unlocks": ["Chin-Up", "Hanging_Leg_Raise"] },
+    { "id": "preacher_bench", "name": "Preacher curl bench + bar", "type": "free weight", "status": "reported", "unlocks": ["Preacher_Curl"] },
+    { "id": "bench", "name": "Flat / incline bench", "type": "free weight", "status": "reported", "unlocks": [] },
+    { "id": "group_room", "name": "Group room: stability balls, steps, mats, wall bars, hula hoops, balance boards", "type": "accessory", "status": "reported", "unlocks": ["Plank"] },
+    { "id": "treadmill", "name": "Treadmill (Matrix) x3", "type": "cardio", "status": "listed", "unlocks": [] },
+    { "id": "elliptical", "name": "Elliptical (Nautilus E916 x1, Matrix x2)", "type": "cardio", "status": "listed", "unlocks": [] },
+    { "id": "bike", "name": "Exercise bike (Nautilus E916 x2, Impulse RU970 upright x1)", "type": "cardio", "status": "listed", "unlocks": ["Bicycling_Stationary"] },
+    { "id": "spin_bike", "name": "Spinning bikes (Matrix x6, Body Bike x4)", "type": "cardio", "status": "listed", "unlocks": ["Bicycling_Stationary"] },
+    { "id": "rower", "name": "Rowing machine (Concept2 model E)", "type": "cardio", "status": "listed", "unlocks": ["Rowing_Stationary"] },
+    { "id": "stair_climber", "name": "Stair machine (Matrix)", "type": "cardio", "status": "listed", "unlocks": [] }
   ]
 }
