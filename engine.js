@@ -391,50 +391,100 @@
      dinner that day, lunch + dinner the next day, lunch the day after. Three cooks
      = 12 of 14 weekly meals; the 2 left are no-cook meals. */
   var SHAKES = {
-    post: { label: 'Protein shake', short: 'Shake: whey 40 g + 500 ml milk + banana', P: 50, kcal: 420, how: 'Whey 40 g (pick a halal-certified brand) + 500 ml skimmed milk + 1 banana. Right after training (or mid-afternoon on rest days).' },
+    post: { label: 'Protein shake', short: 'Shake: whey 40 g + 500 ml milk + banana', P: 50, kcal: 420, how: 'Whey 40 g + 500 ml skimmed milk + 1 banana. Right after training (or mid-afternoon on rest days).' },
     morning: { label: 'Morning protein', short: 'Skyr 400 g (or a whey shake)', P: 40, kcal: 250, how: 'Skyr 400 g — or whey 30 g in 300 ml milk. No cooking; at home or on the way.' }
   };
   /* per 100 g raw/dry */
   var FOOD = {
     chicken: { name: 'chicken breast (raw)', P: 23, kcal: 110, cat: 'meat' },
+    turkey: { name: 'turkey mince 7 % (raw)', P: 20, kcal: 140, cat: 'meat' },
     beef: { name: 'beef mince 5 % (raw)', P: 21, kcal: 125, cat: 'meat' },
     beefstrips: { name: 'lean beef strips (raw)', P: 22, kcal: 120, cat: 'meat' },
     salmon: { name: 'salmon fillet (raw)', P: 20, kcal: 200, cat: 'meat' },
-    rice: { name: 'rice (dry)', P: 7, kcal: 360, cat: 'carb' },
+    cod: { name: 'cod fillet (raw or frozen)', P: 18, kcal: 80, cat: 'meat' },
+    brownrice: { name: 'brown rice (dry)', P: 8, kcal: 360, cat: 'carb' },
     potato: { name: 'potatoes (raw)', P: 2, kcal: 77, cat: 'veg' },
+    sweetpotato: { name: 'sweet potatoes (raw)', P: 1.6, kcal: 86, cat: 'veg' },
     pasta: { name: 'wholegrain pasta (dry)', P: 13, kcal: 350, cat: 'carb' },
-    bulgur: { name: 'bulgur (dry)', P: 12, kcal: 350, cat: 'carb' }
+    bulgur: { name: 'bulgur (dry)', P: 12, kcal: 350, cat: 'carb' },
+    couscous: { name: 'wholegrain couscous (dry)', P: 13, kcal: 360, cat: 'carb' }
   };
+  /* Nine recipes in three groups. The week rotates poultry → fish → (red meat one week,
+     poultry the next), so there is fish every week and lean red meat only every other
+     week. Each batch is seasoned two ways, so lunch and dinner in a row never taste the same. */
   var RECIPES = [
-    { key: 'chicken-rice', name: 'Chicken, rice & wok veg', protein: 'chicken', carb: 'rice',
-      buy: [['veg', 'frozen wok vegetables', 1000, 'g'], ['veg', 'garlic', 1, 'bulb'], ['cupboard', 'paprika', 1, 'jar']],
+    { key: 'chicken-rice', group: 'poultry', name: 'Chicken, brown rice & wok veg', protein: 'chicken', carb: 'brownrice', flavours: ['paprika & garlic', 'mild curry'],
+      buy: [['veg', 'frozen wok vegetables', 1000, 'g'], ['veg', 'garlic', 1, 'bulb'], ['cupboard', 'paprika', 1, 'jar'], ['cupboard', 'mild curry powder', 1, 'jar']],
       extra: { name: 'frozen wok vegetables', g: 250, P: 5, kcal: 75 }, oil: 10,
-      steps: ['Rice: boil all of it in one big pot.', 'Chicken: cut in strips, oven tray at 200 °C for 20–25 min with salt, pepper, paprika.', 'Veg: fry in a pan 8 min with a little oil, garlic and salt.', 'Split into 4 boxes, fridge.'] },
-    { key: 'chili', name: 'Chili con carne with rice', protein: 'beef', carb: 'rice',
+      steps: ['Rice: boil all of it in one big pot (brown rice ~25 min).', 'Chicken: cut in strips, spread on two oven trays at 200 °C for 20–25 min.', 'Veg: fry in a pan 8 min with a little oil, garlic and salt.'] },
+    { key: 'chicken-bulgur', group: 'poultry', name: 'Shawarma chicken, bulgur & salad', protein: 'chicken', carb: 'bulgur', flavours: ['shawarma spice', 'lemon & herbs'],
+      buy: [['veg', 'tomatoes', 4, 'pcs'], ['veg', 'cucumber', 1, 'pcs'], ['veg', 'red onion', 2, 'pcs'], ['veg', 'lemon', 1, 'pcs'], ['dairy', 'Greek yoghurt', 200, 'g'], ['cupboard', 'shawarma spice', 1, 'jar']],
+      extra: { name: 'tomato, cucumber, onion & a spoon of yoghurt dressing', g: 250, P: 5, kcal: 80 }, oil: 10,
+      steps: ['Bulgur: pour boiling water over it (twice its volume), lid on, 15 min.', 'Chicken: thin strips, fry hot in a pan in two rounds.', 'Salad: chop tomato, cucumber and onion; keep it separate so it stays crisp; add the yoghurt when you eat.'] },
+    { key: 'chicken-sweetpotato', group: 'poultry', name: 'Chicken, sweet potato & green beans', protein: 'chicken', carb: 'sweetpotato', flavours: ['harissa', 'lemon & garlic'],
+      buy: [['veg', 'frozen green beans', 1000, 'g'], ['veg', 'lemon', 1, 'pcs'], ['veg', 'garlic', 1, 'bulb'], ['cupboard', 'harissa', 1, 'jar']],
+      extra: { name: 'green beans', g: 250, P: 5, kcal: 75 }, oil: 10,
+      steps: ['Sweet potatoes in cubes on an oven tray, 200 °C for 30 min with a little oil and salt.', 'Chicken on a second tray for the last 20–25 min.', 'Green beans: boil 5 min.'] },
+    { key: 'turkey-pasta', group: 'poultry', name: 'Turkey meatballs, tomato sauce & wholegrain pasta', protein: 'turkey', carb: 'pasta', flavours: ['basil', 'oregano & chili'],
+      buy: [['cupboard', 'chopped tomatoes', 2, 'can'], ['veg', 'fresh spinach', 300, 'g'], ['veg', 'onion', 1, 'pcs'], ['veg', 'garlic', 1, 'bulb'], ['cupboard', 'dried basil or oregano', 1, 'jar']],
+      extra: { name: 'tomato sauce with spinach', g: 250, P: 4, kcal: 90 }, oil: 5,
+      steps: ['Meatballs: mix the mince with salt, pepper and grated onion, roll small balls, oven 200 °C for 15 min.', 'Sauce: garlic in a pot, 2 cans chopped tomatoes, simmer 10 min, stir in the spinach at the end.', 'Pasta in one big pot; keep sauce and pasta in the same box.'] },
+    { key: 'salmon-potato', group: 'fish', name: 'Salmon, potatoes & broccoli', protein: 'salmon', carb: 'potato', flavours: ['lemon & dill', 'garlic & paprika'],
+      buy: [['veg', 'broccoli', 1000, 'g'], ['veg', 'lemon', 1, 'pcs'], ['cupboard', 'dried dill', 1, 'jar']],
+      extra: { name: 'broccoli', g: 250, P: 7, kcal: 85 }, oil: 0,
+      steps: ['Potatoes in wedges, oven 200 °C for 35 min.', 'Salmon on the same tray for the last 15 min.', 'Broccoli: steam 5 min. Eat the salmon boxes within 2 days.'] },
+    { key: 'cod-curry', group: 'fish', name: 'Cod curry with peas & brown rice', protein: 'cod', carb: 'brownrice', flavours: ['mild curry', 'tomato & ginger'],
+      buy: [['veg', 'frozen peas', 500, 'g'], ['cupboard', 'chopped tomatoes', 2, 'can'], ['veg', 'onion', 2, 'pcs'], ['veg', 'fresh ginger', 1, 'pcs'], ['cupboard', 'curry paste', 1, 'jar']],
+      extra: { name: 'peas, tomato & onion sauce', g: 250, P: 8, kcal: 110 }, oil: 10,
+      steps: ['Sauce: fry onion and ginger, add curry paste and 2 cans chopped tomatoes, simmer 10 min.', 'Add the cod in chunks and the peas, 8 min on low heat.', 'Brown rice in one big pot (~25 min).'] },
+    { key: 'salmon-couscous', group: 'fish', name: 'Oven salmon, couscous & roasted veg', protein: 'salmon', carb: 'couscous', flavours: ['lemon & herbs', 'harissa'],
+      buy: [['veg', 'squash (zucchini)', 2, 'pcs'], ['veg', 'bell pepper', 2, 'pcs'], ['veg', 'red onion', 2, 'pcs'], ['veg', 'lemon', 1, 'pcs']],
+      extra: { name: 'roasted squash, pepper & onion', g: 250, P: 3, kcal: 70 }, oil: 10,
+      steps: ['Veg in chunks on an oven tray, 200 °C for 25 min.', 'Salmon on a second tray for 15 min.', 'Couscous: boiling water over it, lid on, 5 min. Eat the salmon boxes within 2 days.'] },
+    { key: 'chili', group: 'red', name: 'Chili con carne with beans & brown rice', protein: 'beef', carb: 'brownrice', flavours: ['classic chili', 'smoky paprika'],
       buy: [['cupboard', 'kidney beans', 1, 'can'], ['cupboard', 'chopped tomatoes', 2, 'can'], ['veg', 'onion', 2, 'pcs'], ['veg', 'bell pepper', 2, 'pcs'], ['cupboard', 'chili spice', 1, 'jar']],
       extra: { name: 'beans, chopped tomatoes, onion & pepper', g: 250, P: 7, kcal: 110 }, oil: 5,
-      steps: ['Fry onion and pepper, add the mince and brown it.', 'Add 1 can kidney beans, 2 cans chopped tomatoes, chili spice; simmer 20 min.', 'Rice in one big pot.', 'Split into 4 boxes, fridge.'] },
-    { key: 'beef-bulgur', name: 'Kebab-style beef strips, bulgur & salad', protein: 'beefstrips', carb: 'bulgur',
-      buy: [['veg', 'tomatoes', 4, 'pcs'], ['veg', 'cucumber', 1, 'pcs'], ['veg', 'red onion', 2, 'pcs'], ['dairy', 'Greek yoghurt', 200, 'g'], ['cupboard', 'kebab spice (or cumin + paprika)', 1, 'jar']],
+      steps: ['Fry onion and pepper, add the mince and brown it.', 'Add the beans and 2 cans chopped tomatoes; simmer 20 min.', 'Brown rice in one big pot (~25 min).'] },
+    { key: 'beef-bulgur', group: 'red', name: 'Kebab-style beef strips, bulgur & salad', protein: 'beefstrips', carb: 'bulgur', flavours: ['kebab spice', 'cumin & lemon'],
+      buy: [['veg', 'tomatoes', 4, 'pcs'], ['veg', 'cucumber', 1, 'pcs'], ['veg', 'red onion', 2, 'pcs'], ['veg', 'lemon', 1, 'pcs'], ['dairy', 'Greek yoghurt', 200, 'g'], ['cupboard', 'kebab spice (or cumin + paprika)', 1, 'jar']],
       extra: { name: 'tomato, cucumber, onion & a spoon of yoghurt dressing', g: 250, P: 5, kcal: 80 }, oil: 10,
-      steps: ['Bulgur: pour boiling water over it (twice its volume), lid on, 15 min.', 'Beef strips: fry hot in a pan in two rounds with kebab spice or cumin, paprika, garlic.', 'Salad: chop tomato, cucumber and onion; keep separate so it stays crisp.', 'Split into 4 boxes, fridge; add the yoghurt when you eat.'] },
-    { key: 'salmon-potato', name: 'Salmon, potatoes & broccoli', protein: 'salmon', carb: 'potato',
-      buy: [['veg', 'broccoli', 1000, 'g'], ['veg', 'lemon', 1, 'pcs']],
-      extra: { name: 'broccoli', g: 250, P: 7, kcal: 85 }, oil: 0,
-      steps: ['Potatoes in wedges, oven 200 °C for 35 min.', 'Salmon on the same tray for the last 15 min.', 'Broccoli: steam 5 min.', 'Split into 4 boxes; eat the salmon within 2 days.'] }
+      steps: ['Bulgur: pour boiling water over it (twice its volume), lid on, 15 min.', 'Beef strips: fry hot in a pan in two rounds.', 'Salad: chop tomato, cucumber and onion; keep it separate; add the yoghurt when you eat.'] }
   ];
+  function byGroup(g) { return RECIPES.filter(function (r) { return r.group === g; }); }
+  function mod(a, n) { return ((a % n) + n) % n; }
+  /* Recipe for cook slot `slot` (0, 1, 2 = 1st, 2nd, 3rd cook day of the week) in week `wk`. */
+  function pickRecipe(slot, wk) {
+    var poultry = byGroup('poultry'), fish = byGroup('fish'), red = byGroup('red');
+    var redWeek = mod(wk, 2) === 0, base = wk + Math.floor(wk / 2);   // poultry batches before this week
+    if (slot === 1) return fish[mod(wk, fish.length)];
+    if (slot === 2 && redWeek) return red[mod(Math.floor(wk / 2), red.length)];
+    return poultry[mod(base + (slot === 2 ? 1 : 0), poultry.length)];
+  }
+  /* Morning protein changes every day (no cooking in any of them). */
+  var MORNING = [
+    { short: 'Skyr 400 g + a handful of frozen berries', P: 42, kcal: 290, buy: [['dairy', 'skyr (400 g tubs)', 1, 'pcs'], ['veg', 'frozen berries', 80, 'g']] },
+    { short: 'Whey shake: 30 g whey in 300 ml milk', P: 35, kcal: 225, buy: [['shake', 'whey protein', 30, 'g'], ['dairy', 'skimmed milk', 300, 'ml']] },
+    { short: 'Cottage cheese 300 g + cucumber', P: 36, kcal: 270, buy: [['dairy', 'cottage cheese', 300, 'g'], ['veg', 'cucumber', 0.5, 'pcs']] },
+    { short: 'Skyr 400 g with cinnamon', P: 40, kcal: 250, buy: [['dairy', 'skyr (400 g tubs)', 1, 'pcs']] }
+  ];
+  function dayNo(iso) { return Math.round(parseISO(iso).getTime() / 864e5); }
+  function morningFor(iso) { return MORNING[mod(dayNo(iso), MORNING.length)]; }
   var NOCOOK = [
     'Rugbrød 3 slices + 1 can tuna + cottage cheese 200 g + cucumber',
     'Half a grilled chicken + 2 wraps + salad',
     '4 eggs + 3 slices rugbrød + skyr 200 g',
-    'Smoked mackerel or salmon 150 g + rugbrød 3 slices + cottage cheese 150 g'
+    'Smoked mackerel or salmon 150 g + rugbrød 3 slices + cottage cheese 150 g',
+    'Wholegrain wrap with 125 g chicken slices, hummus & salad',
+    'Canned mackerel in tomato + 3 slices rugbrød + carrot sticks'
   ];
   /* What each no-cook meal needs, same order as NOCOOK. */
   var NOCOOK_BUY = [
     [['meat', 'tuna in water', 1, 'can'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'cottage cheese', 200, 'g'], ['veg', 'cucumber', 1, 'pcs']],
     [['meat', 'grilled chicken (ready-made)', 0.5, 'pcs'], ['carb', 'wraps', 2, 'pcs'], ['veg', 'salad bag', 1, 'pcs']],
     [['dairy', 'eggs', 4, 'pcs'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'skyr', 200, 'g']],
-    [['meat', 'smoked mackerel', 150, 'g'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'cottage cheese', 150, 'g']]
+    [['meat', 'smoked mackerel', 150, 'g'], ['carb', 'rugbrød', 3, 'slices'], ['dairy', 'cottage cheese', 150, 'g']],
+    [['carb', 'wholegrain wraps', 2, 'pcs'], ['meat', 'chicken slices (cold cuts)', 125, 'g'], ['cupboard', 'hummus', 100, 'g'], ['veg', 'salad bag', 1, 'pcs']],
+    [['meat', 'mackerel in tomato', 1, 'can'], ['carb', 'rugbrød', 3, 'slices'], ['veg', 'carrots', 2, 'pcs']]
   ];
   /* People who eat the cooked dinners too. Their plates are estimated smaller than the
      user's (adult ~70 %, child ~50 %). A batch covers 2 dinners, so each extra person
@@ -466,10 +516,11 @@
         cooks.push({ date: iso, name: b.recipe.name });
         batchBuy(b.recipe, pt, profile).forEach(function (x) { if (x.unit === 'jar') { if (!items[x.cat + '|' + x.name + '|jar']) add(x.cat, x.name, 1, 'jar'); } else add(x.cat, x.name, x.qty, x.unit); });
       }
-      [1, 2].forEach(function (m) { if (!batchFor(profile, iso, m)) { nocook++; NOCOOK_BUY[dt.getDate() % NOCOOK.length].forEach(function (x) { add(x[0], x[1], x[2], x[3]); }); } });
+      morningFor(iso).buy.forEach(function (x) { add(x[0], x[1], x[2], x[3]); });
+      [1, 2].forEach(function (m) { if (!batchFor(profile, iso, m)) { nocook++; NOCOOK_BUY[mod(dayNo(iso) * 2 + m, NOCOOK.length)].forEach(function (x) { add(x[0], x[1], x[2], x[3]); }); } });
     }
     add('shake', 'whey protein', 7 * 40, 'g'); add('dairy', 'skimmed milk', 7 * 500, 'ml'); add('veg', 'bananas', 7, 'pcs');
-    add('dairy', 'skyr (400 g tubs)', 7, 'pcs'); add('shake', 'creatine monohydrate', 7 * 5, 'g');
+    add('shake', 'creatine monohydrate', 7 * 5, 'g');
     var groups = SHOP_CATS.map(function (c) {
       return { cat: c[0], label: c[1], items: Object.keys(items).map(function (k) { return items[k]; }).filter(function (it) { return it.cat === c[0]; })
         .sort(function (a, b) { return a.name < b.name ? -1 : 1; }) };
@@ -491,7 +542,7 @@
   function r10(g) { return Math.max(0, Math.round(g / 10) * 10); }
   /* One portion: enough protein food to reach the meal's protein, carbs up to a sensible
      plate size for the remaining kcal, and rugbrød on the side if still short. */
-  var CARB_CAP = { rice: 150, pasta: 150, bulgur: 150, potato: 600 };
+  var CARB_CAP = { brownrice: 150, pasta: 150, bulgur: 150, couscous: 150, potato: 600, sweetpotato: 600 };
   function portion(recipe, mealP, mealK) {
     var pf = FOOD[recipe.protein], cf = FOOD[recipe.carb], ex = recipe.extra, oilK = recipe.oil * 9;
     var y = r10(Math.max(120, (mealP - ex.P) / pf.P * 100));
@@ -520,19 +571,20 @@
       var idx = days.indexOf(c.getDay());
       if (idx >= 0) {
         var wk = Math.floor(Math.round((c.getTime() - new Date(2026, 0, 4).getTime()) / 864e5) / 7); // weeks since a Sunday (round: DST)
-        return { recipe: RECIPES[(idx + wk * days.length) % RECIPES.length], cookedOn: isoDate(c), cookToday: offs[i] === 0 };
+        var box = meal === 2 ? (offs[i] === 0 ? 0 : 2) : (offs[i] === 1 ? 1 : 3), recipe = pickRecipe(idx, wk);
+        return { recipe: recipe, cookedOn: isoDate(c), cookToday: offs[i] === 0, box: box, flavour: recipe.flavours[box % 2] };
       }
     }
     return null;
   }
   function mealText(profile, iso, meal, tgt) {
     var b = batchFor(profile, iso, meal);
-    if (!b) { var nc = NOCOOK[parseISO(iso).getDate() % NOCOOK.length];
+    if (!b) { var nc = NOCOOK[mod(dayNo(iso) * 2 + meal, NOCOOK.length)];
       return { text: 'No-cook meal: ' + nc, what: 'No-cook meal', detail: nc, cook: false }; }
     var pt = portion(b.recipe, tgt.P, tgt.kcal);
     var amounts = pt.items.map(function (it) { return (it.slices ? it.slices + ' slice' + (it.slices > 1 ? 's' : '') : it.g + ' g') + ' ' + it.name; }).join(', ');
     return { text: (b.cookToday ? 'Cook today (4 boxes): ' : 'From the fridge: ') + b.recipe.name + ' — ' + amounts,
-      what: (b.cookToday ? 'Cook, then eat: ' : 'Box from the fridge: ') + b.recipe.name, detail: b.cookToday ? 'Make 4 boxes; one box = ' + amounts : amounts,
+      what: (b.cookToday ? 'Cook, then eat: ' : 'Box from the fridge: ') + b.recipe.name + ' · ' + b.flavour, detail: b.cookToday ? 'Make 4 boxes; one box = ' + amounts : amounts,
       cook: b.cookToday, recipe: b.recipe.key };
   }
 
@@ -544,19 +596,19 @@
     function slot(t, key, label, why, P, kcal, foods, extra) {
       slots.push(Object.assign({ t: t, time: fmtHM(t), key: key, label: label, why: why, protein: P, kcal: kcal ? Math.round(kcal / 10) * 10 : 0, foods: foods ? [foods] : null }, extra || {}));
     }
-    var m1 = mealText(profile, iso, 1, tgt), m2 = mealText(profile, iso, 2, tgt);
+    var m1 = mealText(profile, iso, 1, tgt), m2 = mealText(profile, iso, 2, tgt), mo = morningFor(iso);
     var lunch = hm(profile.lunch || '11:30'), last = bed - 180;   // nothing in the last 3 h before bed
     if (p.training && p.time) {
       var T = hm(p.time); if (T < wake) T += 1440;
       var end = T + RULES.sessionMinutes;
-      slot(wake + 60, 'sh2', SHAKES.morning.label, 'Protein feed 1 — starts the day without cooking.', SHAKES.morning.P, SHAKES.morning.kcal, SHAKES.morning.how, { what: SHAKES.morning.short, detail: SHAKES.morning.how });
+      slot(wake + 60, 'sh2', SHAKES.morning.label, 'Protein feed 1 — starts the day without cooking.', mo.P, mo.kcal, mo.short, { what: mo.short, detail: 'No cooking — at home or on the way.' });
       slot(lunch, 'm1', 'Meal 1 (lunch)', T - lunch >= 60 ? 'Carbs + protein — also the fuel for the afternoon session.' : 'Recovery meal after the morning session.', tgt.P, tgt.kcal, m1.text, { cook: m1.cook, what: m1.what, detail: m1.detail });
       slot(T - 15, 'cr', 'Creatine 5 g + water', 'Every day. Timing barely matters — consistency does. A banana now helps if lunch feels long ago.', 0, 0, null, { what: 'Creatine 5 g in water', detail: 'A banana too, if lunch feels long ago.' });
       slot(T, 'train', 'Train', 'Session ' + p.day + ' · ~' + RULES.sessionMinutes + ' min incl. warm-up.', 0, 0, null, { what: 'Train · session ' + p.day, detail: '~' + RULES.sessionMinutes + ' min incl. warm-up.' });
       slot(Math.min(end + 5, last), 'sh1', SHAKES.post.label, 'Straight after training: fast protein while you head home.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how, { what: SHAKES.post.short, detail: SHAKES.post.how });
       slot(Math.min(end + 100, last), 'm2', 'Meal 2 (dinner)', 'The big meal: protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, m2.text, { cook: m2.cook, what: m2.what, detail: m2.detail });
     } else {
-      slot(wake + 60, 'sh2', SHAKES.morning.label + ' + creatine', 'Protein feed 1. Creatine every day, training or not.', SHAKES.morning.P, SHAKES.morning.kcal, SHAKES.morning.how, { what: SHAKES.morning.short + ' + creatine 5 g', detail: SHAKES.morning.how });
+      slot(wake + 60, 'sh2', SHAKES.morning.label + ' + creatine', 'Protein feed 1. Creatine every day, training or not.', mo.P, mo.kcal, mo.short, { what: mo.short + ' + creatine 5 g', detail: 'No cooking — at home or on the way.' });
       slot(lunch, 'm1', 'Meal 1 (lunch)', 'Protein + carbs + veg.', tgt.P, tgt.kcal, m1.text, { cook: m1.cook, what: m1.what, detail: m1.detail });
       slot(Math.min(lunch + 240, last - 180), 'sh1', SHAKES.post.label, 'Mid-afternoon on rest days — keeps protein coming.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how, { what: SHAKES.post.short, detail: SHAKES.post.how });
       slot(Math.min(wake + 720, last), 'm2', 'Meal 2 (dinner)', 'Protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, m2.text, { cook: m2.cook, what: m2.what, detail: m2.detail });
@@ -665,7 +717,7 @@
 
   return {
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, weekShopping: weekShopping, fmtQty: fmtQty, family: family, batchServings: batchServings, batchBuy: batchBuy, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, weekShopping: weekShopping, MORNING: MORNING, morningFor: morningFor, pickRecipe: pickRecipe, fmtQty: fmtQty, family: family, batchServings: batchServings, batchBuy: batchBuy, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, recentStalls: recentStalls, plan: plan, buildSession: buildSession, rampSets: rampSets,

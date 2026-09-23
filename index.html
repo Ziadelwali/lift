@@ -590,6 +590,17 @@ function renderToday(){
  h+='<div class="card"><div class="row between"><h2>Eating today</h2><span class="chip'+(nd===sl.length?' acc':'')+'">'+nd+' of '+sl.length+' done</span></div><p class="xs" style="margin:2px 0 4px">'+(mac?mac.kcal+' kcal · '+mac.protein+' g protein in total. Tap a row when you have had it.':'set up your profile')+'</p>'+timelineHTML(iso,p,mac,true,true)+'</div>';
  $('#v-today').innerHTML=h;
 }
+/* Follow the clock: redraw Today every minute and whenever the app comes back to the front
+   (a phone app is often left open for hours or overnight). Skipped while typing or with a fold open. */
+var lastDay=todayISO();
+function clockTick(force){
+ if(document.hidden)return;
+ var dayChanged=todayISO()!==lastDay;lastDay=todayISO();
+ if(view==='today'){var v=$('#v-today'),busy=v&&(v.contains(document.activeElement)&&document.activeElement.tagName==='INPUT'||v.querySelector('details[open]'));if(busy&&!force&&!dayChanged)return;var y=scrollY;renderToday();if(!dayChanged)scrollTo(0,y);}
+ else if(dayChanged&&view!=='train')render();
+}
+setInterval(clockTick,60000);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)clockTick(true);});
 function nextSessionLine(iso){
  var d=E.parseISO(iso);for(var i=1;i<=7;i++){d.setDate(d.getDate()+1);var n=E.isoDate(d),pp=E.plan(n,state);if(pp.training)return '<p class="xs" style="margin-top:8px">Next: session '+pp.day+' · '+niceDate(n)+' '+pp.time+'</p>';}
  return '';
@@ -633,7 +644,7 @@ function cookDetails(recipe,pt,wrap){
  var f=E.family(state.profile),fam=f.adults+f.kids;
  var body='<p class="eyebrow" style="margin-top:10px">Buy for your 4 boxes'+(fam?' + '+famText(f)+' at dinner':'')+'</p><ul class="shop">'+E.batchBuy(recipe,pt,state.profile).map(function(it){return '<li><b class="mono">'+esc(E.fmtQty(it))+'</b> '+esc(it.name)+'</li>';}).join('')+'</ul>'+
   (fam?'<p class="xs" style="margin-top:4px">Fill your 4 boxes first (one box = '+pt.items.map(function(it){return (it.slices?it.slices+' slice'+(it.slices>1?'s':''):it.g+' g')+' '+esc(it.name);}).join(', ')+'); the rest is for the family dinners.</p>':'')+
-  '<details class="fold"><summary><span class="eyebrow">How to make it</span></summary><ol class="steps">'+recipe.steps.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol></details>';
+  '<details class="fold"><summary><span class="eyebrow">How to make it</span></summary><ol class="steps">'+recipe.steps.concat(['Season the '+(E.FOOD[recipe.protein].name.split(' (')[0])+' two ways: half with '+recipe.flavours[0]+', half with '+recipe.flavours[1]+'. Boxes 1 and 3 get '+recipe.flavours[0]+', boxes 2 and 4 get '+recipe.flavours[1]+' — so you never eat the same taste twice in a row.','Fill 4 boxes, fridge.']).map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol></details>';
  return body;
 }
 function timelineHTML(iso,p,mac,live,simple){
@@ -786,8 +797,7 @@ function renderEat(){
   '<p>• Protein: 1.6–2.2 g/kg a day. Total per day matters most; 2 meals + 2 shakes gives 4 feeds, which covers the small extra benefit of spreading it out.</p>'+
   '<p>• Pre-workout meal 1–3 h before: carbs + protein. Post-workout meal within ~2 h. The "anabolic window" is hours wide, not minutes.</p>'+
   '<p>• Weigh most mornings; judge by the 7-day average, adjust ±150 kcal only when the trend is outside the band for 2 weeks.</p>'+
-  '<p>• Sleep 7–9 h. Under 6 h measurably cuts muscle gain and raises fat gain — it is a training variable.</p>'+
-  '<p>• All recipes are halal: no pork, halal meat, no alcohol in cooking. Check whey and ready-made foods for a halal mark.</p></div></details>';
+  '<p>• Sleep 7–9 h. Under 6 h measurably cuts muscle gain and raises fat gain — it is a training variable.</p></div></details>';
  $('#v-eat').innerHTML=h;
 }
 
@@ -796,7 +806,7 @@ function cookCard(p,mac,iso){
  var tgt=E.mealTargets(mac),days=E.cookDays(p),d=E.parseISO(iso),cooks=[];
  for(var i=0;i<7;i++){var x=new Date(d);x.setDate(d.getDate()+i);var ix=E.isoDate(x),b=E.batchFor(p,ix,2);if(b&&b.cookToday)cooks.push({iso:ix,b:b});}
  return '<div class="card"><div class="row between"><h2>Cooking plan</h2><span class="chip acc">3× a week</span></div>'+
-  '<p class="xs" style="margin:4px 0 8px">Each cook makes 4 boxes: dinner that day, lunch + dinner the next day, lunch the day after. That covers 12 of 14 meals; the other 2 are no-cook meals.</p>'+
+  '<p class="xs" style="margin:4px 0 8px">Each cook makes 4 boxes: dinner that day, lunch + dinner the next day, lunch the day after. That covers 12 of 14 meals; the other 2 are no-cook meals. Each week: one chicken or turkey dish, one fish dish, and lean red meat every other week (chicken again the other week) — 9 recipes in turn, each seasoned two ways.</p>'+
   '<p class="eyebrow" style="margin-top:6px">Cook on</p><div class="seg" style="margin-top:6px">'+[1,2,3,4,5,6,0].map(function(n){return '<button data-cookday="'+n+'"'+(days.indexOf(n)>=0?' class="on"':'')+'>'+DOW[n].slice(0,2)+'</button>';}).join('')+'</div>'+familyPicker()+
   cooks.map(function(c){var pt=E.portion(c.b.recipe,tgt.P,tgt.kcal);
    return '<details class="fold cook"><summary><div><b>'+niceDate(c.iso)+' · '+esc(c.b.recipe.name)+'</b><div class="xs">per box ~'+pt.P+' g protein · ~'+Math.round(pt.kcal/10)*10+' kcal</div></div></summary>'+
@@ -832,8 +842,8 @@ function shakeCard(){
  var S=E.SHAKES;
  return '<div class="card"><h2>Shakes</h2><p class="xs" style="margin:4px 0 8px">Two a day do the job of two extra meals with no cooking. Whey is plain milk protein — safe for healthy kidneys; total daily protein is what matters.</p>'+
   '<div class="grid2"><div class="stat"><div class="v">'+S.post.P+' g</div><div class="l">after training / afternoon</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">'+esc(S.post.how)+'</p></div>'+
-  '<div class="stat"><div class="v">'+S.morning.P+' g</div><div class="l">morning</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">'+esc(S.morning.how)+'</p></div></div>'+
-  '<p class="xs" style="margin-top:8px">Weekly: about 280 g whey (a 1 kg bag lasts ~3 weeks) and 7 tubs of skyr (400 g), or more whey instead.</p></div>';
+  '<div class="stat"><div class="v">35–42 g</div><div class="l">morning</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">Changes every day: '+E.MORNING.map(function(m){return esc(m.short.toLowerCase());}).join(' · ')+'.</p></div></div>'+
+  '<p class="xs" style="margin-top:8px">The exact amounts for the week are in the shopping list above.</p></div>';
 }
 
 /* ---- Progress ---- */
