@@ -1,0 +1,266 @@
+{
+  "_note": "B1973 Fitness, Elverhøjen 64, Herlev. Source: the club's equipment list (https://www.b1973fitness.dk/newlook/proc_info.asp, 'Motionsudstyr') plus what the user reported. status: listed = on the official list; reported = user says it's there but it's not on the list; check = unclear. Exercise ids refer to exercises.js.",
+  "equipment": [
+    {
+      "id": "dumbbells",
+      "name": "Dumbbells, max 30 kg",
+      "type": "free weight",
+      "status": "listed",
+      "note": "30 kg per hand is the ceiling: once a dumbbell lift passes it, move to the machine/Smith alternative.",
+      "unlocks": [
+        "Dumbbell_Bench_Press",
+        "Incline_Dumbbell_Press",
+        "Dumbbell_Shoulder_Press",
+        "Side_Lateral_Raise",
+        "Seated_Side_Lateral_Raise",
+        "Stiff-Legged_Dumbbell_Deadlift",
+        "One-Arm_Dumbbell_Row",
+        "Dumbbell_Incline_Row",
+        "Dumbbell_Bicep_Curl",
+        "Hammer_Curls",
+        "Goblet_Squat",
+        "Reverse_Flyes",
+        "External_Rotation",
+        "Standing_Dumbbell_Calf_Raise"
+      ]
+    },
+    {
+      "id": "leg_extension",
+      "name": "Leg extension (Nautilus One S6LE)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "quads"
+      ],
+      "unlocks": [
+        "Leg_Extensions"
+      ]
+    },
+    {
+      "id": "seated_leg_curl",
+      "name": "Seated leg curl (Nautilus One S6LC)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "hamstrings"
+      ],
+      "unlocks": [
+        "Seated_Leg_Curl"
+      ]
+    },
+    {
+      "id": "leg_press",
+      "name": "Leg press (Nautilus One)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "quads",
+        "glutes"
+      ],
+      "unlocks": [
+        "Leg_Press",
+        "Calf_Press_On_The_Leg_Press_Machine"
+      ]
+    },
+    {
+      "id": "ab_crunch",
+      "name": "Abdominal crunch (Nautilus One)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "abs"
+      ],
+      "unlocks": [
+        "Ab_Crunch_Machine"
+      ]
+    },
+    {
+      "id": "dual_pulley_row",
+      "name": "Dual pulley row (Nautilus F3DROW, plate-loaded, two separate handles)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "upper back",
+        "lats"
+      ],
+      "unlocks": [
+        "Seated_Cable_Rows"
+      ]
+    },
+    {
+      "id": "dual_pulley_lat_pulldown",
+      "name": "Dual pulley lat pulldown (Nautilus F3DLATP, plate-loaded, two separate handles)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "lats"
+      ],
+      "unlocks": [
+        "Wide-Grip_Lat_Pulldown",
+        "Close-Grip_Front_Lat_Pulldown"
+      ]
+    },
+    {
+      "id": "low_back",
+      "name": "Low back / back extension (Nautilus One)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "lower back",
+        "glutes"
+      ],
+      "note": "Probably the 'back thighs and glutes' machine the user mentioned.",
+      "unlocks": []
+    },
+    {
+      "id": "chest_press",
+      "name": "Chest press (Nautilus One)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "chest",
+        "triceps"
+      ],
+      "unlocks": [
+        "Machine_Bench_Press"
+      ]
+    },
+    {
+      "id": "shoulder_press",
+      "name": "Shoulder press (Nautilus One)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "shoulders",
+        "triceps"
+      ],
+      "unlocks": [
+        "Leverage_Shoulder_Press"
+      ]
+    },
+    {
+      "id": "smith_machine",
+      "name": "Smith machine (Nautilus)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "legs",
+        "chest",
+        "shoulders"
+      ],
+      "unlocks": [
+        "Smith_Machine_Squat",
+        "Smith_Machine_Bench_Press",
+        "Smith_Machine_Incline_Bench_Press",
+        "Smith_Machine_Overhead_Shoulder_Press",
+        "Smith_Machine_Calf_Raise"
+      ]
+    },
+    {
+      "id": "bench_press_station",
+      "name": "Bench press station (Nautilus)",
+      "type": "free weight",
+      "status": "listed",
+      "trains": [
+        "chest"
+      ],
+      "unlocks": []
+    },
+    {
+      "id": "dip_machine",
+      "name": "Dip machine (Nautilus)",
+      "type": "machine",
+      "status": "listed",
+      "trains": [
+        "triceps",
+        "chest"
+      ],
+      "unlocks": [
+        "Dip_Machine"
+      ]
+    },
+    {
+      "id": "multistation",
+      "name": "Multi-station (Nautilus): high and low pulley",
+      "type": "cable",
+      "status": "listed",
+      "unlocks": [
+        "Triceps_Pushdown",
+        "Triceps_Pushdown_-_Rope_Attachment",
+        "Straight-Arm_Pulldown",
+        "Rope_Straight-Arm_Pulldown",
+        "Face_Pull",
+        "Cable_Crunch",
+        "Cable_Seated_Lateral_Raise",
+        "Cable_Rear_Delt_Fly",
+        "Standing_Biceps_Cable_Curl"
+      ],
+      "note": "User confirmed 2026-09-23: rope, straight bar and single handle; pulley adjusts to face height."
+    },
+    {
+      "id": "bench",
+      "name": "Flat / incline bench",
+      "type": "free weight",
+      "status": "check",
+      "unlocks": [],
+      "note": "Not on the official list but needed for all dumbbell pressing/rows; assumed present."
+    },
+    {
+      "id": "group_room",
+      "name": "Group room: stability balls, steps, mats, wall bars, hula hoops, balance boards",
+      "type": "accessory",
+      "status": "reported",
+      "unlocks": [
+        "Plank"
+      ]
+    },
+    {
+      "id": "treadmill",
+      "name": "Treadmill (Matrix) x3",
+      "type": "cardio",
+      "status": "listed",
+      "unlocks": []
+    },
+    {
+      "id": "elliptical",
+      "name": "Elliptical (Nautilus E916 x1, Matrix x2)",
+      "type": "cardio",
+      "status": "listed",
+      "unlocks": []
+    },
+    {
+      "id": "bike",
+      "name": "Exercise bike (Nautilus E916 x2, Impulse RU970 upright x1)",
+      "type": "cardio",
+      "status": "listed",
+      "unlocks": [
+        "Bicycling_Stationary"
+      ]
+    },
+    {
+      "id": "spin_bike",
+      "name": "Spinning bikes (Matrix x6, Body Bike x4)",
+      "type": "cardio",
+      "status": "listed",
+      "unlocks": [
+        "Bicycling_Stationary"
+      ]
+    },
+    {
+      "id": "rower",
+      "name": "Rowing machine (Concept2 model E)",
+      "type": "cardio",
+      "status": "listed",
+      "unlocks": [
+        "Rowing_Stationary"
+      ]
+    },
+    {
+      "id": "stair_climber",
+      "name": "Stair machine (Matrix)",
+      "type": "cardio",
+      "status": "listed",
+      "unlocks": []
+    }
+  ]
+}

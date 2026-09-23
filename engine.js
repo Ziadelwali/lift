@@ -23,88 +23,94 @@
     activity: { desk: 1.35, feet: 1.5, active: 1.65 },
     trendTarget: { lean: [-0.6, -0.3], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] }, // kg/week
     creatineG: 5, presleepProteinG: 35,
-    volumeBand: { normal: [10, 16], priority: [14, 20] }
+    volumeBand: { normal: [10, 16], priority: [14, 20] },
+    dumbbellMaxKg: 30 // heaviest dumbbell at B1973 Fitness (per hand)
   };
 
   /* ---------- program ---------- */
   var PROGRAM = {
     A: [
       { id: 'Leg_Press', sets: 3, reps: [6, 10], inc: 5, rest: 150, ramp: true,
-        where: 'The big angled sled you sit in and push with your feet.',
+        where: 'Nautilus leg press: sit and push the footplate away with your feet.',
         tip: 'Feet shoulder-width, mid-platform. Lower until knees are ~90°, never let the lower back curl off the pad.',
-        alts: ['Hack_Squat', 'Goblet_Squat'] },
+        alts: ['Smith_Machine_Squat', 'Leg_Extensions'] },
       { id: 'Dumbbell_Bench_Press', sets: 3, reps: [6, 10], inc: 2, rest: 150, ramp: true,
-        where: 'Flat bench in the free-weight area, one dumbbell in each hand.',
+        where: 'Flat bench in the free-weight area, one dumbbell in each hand (the rack goes up to 30 kg).',
         tip: 'Shoulder blades pinned back and down, elbows ~45° from the body. Lower to chest level, press up and slightly in.',
-        alts: ['Machine_Bench_Press', 'Leverage_Chest_Press'] },
+        alts: ['Machine_Bench_Press', 'Smith_Machine_Bench_Press'] },
       { id: 'Wide-Grip_Lat_Pulldown', sets: 3, reps: [8, 12], inc: 2.5, rest: 120,
-        where: 'Cable station with a seat, knee pad and a wide bar overhead.',
-        tip: 'Lean back slightly, pull the bar to the upper chest with the elbows, pause, control the way up.',
-        alts: ['Close-Grip_Front_Lat_Pulldown', 'Chin-Up'] },
+        where: 'Nautilus lat pulldown: seat, knee pad and two separate handles overhead.',
+        tip: 'Lean back slightly, pull the handles down to the upper chest with the elbows, pause, control the way up.',
+        alts: ['Close-Grip_Front_Lat_Pulldown'] },
       { id: 'Seated_Leg_Curl', sets: 3, reps: [10, 15], inc: 5, rest: 90,
         where: 'Machine where you sit and curl a pad down with the backs of your legs.',
         tip: 'Hips pinned by the lap pad. Curl all the way, then control the return for 2–3 seconds.',
-        alts: ['Lying_Leg_Curls'] },
+        alts: ['Smith_Machine_Stiff-Legged_Deadlift'] },
       { id: 'Dumbbell_Shoulder_Press', sets: 3, reps: [8, 12], inc: 2, rest: 120,
         where: 'Upright bench (back at ~85°), dumbbells at shoulder height.',
         tip: 'Start with dumbbells beside the ears, press up until arms are nearly straight. Ribs down, no arching.',
-        alts: ['Leverage_Shoulder_Press'] },
+        alts: ['Leverage_Shoulder_Press', 'Smith_Machine_Overhead_Shoulder_Press'] },
       { id: 'Seated_Cable_Rows', sets: 3, reps: [8, 12], inc: 2.5, rest: 120,
-        where: 'Low cable with a bench, feet on the plates, V-handle or bar.',
-        tip: 'Chest tall, pull the handle to the belly button squeezing the shoulder blades, let the arms go fully long on the return.',
-        alts: ['Leverage_High_Row', 'Dumbbell_Incline_Row'] },
+        where: 'Nautilus row machine: seated, chest tall, two separate handles.',
+        tip: 'Chest tall, pull the handles to the belly button squeezing the shoulder blades, let the arms go fully long on the return.',
+        alts: ['One-Arm_Dumbbell_Row', 'Dumbbell_Incline_Row'] },
       { id: 'Side_Lateral_Raise', sets: 3, reps: [12, 15], inc: 1, rest: 75, prio: 'shoulders',
         where: 'Light dumbbells, standing.',
         tip: 'Lead with the elbows, raise to shoulder height with a slight forward lean. Light weight, no swinging.',
-        alts: ['Seated_Side_Lateral_Raise'] },
+        alts: ['Seated_Side_Lateral_Raise', 'Cable_Seated_Lateral_Raise'] },
       { id: 'Triceps_Pushdown_-_Rope_Attachment', sets: 2, reps: [10, 15], inc: 2.5, rest: 75,
-        where: 'High cable with the rope attachment.',
+        where: 'High pulley on the multi-station, rope attachment.',
         tip: 'Elbows glued to the sides, push down and split the rope at the bottom.',
-        alts: ['Triceps_Pushdown'] },
-      { id: 'Cable_Crunch', sets: 2, reps: [10, 15], inc: 2.5, rest: 60,
-        where: 'Kneel under a high cable holding the rope behind your head.',
-        tip: 'Crunch the ribs toward the hips, hips stay still. Slow on the way up.',
-        alts: ['Hanging_Leg_Raise', 'Plank'] }
+        alts: ['Triceps_Pushdown', 'Dip_Machine'] },
+      { id: 'Ab_Crunch_Machine', sets: 2, reps: [10, 15], inc: 2.5, rest: 60,
+        where: 'Nautilus abdominal crunch machine.',
+        tip: 'Crunch the ribs toward the hips, let the abs do it, not the arms. Slow on the way back.',
+        alts: ['Cable_Crunch', 'Plank'] }
     ],
     B: [
-      { id: 'Hack_Squat', sets: 3, reps: [6, 10], inc: 5, rest: 150, ramp: true,
-        where: 'Angled machine you stand in with shoulder pads, back on the sled.',
-        tip: 'Feet slightly forward, squat until thighs pass parallel, drive through the whole foot.',
+      { id: 'Smith_Machine_Squat', sets: 3, reps: [6, 10], inc: 5, rest: 150, ramp: true,
+        where: 'Smith machine: the bar that slides up and down on two rails. Bar across the upper back.',
+        tip: 'Feet slightly in front of the bar, squat until thighs pass parallel, drive through the whole foot. Set the safety stops just below your bottom position.',
         alts: ['Leg_Press', 'Goblet_Squat'] },
       { id: 'Stiff-Legged_Dumbbell_Deadlift', sets: 3, reps: [8, 12], inc: 2, rest: 150, ramp: true,
         where: 'Two dumbbells, standing. This is the Romanian deadlift done with dumbbells.',
         tip: 'Soft knees, push the hips back, dumbbells slide down the thighs until you feel the hamstrings stretch. Flat back always.',
-        alts: ['Romanian_Deadlift'] },
+        alts: ['Smith_Machine_Stiff-Legged_Deadlift'] },
       { id: 'Incline_Dumbbell_Press', sets: 3, reps: [8, 12], inc: 2, rest: 150,
         where: 'Bench set to ~30° incline, dumbbells.',
         tip: 'Same as flat press but the bench is tilted — upper chest does more. Lower to the upper chest.',
-        alts: ['Leverage_Incline_Chest_Press', 'Dumbbell_Bench_Press'] },
-      { id: 'Leverage_Iso_Row', sets: 3, reps: [8, 12], inc: 5, rest: 120,
-        where: 'Plate-loaded row machine with a chest pad (Hammer Strength style).',
-        tip: 'Chest on the pad, pull the handles back until the elbows pass the torso, squeeze, slow return.',
+        alts: ['Smith_Machine_Incline_Bench_Press', 'Dumbbell_Bench_Press'] },
+      { id: 'One-Arm_Dumbbell_Row', sets: 3, reps: [8, 12], inc: 2, rest: 120,
+        where: 'Flat bench and one dumbbell: one knee and hand on the bench, row with the other arm.',
+        tip: 'Back flat, pull the dumbbell toward the hip (not the chest) so the lat does the work, squeeze, slow return. Weight shown is per dumbbell.',
         alts: ['Seated_Cable_Rows', 'Dumbbell_Incline_Row'] },
       { id: 'Seated_Side_Lateral_Raise', sets: 3, reps: [12, 15], inc: 1, rest: 75,
         where: 'Sit on the end of a bench with light dumbbells.',
         tip: 'Seated removes the leg swing. Raise to shoulder height, pause, lower slowly.',
-        alts: ['Side_Lateral_Raise'] },
+        alts: ['Side_Lateral_Raise', 'Cable_Seated_Lateral_Raise'] },
       { id: 'Straight-Arm_Pulldown', sets: 2, reps: [10, 15], inc: 2.5, rest: 75, prio: 'back',
-        where: 'High cable with a straight bar or rope, standing.',
+        where: 'High pulley on the multi-station with a straight bar or rope, standing.',
         tip: 'Arms almost straight, sweep the bar down to the thighs using the lats, not the triceps.',
         alts: ['Rope_Straight-Arm_Pulldown'] },
       { id: 'Dumbbell_Bicep_Curl', sets: 2, reps: [10, 15], inc: 1, rest: 75,
         where: 'Dumbbells, standing or seated.',
         tip: 'Elbows stay at the sides, curl all the way up, lower for 2–3 seconds.',
-        alts: ['Hammer_Curls', 'EZ-Bar_Curl'] },
-      { id: 'Standing_Calf_Raises', sets: 3, reps: [10, 15], inc: 5, rest: 75,
-        where: 'Machine with shoulder pads and a step for the toes.',
-        tip: 'Full stretch at the bottom (pause 1 s), full rise onto the toes. No bouncing.',
-        alts: ['Seated_Calf_Raise', 'Calf_Press_On_The_Leg_Press_Machine'] },
+        alts: ['Hammer_Curls', 'Standing_Biceps_Cable_Curl'] },
+      { id: 'Calf_Press_On_The_Leg_Press_Machine', sets: 3, reps: [10, 15], inc: 5, rest: 75,
+        where: 'Leg press, only the balls of your feet on the bottom edge of the footplate.',
+        tip: 'Legs almost straight, let the heels drop for a full stretch (pause 1 s), push up onto the toes. No bouncing.',
+        alts: ['Smith_Machine_Calf_Raise', 'Standing_Dumbbell_Calf_Raise'] },
       { id: 'Face_Pull', sets: 2, reps: [12, 15], inc: 2.5, rest: 60,
-        where: 'Cable at face height with the rope.',
+        where: 'Multi-station pulley at face height with the rope.',
         tip: 'Pull the rope toward the face, hands finish beside the ears, elbows high. Keeps shoulders healthy.',
-        alts: ['Reverse_Machine_Flyes', 'Cable_Rear_Delt_Fly'] }
+        alts: ['Cable_Rear_Delt_Fly', 'Reverse_Flyes'] }
     ]
   };
+
+  /* Exercises loaded with dumbbells: capped at RULES.dumbbellMaxKg. */
+  var DUMBBELL = ['Dumbbell_Bench_Press', 'Incline_Dumbbell_Press', 'Dumbbell_Shoulder_Press', 'Side_Lateral_Raise',
+    'Seated_Side_Lateral_Raise', 'Stiff-Legged_Dumbbell_Deadlift', 'One-Arm_Dumbbell_Row', 'Dumbbell_Incline_Row',
+    'Dumbbell_Bicep_Curl', 'Hammer_Curls', 'Goblet_Squat', 'Reverse_Flyes', 'Standing_Dumbbell_Calf_Raise'];
 
   /* Muscles each priority tag covers (free-exercise-db names). */
   var PRIORITY = {
@@ -119,14 +125,14 @@
     A: [
       { id: 'Standing_Hip_Circles', label: 'Hip circles', reps: '8 each way, each leg' },
       { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow' },
-      { id: 'Band_Pull_Apart', label: 'Band pull-aparts', reps: '15' },
+      { id: 'Reverse_Flyes', label: 'Light dumbbell reverse fly', reps: '15' },
       { id: 'Arm_Circles', label: 'Arm circles', reps: '10 each way' }
     ],
     B: [
       { id: 'Cat_Stretch', label: 'Cat–cow', reps: '8 slow' },
       { id: 'Single_Leg_Glute_Bridge', label: 'Single-leg glute bridge', reps: '8 each side' },
       { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow' },
-      { id: 'External_Rotation_with_Band', label: 'Band external rotation', reps: '12 each arm' }
+      { id: 'External_Rotation', label: 'Light dumbbell external rotation', reps: '12 each arm' }
     ],
     ramp: [[0.5, 8], [0.7, 5], [0.85, 2]]   // fraction of working load × reps, first compound only
   };
@@ -190,6 +196,19 @@
       return { kg: roundTo(kg * RULES.deloadLoad, cfg.inc), reps: lo, sets: Math.max(1, Math.round(sets * RULES.deloadSets)),
         state: 'deload', note: 'Deload: lighter, fewer sets, stop with 3–4 reps in reserve. Recovery is the point.' };
     }
+    var cap = DUMBBELL.indexOf(cfg.id) !== -1 ? RULES.dumbbellMaxKg : null;
+    if (allTop && cap && kg + cfg.inc > cap) {
+      // Out of heavier dumbbells: keep the heaviest pair, earn progress with reps, then move to a machine.
+      var alt = (cfg.alts || []).filter(function (a) { return DUMBBELL.indexOf(a) === -1; })[0];
+      var swapTo = alt ? ' Swap to ' + alt.replace(/_/g, ' ') + ' to keep adding weight.' : '';
+      var more = Math.min(hi + 5, minReps + 1);
+      if (minReps >= hi + 5) {
+        return { kg: cap, reps: hi + 5, sets: sets, state: 'maxed',
+          note: cap + ' kg is the heaviest dumbbell here and you own it.' + (swapTo || ' Slow the lowering to 3–4 s to keep it hard.') };
+      }
+      return { kg: cap, reps: more, sets: sets, state: 'maxed',
+        note: cap + ' kg is the heaviest dumbbell here. Stay at ' + cap + ' kg and go for ' + more + ' reps, lowering in 3 s.' + swapTo };
+    }
     if (allTop) {
       return { kg: roundTo(kg + cfg.inc, cfg.inc), reps: lo, sets: sets, state: 'up',
         note: 'All sets hit ' + hi + ' last time — up ' + cfg.inc + ' kg. Aim for ' + lo + '+ reps.' };
@@ -245,6 +264,7 @@
   function buildSession(p, state) {
     var ex = p.exercises.map(function (cfg) {
       var swap = state.settings && state.settings.swaps && state.settings.swaps[cfg.id];
+      if (swap && (cfg.alts || []).indexOf(swap) === -1) swap = null; // alt removed from the program
       var id = swap || cfg.id;
       var useCfg = Object.assign({}, cfg, { id: id });
       var sg = suggest(useCfg, history(state, id), { calibration: p.calibration, deload: p.deload });
@@ -422,7 +442,7 @@
 
   return {
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
-    RULES: RULES, PROGRAM: PROGRAM, PRIORITY: PRIORITY, WARMUP: WARMUP, FOODS: FOODS,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, PRIORITY: PRIORITY, WARMUP: WARMUP, FOODS: FOODS,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, recentStalls: recentStalls, plan: plan, buildSession: buildSession, rampSets: rampSets,

@@ -75,5 +75,14 @@ eq('trend in band', ta.adj, 0);
  if(fails2){console.log(fails2+' FAILED');process.exit(1);}console.log('codec ok');
 })();
 
+// dumbbell cap: no suggestion above the heaviest dumbbell in the gym
+var db = E.findCfg('Dumbbell_Bench_Press');
+eq('db up below cap', E.suggest(db, [h([[28, 10, 2], [28, 10, 2], [28, 10, 2]])]).kg, 30);
+var mx = E.suggest(db, [h([[30, 10, 2], [30, 10, 2], [30, 10, 2]])]);
+eq('db maxed', [mx.kg, mx.reps, mx.state], [30, 11, 'maxed']);
+eq('db maxed names swap', /Machine Bench Press/.test(mx.note), true);
+eq('db owned', E.suggest(db, [h([[30, 15, 2], [30, 15, 2], [30, 15, 2]])]).reps, 15);
+eq('machine not capped', E.suggest(E.findCfg('Leg_Press'), [h([[100, 10, 2], [100, 10, 2], [100, 10, 2]])]).kg, 105);
+
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);
