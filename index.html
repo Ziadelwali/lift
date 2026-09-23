@@ -1,5 +1,5 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow,noarchive">
 <title>Lift</title>
 <meta name="build" content="9abe92850d">
@@ -439,6 +439,7 @@ function bodyMap(primary,secondary){
 
 /* ---------------- audio + haptics ---------------- */
 var AC=null;
+function unlockAudio(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();}catch(e){}}
 function beep(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();var o=AC.createOscillator(),g=AC.createGain();o.connect(g);g.connect(AC.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(AC.currentTime+.18);var o2=AC.createOscillator();o2.connect(g);o2.frequency.value=1175;o2.start(AC.currentTime+.22);o2.stop(AC.currentTime+.45);}catch(e){}}
 function buzz(p){try{navigator.vibrate&&navigator.vibrate(p||[150,80,150]);}catch(e){}}
 
@@ -492,7 +493,7 @@ function renderToday(){
  var iso=todayISO(),p=E.plan(iso,state),mac=E.macros(state.profile),ses=state.sessions[iso];
  var h='<p class="eyebrow" style="margin-top:6px">'+niceDate(iso)+' · week '+p.week+'</p>';
  if(p.training){
-  var exs=(ses?ses.ex.map(function(e){return E.findCfg(e.base)||E.findCfg(e.id);}):p.exercises);
+  var exs=(ses?ses.ex.map(function(e){var c=E.findCfg(e.base)||{};return {id:e.id,prio:c.prio};}):p.exercises);
   h+='<div class="card"><div class="hero"><span class="num">'+(ses&&ses.done?'✓':esc(p.time||'—'))+'</span><div class="cap"><b>Session '+p.day+(ses&&ses.done?' done':'')+'</b><span>'+exs.length+' exercises · ~'+E.RULES.sessionMinutes+' min</span></div></div><div class="sunline"></div>'+
    '<div class="row between" style="margin-top:8px"><span class="eyebrow">Today\'s plan</span>'+
    (p.calibration?'<span class="badge calib">calibration week</span>':p.deload?'<span class="badge deload">deload week</span>':'<span class="badge">week '+p.week+'</span>')+'</div>'+
@@ -634,7 +635,7 @@ function renderProgress(){
  Object.keys(state.sessions).forEach(function(k){(state.sessions[k].ex||[]).forEach(function(e){if(ids.indexOf(e.id)<0)ids.push(e.id);});});
  var withHist=ids.filter(function(id){return E.history(state,id).length;});
  var sel=renderProgress.sel||withHist[0]||ids[0];renderProgress.sel=sel;
- h+='<div class="card"><div class="row between"><h2>Lifts</h2><select class="rir" style="width:auto;max-width:200px;padding:0 10px" data-act="pick"><option>'+ids.map(function(id){return '<option value="'+id+'"'+(id===sel?' selected':'')+'>'+esc(nm(id))+'</option>';}).join('')+'</select></div>'+liftChart(sel)+'</div>';
+ h+='<div class="card"><div class="row between"><h2>Lifts</h2><select class="rir" style="width:auto;max-width:200px;padding:0 10px" data-act="pick">'+ids.map(function(id){return '<option value="'+id+'"'+(id===sel?' selected':'')+'>'+esc(nm(id))+'</option>';}).join('')+'</select></div>'+liftChart(sel)+'</div>';
  h+='<div class="card"><h2>Hard sets per muscle, last 7 days</h2><p class="xs" style="margin:4px 0 8px">Target band 10–16 (priority muscles 14–20). Secondary muscles count half.</p>'+volumeChart()+'</div>';
  $('#v-progress').innerHTML=h;
 }
@@ -729,7 +730,7 @@ document.addEventListener('click',function(ev){
  if(b.dataset.step){var a=b.dataset.step.split(':'),e=ses.ex[+a[1]],s=e.sets[+a[2]],inc=+a[3];var cur=+s[a[0]]||0;s[a[0]]=Math.max(0,Math.round((cur+inc)*100)/100);
   if(a[0]==='kg'&&!s.done)e.sets.forEach(function(x,i){if(i>+a[2]&&!x.done&&(x.kg==null||x.kg===cur))x.kg=s.kg;});
   save();renderTrain();return;}
- if(b.dataset.tick){var t=b.dataset.tick.split(':'),ex=ses.ex[+t[0]],st=ex.sets[+t[1]];
+ if(b.dataset.tick){unlockAudio();var t=b.dataset.tick.split(':'),ex=ses.ex[+t[0]],st=ex.sets[+t[1]];
   if(!st.done){if(!(st.kg>0)||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
    var cfg=E.findCfg(ex.base)||E.findCfg(ex.id);var lastSet=ex.sets.every(function(x){return x.done;});startRest(lastSet?Math.min(cfg.rest,90):cfg.rest);}
   else st.done=false;
