@@ -30,13 +30,13 @@
   var PROGRAM = {
     A: [
       { id: 'Leg_Press', sets: 3, reps: [6, 10], inc: 5, rest: 150, ramp: true,
-        where: 'The big angled sled you sit in and push with your feet.',
+        where: 'Leg press: sit and push the footplate away with your feet (flat/horizontal version).',
         tip: 'Feet shoulder-width, mid-platform. Lower until knees are ~90°, never let the lower back curl off the pad.',
-        alts: ['Hack_Squat', 'Goblet_Squat'] },
+        alts: ['Smith_Machine_Squat', 'Goblet_Squat'] },
       { id: 'Dumbbell_Bench_Press', sets: 3, reps: [6, 10], inc: 2, rest: 150, ramp: true,
         where: 'Flat bench in the free-weight area, one dumbbell in each hand.',
         tip: 'Shoulder blades pinned back and down, elbows ~45° from the body. Lower to chest level, press up and slightly in.',
-        alts: ['Machine_Bench_Press', 'Leverage_Chest_Press'] },
+        alts: ['Machine_Bench_Press', 'Smith_Machine_Bench_Press'] },
       { id: 'Wide-Grip_Lat_Pulldown', sets: 3, reps: [8, 12], inc: 2.5, rest: 120,
         where: 'Cable station with a seat, knee pad and a wide bar overhead.',
         tip: 'Lean back slightly, pull the bar to the upper chest with the elbows, pause, control the way up.',
@@ -44,19 +44,19 @@
       { id: 'Seated_Leg_Curl', sets: 3, reps: [10, 15], inc: 5, rest: 90,
         where: 'Machine where you sit and curl a pad down with the backs of your legs.',
         tip: 'Hips pinned by the lap pad. Curl all the way, then control the return for 2–3 seconds.',
-        alts: ['Lying_Leg_Curls'] },
+        alts: ['Romanian_Deadlift'] },
       { id: 'Dumbbell_Shoulder_Press', sets: 3, reps: [8, 12], inc: 2, rest: 120,
         where: 'Upright bench (back at ~85°), dumbbells at shoulder height.',
         tip: 'Start with dumbbells beside the ears, press up until arms are nearly straight. Ribs down, no arching.',
-        alts: ['Leverage_Shoulder_Press'] },
+        alts: ['Smith_Machine_Overhead_Shoulder_Press'] },
       { id: 'Seated_Cable_Rows', sets: 3, reps: [8, 12], inc: 2.5, rest: 120,
-        where: 'Low cable with a bench, feet on the plates, V-handle or bar.',
+        where: 'Low pulley on the cable crossover (or the multi-station), sit on the floor/bench, feet braced, V-handle or bar.',
         tip: 'Chest tall, pull the handle to the belly button squeezing the shoulder blades, let the arms go fully long on the return.',
-        alts: ['Leverage_High_Row', 'Dumbbell_Incline_Row'] },
+        alts: ['One-Arm_Dumbbell_Row', 'Dumbbell_Incline_Row'] },
       { id: 'Side_Lateral_Raise', sets: 3, reps: [12, 15], inc: 1, rest: 75, prio: 'shoulders',
         where: 'Light dumbbells, standing.',
         tip: 'Lead with the elbows, raise to shoulder height with a slight forward lean. Light weight, no swinging.',
-        alts: ['Seated_Side_Lateral_Raise'] },
+        alts: ['Seated_Side_Lateral_Raise', 'Cable_Seated_Lateral_Raise'] },
       { id: 'Triceps_Pushdown_-_Rope_Attachment', sets: 2, reps: [10, 15], inc: 2.5, rest: 75,
         where: 'High cable with the rope attachment.',
         tip: 'Elbows glued to the sides, push down and split the rope at the bottom.',
@@ -64,12 +64,12 @@
       { id: 'Cable_Crunch', sets: 2, reps: [10, 15], inc: 2.5, rest: 60,
         where: 'Kneel under a high cable holding the rope behind your head.',
         tip: 'Crunch the ribs toward the hips, hips stay still. Slow on the way up.',
-        alts: ['Hanging_Leg_Raise', 'Plank'] }
+        alts: ['Ab_Crunch_Machine', 'Hanging_Leg_Raise', 'Plank'] }
     ],
     B: [
-      { id: 'Hack_Squat', sets: 3, reps: [6, 10], inc: 5, rest: 150, ramp: true,
-        where: 'Angled machine you stand in with shoulder pads, back on the sled.',
-        tip: 'Feet slightly forward, squat until thighs pass parallel, drive through the whole foot.',
+      { id: 'Smith_Machine_Squat', sets: 3, reps: [6, 10], inc: 5, rest: 150, ramp: true,
+        where: 'Smith machine: the bar that slides up and down on two rails. Bar across the upper back.',
+        tip: 'Feet slightly in front of the bar, squat until thighs pass parallel, drive through the whole foot. Set the safety stops just below your bottom position.',
         alts: ['Leg_Press', 'Goblet_Squat'] },
       { id: 'Stiff-Legged_Dumbbell_Deadlift', sets: 3, reps: [8, 12], inc: 2, rest: 150, ramp: true,
         where: 'Two dumbbells, standing. This is the Romanian deadlift done with dumbbells.',
@@ -78,15 +78,15 @@
       { id: 'Incline_Dumbbell_Press', sets: 3, reps: [8, 12], inc: 2, rest: 150,
         where: 'Bench set to ~30° incline, dumbbells.',
         tip: 'Same as flat press but the bench is tilted — upper chest does more. Lower to the upper chest.',
-        alts: ['Leverage_Incline_Chest_Press', 'Dumbbell_Bench_Press'] },
-      { id: 'Leverage_Iso_Row', sets: 3, reps: [8, 12], inc: 5, rest: 120,
-        where: 'Plate-loaded row machine with a chest pad (Hammer Strength style).',
-        tip: 'Chest on the pad, pull the handles back until the elbows pass the torso, squeeze, slow return.',
+        alts: ['Smith_Machine_Incline_Bench_Press', 'Dumbbell_Bench_Press'] },
+      { id: 'One-Arm_Dumbbell_Row', sets: 3, reps: [8, 12], inc: 2, rest: 120,
+        where: 'Flat bench and one dumbbell: one knee and hand on the bench, row with the other arm.',
+        tip: 'Back flat, pull the dumbbell toward the hip (not the chest) so the lat does the work, squeeze, slow return. Weight shown is per dumbbell.',
         alts: ['Seated_Cable_Rows', 'Dumbbell_Incline_Row'] },
       { id: 'Seated_Side_Lateral_Raise', sets: 3, reps: [12, 15], inc: 1, rest: 75,
         where: 'Sit on the end of a bench with light dumbbells.',
         tip: 'Seated removes the leg swing. Raise to shoulder height, pause, lower slowly.',
-        alts: ['Side_Lateral_Raise'] },
+        alts: ['Side_Lateral_Raise', 'Cable_Seated_Lateral_Raise'] },
       { id: 'Straight-Arm_Pulldown', sets: 2, reps: [10, 15], inc: 2.5, rest: 75, prio: 'back',
         where: 'High cable with a straight bar or rope, standing.',
         tip: 'Arms almost straight, sweep the bar down to the thighs using the lats, not the triceps.',
@@ -94,15 +94,15 @@
       { id: 'Dumbbell_Bicep_Curl', sets: 2, reps: [10, 15], inc: 1, rest: 75,
         where: 'Dumbbells, standing or seated.',
         tip: 'Elbows stay at the sides, curl all the way up, lower for 2–3 seconds.',
-        alts: ['Hammer_Curls', 'EZ-Bar_Curl'] },
-      { id: 'Standing_Calf_Raises', sets: 3, reps: [10, 15], inc: 5, rest: 75,
-        where: 'Machine with shoulder pads and a step for the toes.',
-        tip: 'Full stretch at the bottom (pause 1 s), full rise onto the toes. No bouncing.',
-        alts: ['Seated_Calf_Raise', 'Calf_Press_On_The_Leg_Press_Machine'] },
+        alts: ['Hammer_Curls', 'Preacher_Curl'] },
+      { id: 'Calf_Press_On_The_Leg_Press_Machine', sets: 3, reps: [10, 15], inc: 5, rest: 75,
+        where: 'Leg press, only the balls of your feet on the bottom edge of the footplate.',
+        tip: 'Legs almost straight, let the heels drop for a full stretch (pause 1 s), push up onto the toes. No bouncing.',
+        alts: ['Smith_Machine_Calf_Raise', 'Standing_Dumbbell_Calf_Raise'] },
       { id: 'Face_Pull', sets: 2, reps: [12, 15], inc: 2.5, rest: 60,
         where: 'Cable at face height with the rope.',
         tip: 'Pull the rope toward the face, hands finish beside the ears, elbows high. Keeps shoulders healthy.',
-        alts: ['Reverse_Machine_Flyes', 'Cable_Rear_Delt_Fly'] }
+        alts: ['Cable_Rear_Delt_Fly', 'Reverse_Flyes'] }
     ]
   };
 
@@ -119,14 +119,14 @@
     A: [
       { id: 'Standing_Hip_Circles', label: 'Hip circles', reps: '8 each way, each leg' },
       { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow' },
-      { id: 'Band_Pull_Apart', label: 'Band pull-aparts', reps: '15' },
+      { id: 'Cable_Rear_Delt_Fly', label: 'Light cable rear-delt fly', reps: '15' },
       { id: 'Arm_Circles', label: 'Arm circles', reps: '10 each way' }
     ],
     B: [
       { id: 'Cat_Stretch', label: 'Cat–cow', reps: '8 slow' },
       { id: 'Single_Leg_Glute_Bridge', label: 'Single-leg glute bridge', reps: '8 each side' },
       { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow' },
-      { id: 'External_Rotation_with_Band', label: 'Band external rotation', reps: '12 each arm' }
+      { id: 'External_Rotation_with_Cable', label: 'Light cable external rotation', reps: '12 each arm' }
     ],
     ramp: [[0.5, 8], [0.7, 5], [0.85, 2]]   // fraction of working load × reps, first compound only
   };
@@ -245,6 +245,7 @@
   function buildSession(p, state) {
     var ex = p.exercises.map(function (cfg) {
       var swap = state.settings && state.settings.swaps && state.settings.swaps[cfg.id];
+      if (swap && (cfg.alts || []).indexOf(swap) === -1) swap = null; // alt removed from the program
       var id = swap || cfg.id;
       var useCfg = Object.assign({}, cfg, { id: id });
       var sg = suggest(useCfg, history(state, id), { calibration: p.calibration, deload: p.deload });
