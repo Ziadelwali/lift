@@ -643,11 +643,11 @@ function timelineHTML(iso,p,mac,live,simple){
   var done=!!meals[s.key],past=isToday&&s.t+45<now,next=isToday&&!nextDone&&!done&&!past;if(next)nextDone=true;
   var cd=next?(s.t>now?'in '+fmtDur(s.t-now):'now'):'';
   if(simple)return '<li'+(s.key!=='train'&&live?' data-mealrow="'+s.key+'"':'')+' class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.what||s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div>'+(s.detail?'<div class="foods">'+esc(s.detail)+'</div>':'')+'</div>'+
-   (s.key==='train'?'<span></span>':'<input type="checkbox" data-meal="'+s.key+'"'+(done?' checked':'')+(live?'':' disabled')+'>')+'</li>';
+   (s.key==='train'||!live?'<span></span>':'<input type="checkbox" data-meal="'+s.key+'"'+(done?' checked':'')+'>')+'</li>';
   return '<li'+(s.key!=='train'&&live?' data-mealrow="'+s.key+'"':'')+' class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div><div class="why">'+esc(s.why)+'</div>'+
    (s.cook?'<span class="chip warn" style="margin-top:4px">cook today</span>':'')+(s.foods?'<div class="foods">'+esc(s.foods[(hashDay(iso)+slots.indexOf(s))%s.foods.length])+'</div>':'')+
    (s.protein?'<div class="macro">~'+s.protein+' g protein'+(s.kcal?' · ~'+s.kcal+' kcal':'')+'</div>':'')+'</div>'+
-   (s.key==='train'?'<span></span>':'<input type="checkbox" data-meal="'+s.key+'"'+(done?' checked':'')+(live?'':' disabled')+'>')+'</li>';
+   (s.key==='train'||!live?'<span></span>':'<input type="checkbox" data-meal="'+s.key+'"'+(done?' checked':'')+'>')+'</li>';
  }).join('')+'</ul>';
 }
 function fmtDur(m){return m>=60?Math.floor(m/60)+' h '+(m%60?(m%60)+' min':''):m+' min';}
@@ -773,8 +773,8 @@ function renderEat(){
  h+='<div class="card"><h2>Weight trend</h2><p class="sm" style="margin-top:6px">'+(ta.rate!=null?'<b class="mono">'+(ta.rate>0?'+':'')+ta.rate.toFixed(2)+' kg/week</b> · ':'')+esc(ta.text)+'</p>'+(ta.adj?'<button class="btn small ghost" data-act="adj" data-adj="'+ta.adj+'" style="margin-top:10px">Apply '+(ta.adj>0?'+':'')+ta.adj+' kcal</button>':'')+'</div>';
  var pt=E.plan(iso,state),pTrain=Object.assign({},pt,{training:true,time:pt.time||(p.sched&&p.sched[1])||'16:00',day:pt.day||'A'}),pRest=Object.assign({},pt,{training:false});
  h+=shopCard(p,mac,iso)+cookCard(p,mac,iso)+shakeCard();
- h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">Morning protein, lunch, a shake after training, dinner — and nothing in the last 3 hours before bed.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
- h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">Same protein. The shake moves to the afternoon. Creatine still.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
+ h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">What a training day looks like: morning protein, lunch, a shake after training, dinner — nothing in the last 3 hours before bed. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
+ h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">What a rest day looks like: same protein, the shake moves to the afternoon, creatine still. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
  h+='<details class="card fold"><summary><h2>Supplements — what earns its place</h2></summary><div class="stack sm" style="margin-top:8px">'+
   '<p><b>Creatine monohydrate, 5 g every day.</b> The best-evidenced supplement there is: more reps per set, faster gains. No loading phase needed; any time of day; mix into anything. Cheapest own-brand is identical to expensive ones.</p>'+
   '<p><b>Whey protein.</b> Just convenient milk protein — your two shakes replace two meals. Any plain whey works; price and taste decide.</p>'+
