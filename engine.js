@@ -95,7 +95,7 @@
       { id: 'Dumbbell_Bicep_Curl', sets: 2, reps: [10, 15], inc: 1, rest: 75,
         where: 'Dumbbells, standing or seated.',
         tip: 'Elbows stay at the sides, curl all the way up, lower for 2–3 seconds.',
-        alts: ['Hammer_Curls', 'Standing_Biceps_Cable_Curl'] },
+        alts: ['Preacher_Curl', 'Hammer_Curls', 'Standing_Biceps_Cable_Curl'] },
       { id: 'Calf_Press_On_The_Leg_Press_Machine', sets: 3, reps: [10, 15], inc: 5, rest: 75,
         where: 'Leg press, only the balls of your feet on the bottom edge of the footplate.',
         tip: 'Legs almost straight, let the heels drop for a full stretch (pause 1 s), push up onto the toes. No bouncing.',
