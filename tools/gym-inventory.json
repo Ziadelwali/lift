@@ -183,6 +183,101 @@
       "unlocks": [
         "Rowing_Stationary"
       ]
+    },
+    {
+      "id": "power_rack",
+      "name": "Power rack / squat rack + Olympic barbell + plates",
+      "type": "free weight",
+      "trains": [
+        "legs",
+        "chest",
+        "back",
+        "shoulders"
+      ],
+      "status": "confirmed",
+      "unlocks": [
+        "Romanian_Deadlift"
+      ]
+    },
+    {
+      "id": "adjustable_bench",
+      "name": "Adjustable bench (flat/incline)",
+      "type": "free weight",
+      "trains": [
+        "chest",
+        "shoulders",
+        "back"
+      ],
+      "status": "confirmed",
+      "unlocks": [
+        "Dumbbell_Bench_Press",
+        "Incline_Dumbbell_Press",
+        "Dumbbell_Incline_Row",
+        "Seated_Side_Lateral_Raise"
+      ]
+    },
+    {
+      "id": "ab_crunch_machine",
+      "name": "Seated ab crunch machine",
+      "type": "machine",
+      "trains": [
+        "abs"
+      ],
+      "status": "confirmed",
+      "unlocks": []
+    },
+    {
+      "id": "seated_leg_press",
+      "name": "Seated leg press (selectorized)",
+      "type": "machine",
+      "trains": [
+        "quads",
+        "glutes"
+      ],
+      "status": "confirmed",
+      "unlocks": [
+        "Leg_Press",
+        "Calf_Press_On_The_Leg_Press_Machine"
+      ]
+    },
+    {
+      "id": "hamstring_glute_machine",
+      "name": "Hamstring/glute machine (type unknown)",
+      "type": "machine",
+      "trains": [
+        "hamstrings",
+        "glutes"
+      ],
+      "status": "check",
+      "check": "Which one: glute kickback, hip thrust, lying leg curl?",
+      "unlocks": []
+    },
+    {
+      "id": "chest_press_machine",
+      "name": "Seated chest press machine",
+      "type": "machine",
+      "trains": [
+        "chest",
+        "triceps",
+        "front delts"
+      ],
+      "status": "confirmed",
+      "unlocks": [
+        "Machine_Bench_Press",
+        "Leverage_Chest_Press"
+      ]
+    },
+    {
+      "id": "preacher_bench",
+      "name": "Preacher curl bench + EZ curl bar",
+      "type": "free weight",
+      "trains": [
+        "biceps"
+      ],
+      "status": "confirmed",
+      "unlocks": [
+        "EZ-Bar_Curl"
+      ]
     }
   ]
 }
