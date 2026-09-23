@@ -109,8 +109,10 @@
         "lower back",
         "glutes"
       ],
-      "note": "Probably the 'back thighs and glutes' machine the user mentioned.",
-      "unlocks": []
+      "note": "Swap option for the dumbbell hip hinge. Photo in the app shows the bench version until the user photographs the machine.",
+      "unlocks": [
+        "Hyperextensions_Back_Extensions"
+      ]
     },
     {
       "id": "chest_press",
