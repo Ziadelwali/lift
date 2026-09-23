@@ -431,7 +431,7 @@ var MUSCLE_WORDS={abdominals:'belly',abductors:'outer hip',adductors:'inner thig
 var EQUIP_WORDS={machine:'machine',dumbbell:'dumbbells',cable:'cable pulley',barbell:'bar','e-z curl bar':'curl bar','body only':'no equipment',kettlebells:'one dumbbell',bands:'band'};
 function mw(m){return MUSCLE_WORDS[m]||m;}
 function nm(id){return E.LABEL[id]||(EX[id]?EX[id].name:id);}
-var GYM_EQUIP={'Wide-Grip_Lat_Pulldown':'machine','Close-Grip_Front_Lat_Pulldown':'machine',Seated_Cable_Rows:'machine'}; // cable in the photo, Nautilus machine at the gym
+var GYM_EQUIP={'Wide-Grip_Lat_Pulldown':'machine','Close-Grip_Front_Lat_Pulldown':'machine',Seated_Cable_Rows:'machine',Hyperextensions_Back_Extensions:'machine'}; // cable in the photo, Nautilus machine at the gym
 function equipWord(id){var x=EX[id];if(GYM_EQUIP[id])return GYM_EQUIP[id];return x&&x.equipment?(EQUIP_WORDS[x.equipment]||x.equipment):'no equipment';}
 function thumb(id){var x=EX[id];return x?'<img class="th" src="'+x.images[0]+'" alt="" loading="lazy">':'';}
 function exRow(id,extra,cls){return '<div class="exrow'+(cls?' '+cls:'')+'">'+thumb(id)+'<span style="flex:1;min-width:0">'+esc(nm(id))+'</span>'+(extra||'')+'</div>';}
@@ -641,7 +641,8 @@ var RIR_OPTS=[[0,'0'],[1,'1'],[2,'2'],[3,'3+']];
 function exBody(e,ei,ses){
  var ex=EX[e.id],cfg=E.findCfg(e.base)||E.findCfg(e.id),sg=e.suggest||{};
  var alts=(cfg.alts||[]).concat(e.id!==e.base?[e.base]:[]).filter(function(a){return a!==e.id&&EX[a];});
- return '<p class="sm"><b>Where:</b> '+esc(cfg.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(cfg.tip)+'</p>'+
+ var inf=E.info(e.id)||cfg;
+ return '<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+
   '<details style="margin-top:6px"><summary>Step by step</summary><ol>'+ex.instructions.map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol></details>'+
   '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?sg.kg+' kg × '+sg.reps:'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
   '<div class="sethead"><span></span><span>kg</span><span>reps</span><span></span></div>'+

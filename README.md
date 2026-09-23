@@ -13,6 +13,7 @@ Live: https://ziadelwali.github.io/lift/
 | `exercises.js` | generated — exercise names, muscles, instructions, image paths |
 | `img/ex/<id>/0.jpg, 1.jpg` | exercise photos (free-exercise-db, public domain) |
 | `sw.js`, `manifest.webmanifest`, `icon-*.png` | offline cache + home-screen install |
+| `tools/gym-inventory.json` | equipment at B1973 Fitness (Herlev), from the club's list + what the user confirmed; the program only uses what is here |
 | `tools/fetch-exercises.js` | re-download exercise data/images for the ids in `tools/program-ids.js` |
 | `tools/test-engine.js` | `node tools/test-engine.js` — scripted progression / plan / timeline checks |
 | `tools/make-icons.js` | regenerates the icons |
@@ -62,7 +63,14 @@ Goal: an athletic, defined physique — **muscle first, with the diet set so fat
 - Compounds 6–10 reps, isolation 10–15, all with 1–3 reps in reserve. Rest 2–3 min on compounds.
 - Week 1 = calibration (2 sets, find loads). Then double progression: all sets at the top of the rep range → weight goes up by the exercise's increment; under the bottom of the range two sessions running → −10 %.
 - Every 6th week, or after two stalled lifts, a deload (−10 % load, half the sets).
+- Fitted to the gym (`tools/gym-inventory.json`, mostly Nautilus One machines, dumbbells up to 30 kg). Dumbbell lifts stop adding weight at 30 kg (`RULES.dumbbellMaxKg`): the app asks for more reps, then points to the machine swap.
+- Swaps: every exercise has 1–3 alternatives on the same muscles, shown as photo tiles. Main lifts keep their where/form text in `PROGRAM`; swap-only exercises in `ALT_INFO`.
 - Warm-up ≤ 8 min: easy bike, 3–4 dynamic moves for the day, ramp sets (50/70/85 %) on the first compound only. No static stretching.
+
+**Made for someone who doesn't know the names** (index.html)
+- Plain names as titles (`LABEL` in engine.js), the official name small underneath; muscles as body parts ("front of thigh"); photos everywhere a choice is made. `node tools/test-engine.js` fails if an exercise lacks a plain name or where/form text.
+- Training screen: big −/+ and ✓, "reps left in the tank 0/1/2/3+" after each set, sticky progress with a photo per exercise, finished exercises fold, rest timer ±30 s. Comma or dot decimals.
+- Light ("clear day") and dark ("clear night") themes; Auto follows the phone. Colours are CSS tokens on `:root` / `:root[data-theme=light]`; the theme is applied before first paint from `localStorage['lift.theme']`.
 
 **Diet** (engine.js `macros`, `timeline`)
 - Mifflin-St Jeor × activity = expenditure; phase multiplier (build & lean 0.85 / maintain 1.0 / lean bulk 1.10).
