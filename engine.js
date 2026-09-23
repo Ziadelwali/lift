@@ -392,13 +392,13 @@
      = 12 of 14 weekly meals; the 2 left are no-cook meals. */
   var SHAKES = {
     post: { label: 'Protein shake', P: 50, kcal: 420, how: 'Whey 40 g (pick a halal-certified brand) + 500 ml skimmed milk + 1 banana. Right after training (or mid-afternoon on rest days).' },
-    evening: { label: 'Evening protein', P: 40, kcal: 250, how: 'Skyr 400 g — or whey 30 g in 300 ml milk. Slow protein for the night.' }
+    morning: { label: 'Morning protein', P: 40, kcal: 250, how: 'Skyr 400 g — or whey 30 g in 300 ml milk. No cooking; at home or on the way.' }
   };
   /* per 100 g raw/dry */
   var FOOD = {
-    chicken: { name: 'halal chicken breast (raw)', P: 23, kcal: 110 },
-    beef: { name: 'halal beef mince 5 % (raw)', P: 21, kcal: 125 },
-    beefstrips: { name: 'halal lean beef strips (raw)', P: 22, kcal: 120 },
+    chicken: { name: 'chicken breast (raw)', P: 23, kcal: 110 },
+    beef: { name: 'beef mince 5 % (raw)', P: 21, kcal: 125 },
+    beefstrips: { name: 'lean beef strips (raw)', P: 22, kcal: 120 },
     salmon: { name: 'salmon fillet (raw)', P: 20, kcal: 200 },
     rice: { name: 'rice (dry)', P: 7, kcal: 360 },
     potato: { name: 'potatoes (raw)', P: 2, kcal: 77 },
@@ -421,7 +421,7 @@
   ];
   var NOCOOK = [
     'Rugbrød 3 slices + 1 can tuna + cottage cheese 200 g + cucumber',
-    'Half a grilled chicken from a halal shop + 2 wraps + salad',
+    'Half a grilled chicken + 2 wraps + salad',
     '4 eggs + 3 slices rugbrød + skyr 200 g',
     'Smoked mackerel or salmon 150 g + rugbrød 3 slices + cottage cheese 150 g'
   ];
@@ -443,7 +443,7 @@
   }
   function mealTargets(mac) {
     var P = mac ? mac.protein : 160, K = mac ? mac.kcal : 2400;
-    return { P: Math.round((P - SHAKES.post.P - SHAKES.evening.P) / 2), kcal: Math.round((K - SHAKES.post.kcal - SHAKES.evening.kcal) / 20) * 10 };
+    return { P: Math.round((P - SHAKES.post.P - SHAKES.morning.P) / 2), kcal: Math.round((K - SHAKES.post.kcal - SHAKES.morning.kcal) / 20) * 10 };
   }
   /* Which batch feeds meal 1 (lunch) / meal 2 (dinner) on a date. */
   var COOK_DEFAULT = [0, 2, 4];   // Sun, Tue, Thu
@@ -479,22 +479,22 @@
       slots.push(Object.assign({ t: t, time: fmtHM(t), key: key, label: label, why: why, protein: P, kcal: kcal ? Math.round(kcal / 10) * 10 : 0, foods: foods ? [foods] : null }, extra || {}));
     }
     var m1 = mealText(profile, iso, 1, tgt), m2 = mealText(profile, iso, 2, tgt);
+    var lunch = hm(profile.lunch || '11:30'), last = bed - 180;   // nothing in the last 3 h before bed
     if (p.training && p.time) {
       var T = hm(p.time); if (T < wake) T += 1440;
       var end = T + RULES.sessionMinutes;
-      var t1 = Math.max(wake + 30, T - 150);
-      slot(t1, 'm1', t1 <= wake + 30 ? 'Meal 1 (breakfast, before training)' : 'Meal 1 (before training)', 'Carbs + protein 2–3 h before training — fuel for hard sets.', tgt.P, tgt.kcal, m1.text, { cook: m1.cook });
-      slot(T - 15, 'cr', 'Creatine 5 g + water', 'Every day. Timing barely matters — consistency does.', 0, 0, null);
+      slot(wake + 60, 'sh2', SHAKES.morning.label, 'Protein feed 1 — starts the day without cooking.', SHAKES.morning.P, SHAKES.morning.kcal, SHAKES.morning.how);
+      slot(lunch, 'm1', 'Meal 1 (lunch)', T - lunch >= 60 ? 'Carbs + protein — also the fuel for the afternoon session.' : 'Recovery meal after the morning session.', tgt.P, tgt.kcal, m1.text, { cook: m1.cook });
+      slot(T - 15, 'cr', 'Creatine 5 g + water', 'Every day. Timing barely matters — consistency does. A banana now helps if lunch feels long ago.', 0, 0, null);
       slot(T, 'train', 'Train', 'Session ' + p.day + ' · ~' + RULES.sessionMinutes + ' min incl. warm-up.', 0, 0, null);
-      slot(end + 5, 'sh1', SHAKES.post.label, 'Straight after training: fast protein while you head home.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how);
-      slot(Math.min(end + 100, bed - 150), 'm2', 'Meal 2 (dinner)', 'The big meal: protein + carbs + veg. Recovery happens here.', tgt.P, tgt.kcal, m2.text, { cook: m2.cook });
+      slot(Math.min(end + 5, last), 'sh1', SHAKES.post.label, 'Straight after training: fast protein while you head home.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how);
+      slot(Math.min(end + 100, last), 'm2', 'Meal 2 (dinner)', 'The big meal: protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, m2.text, { cook: m2.cook });
     } else {
-      slot(wake + 330, 'm1', 'Meal 1 (lunch)', 'First real meal. Coffee or water before it is fine.', tgt.P, tgt.kcal, m1.text, { cook: m1.cook });
-      slot(wake + 60, 'cr', 'Creatine 5 g', 'Every day, training or not.', 0, 0, null);
-      slot(wake + 540, 'sh1', SHAKES.post.label, 'Mid-afternoon on rest days — keeps protein coming.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how);
-      slot(Math.min(wake + 720, bed - 180), 'm2', 'Meal 2 (dinner)', 'Protein + carbs + veg.', tgt.P, tgt.kcal, m2.text, { cook: m2.cook });
+      slot(wake + 60, 'sh2', SHAKES.morning.label + ' + creatine 5 g', 'Protein feed 1. Creatine every day, training or not.', SHAKES.morning.P, SHAKES.morning.kcal, SHAKES.morning.how);
+      slot(lunch, 'm1', 'Meal 1 (lunch)', 'Protein + carbs + veg.', tgt.P, tgt.kcal, m1.text, { cook: m1.cook });
+      slot(Math.min(lunch + 240, last - 180), 'sh1', SHAKES.post.label, 'Mid-afternoon on rest days — keeps protein coming.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how);
+      slot(Math.min(wake + 720, last), 'm2', 'Meal 2 (dinner)', 'Protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, m2.text, { cook: m2.cook });
     }
-    slot(bed - 60, 'sh2', SHAKES.evening.label, 'An hour before bed: 30–40 g slow protein supports overnight muscle building.', SHAKES.evening.P, SHAKES.evening.kcal, SHAKES.evening.how);
     slots.sort(function (a, b) { return a.t - b.t; });
     return slots;
   }
