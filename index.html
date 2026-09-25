@@ -707,7 +707,7 @@ function renderToday(){
    '<p class="sm" style="margin:6px 0 10px">'+(p.calibration?'This week is about finding your weights: 2 sets per exercise, stop with 3 reps in the tank, log honestly. Next week the app starts pushing.':p.deload?'Lighter loads, half the sets. You grow while you recover; skipping this week is how people get hurt.':'Full body. Compounds first, 1–3 reps in reserve on every working set.')+'</p>'+
    moveNote(iso,p,ses)+
    (ses&&ses.done?'':'<details class="fold"><summary><span class="eyebrow">'+exs.length+' exercises</span></summary><div class="exlist" style="margin-top:6px">'+exs.map(function(c){return exRow(c.id,'',c.prio?'prio':'');}).join('')+'</div></details>')+
-   (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>':'<button class="btn wide" data-act="start" style="margin-top:14px">'+(ses?'Continue session':'Start session')+'</button>')+
+   (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>'+FIXLINK:'<button class="btn wide" data-act="start" style="margin-top:14px">'+(ses?'Continue session':'Start session')+'</button>')+
    '</div>';
  }else{
   sesCard='<div class="card t-train"><div class="hero"><span class="restico">'+ICON_MOON+'</span><div class="cap"><b>Rest day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+restNote(iso,p)+nextSessionLine(iso)+'</div>';
@@ -787,10 +787,11 @@ function nextSessionLine(iso){
  var d=E.parseISO(iso);for(var i=1;i<=7;i++){d.setDate(d.getDate()+1);var n=E.isoDate(d),pp=planFor(n);if(pp.training)return '<p class="xs" style="margin-top:8px">Next: session '+pp.day+' · '+niceDate(n)+' '+pp.time+'</p>';}
  return '';
 }
+var FIXLINK='<p class="xs" style="margin-top:6px">Wrong number or a forgotten set? <button class="linkbtn" data-act="reopen">Fix a mistake</button></p>';
 function sessionSummary(s){
  var sets=0,vol=0,up=0,pr=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=(x.kg||0)*(x.reps||0);}if(x.pr)pr++;});if(e.suggest&&e.suggest.state==='up')up++;});
  var mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
- return sets+' sets · '+Math.round(vol).toLocaleString()+' kg moved'+(mins?' · '+mins+' min':'')+(up?' · '+up+' exercises went up':'')+(pr?' · ★ '+pr+' new best'+(pr>1?'s':''):'');
+ return sets+(sets===1?' set · ':' sets · ')+Math.round(vol).toLocaleString()+' kg moved'+(mins?' · '+mins+' min':'')+(up?' · '+up+' exercises went up':'')+(pr?' · ★ '+pr+' new best'+(pr>1?'s':''):'');
 }
 /* Morning weigh-in (and the weekly waist) first thing on Today, until it is filled in. */
 function waistDue(iso){var ks=Object.keys(state.daily).filter(function(k){return state.daily[k]&&state.daily[k].waist>0&&k<iso;}).sort(),l=ks[ks.length-1];return !(state.daily[iso]||{}).waist&&(!l||l<=addDays(iso,-7));}
@@ -864,7 +865,7 @@ function renderTrain(){
   var done=state.sessions[iso]&&state.sessions[iso].done;
   h='<div class="card" style="margin-top:14px"><h2>'+(done?'Session '+state.sessions[iso].day+' done':p.training?'Session '+p.day+' today':'Rest day')+'</h2>'+
    '<p class="sm" style="margin-top:6px">'+(done?sessionSummary(state.sessions[iso]):p.training?'Warm-up, then '+p.exercises.length+' exercises. Phone stays awake while you train.':'No session planned. You can still train if life moved a day — it becomes the next session in the rotation.')+'</p>'+
-   (done?'':'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+(p.training?p.day:(p.n%2===0?'A':'B'))+'</button>')+'</div>'+programCard();
+   (done?FIXLINK:'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+(p.training?p.day:(p.n%2===0?'A':'B'))+'</button>')+'</div>'+programCard();
   $('#v-train').innerHTML=h;return;
  }
  h+=trackBar(ses);
@@ -887,7 +888,7 @@ function renderTrain(){
   '<button class="btn small ghost" data-jump="'+(f+1)+'"'+(f<ses.ex.length-1?'':' disabled')+'>Next ›</button></div>'+
   (others.length?'<div class="card" id="others" hidden><h2>What is free?</h2><p class="xs" style="margin:2px 0 8px">Order barely matters for growth — do whichever machine is free.</p><div class="swaps">'+others.map(function(i){var a=ses.ex[i].id;
    return '<button class="tile" data-jump="'+i+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+esc(equipWord(a))+(ses.ex[i].sets.some(function(x){return x.done;})?' · started':'')+'</small></button>';}).join('')+'</div></div>':'');
- h+='<div class="card"><button class="btn wide" data-act="finish">Finish session</button><button class="btn wide ghost" data-act="abandon" style="margin-top:8px">Discard session</button></div>';
+ h+='<div class="card"><button class="btn wide" data-act="finish">Finish session</button>'+(ses.reopened?'':'<button class="btn wide ghost" data-act="abandon" style="margin-top:8px">Discard session</button>')+'</div>';
  $('#v-train').innerHTML=h;
  measureBars();
  clearInterval(renderTrain._t);renderTrain._t=setInterval(function(){var el=$('#elapsed');if(el&&activeSession())el.textContent=fmtSec((Date.now()-ses.started)/1000);else clearInterval(renderTrain._t);},1000);
@@ -1234,10 +1235,12 @@ document.addEventListener('click',function(ev){
  if(act==='start'){trainFocus=null;var iso=todayISO();if(!state.sessions[iso]){var p=planFor(iso);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
  if(act==='finish'){if(!ses)return;var n=0;ses.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done)n++;});});if(!n){toast('No sets logged yet');return;}
   if(!confirm('Finish session with '+n+' sets logged?'))return;
-  ses.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});});ses.done=true;ses.finished=Date.now();
-  if(E.recentStalls(state,state.profile,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;toast('Two lifts stalled — next 3 sessions are a deload');}
+  var again=!!ses.reopened;delete ses.reopened;
+  ses.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});});ses.done=true;if(!again||!ses.finished)ses.finished=Date.now();
+  if(!again&&E.recentStalls(state,state.profile,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;toast('Two lifts stalled — next 3 sessions are a deload');}
   save();stopRest();keepAwake(false);show('today');return;}
- if(act==='abandon'){if(!ses)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[todayISO()];save();stopRest();keepAwake(false);renderTrain();return;}
+ if(act==='reopen'){var rs=state.sessions[todayISO()];if(!rs||!rs.done)return;rs.done=false;rs.reopened=true;trainFocus=0;save();show('train');toast('Change what was wrong, then Finish again');return;}
+ if(act==='abandon'){if(!ses||ses.reopened)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[todayISO()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='copyshop'){var txt=shopText();(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(function(){toast('List copied — paste it in Notes or a message');},function(){prompt('Copy the list:',txt);});return;}
  if(act==='clearshop'){state.settings.shop={since:todayISO(),ticks:{}};save();shopCard.open=true;renderEat();return;}
  if(act==='ics'){var ics=E.calendarICS(state.profile,E.macros(state.profile),todayISO(),b.dataset.meals==='1'),blob=new Blob([ics],{type:'text/calendar'}),u2=URL.createObjectURL(blob),a3=document.createElement('a');a3.href=u2;a3.download='lift-reminders.ics';document.body.appendChild(a3);a3.click();a3.remove();setTimeout(function(){URL.revokeObjectURL(u2);},5000);toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
