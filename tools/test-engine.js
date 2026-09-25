@@ -23,7 +23,7 @@ eq('ramp', E.rampSets(80), [{ kg: 40, reps: 8 }, { kg: 55, reps: 5 }, { kg: 67.5
 var prof = { sex: 'm', age: 38, height: 186, weight: 112, activity: 'feet', phase: 'lean', priority: ['shoulders', 'back'], sched: { 1: '16:00', 3: '16:00', 5: '16:00' }, wake: '06:30', bed: '22:30' };
 var m = E.macros(prof);
 eq('bmr', m.bmr, 2098);
-eq('protein high-bmi', m.protein, 179);
+eq('protein 2 g/kg', m.protein, 224);
 console.log('macros', m);
 
 var st = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: {} };
@@ -68,10 +68,11 @@ var tl = E.timeline(prof, E.plan('2026-09-21', st), m).map(function (s) { return
 console.log(tl.join('\n'));
 eq('timeline morning protein 07:30', tl.indexOf('07:30 Morning protein') >= 0, true);
 eq('timeline lunch at 11:30', tl.indexOf('11:30 Meal 1 (lunch)') >= 0, true);
-eq('nothing after 19:30 (bed 22:30)', E.timeline(prof, E.plan('2026-09-21', st), m).concat(E.timeline(prof, E.plan('2026-09-22', st), m)).filter(function (x) { return x.t > E.hm('19:30'); }).length, 0);
+eq('only the bedtime shake after 19:30 (bed 22:30)', E.timeline(prof, E.plan('2026-09-21', st), m).concat(E.timeline(prof, E.plan('2026-09-22', st), m)).filter(function (x) { return x.t > E.hm('19:30'); }).map(function (x) { return x.key; }), ['sh3', 'sh3']);
 eq('timeline shake at 17:10', tl.indexOf('17:10 Protein shake') >= 0, true);
 eq('timeline meal 2 at 18:45', tl.indexOf('18:45 Meal 2 (dinner)') >= 0, true);
-eq('timeline 2 meals + 2 shakes', tl.filter(function (x) { return /Meal \d|shake|Morning protein/i.test(x); }).length, 4);
+eq('timeline 2 meals + 3 shakes', tl.filter(function (x) { return /Meal \d|shake|Morning protein/i.test(x); }).length, 5);
+eq('bedtime shake 45 min before bed', tl.indexOf('21:45 Bedtime shake') >= 0, true);
 
 // simple eating: every portion reaches the meal's protein; 3 cooks cover 12 of 14 meals a week
 var tgt = E.mealTargets(m, prof);
@@ -163,7 +164,7 @@ eq('different grain in each cook of a week', carbClash, 0);
 var lat = Object.assign({}, prof, { lattes: 2 });
 eq('2 lattes: meals give way (~65 kcal each)', E.mealTargets(m, prof).kcal - E.mealTargets(m, lat).kcal >= 60, true);
 eq('lattes show on a work day, not on Sunday', [E.timeline(lat, E.plan('2026-09-21', st), m).filter(function (s) { return /^la/.test(s.key); }).length, E.timeline(lat, E.plan('2026-09-27', st), m).filter(function (s) { return /^la/.test(s.key); }).length], [2, 0]);
-eq('morning protein changes daily', E.morningFor('2026-10-05').short !== E.morningFor('2026-10-06').short, true);
+eq('morning is a shake; the alternative changes daily', [/Whey shake/.test(E.morningFor('2026-10-05').short), E.morningFor('2026-10-05').swap !== E.morningFor('2026-10-06').swap], [true, true]);
 
 
 // calendar reminders
