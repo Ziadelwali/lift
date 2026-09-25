@@ -292,6 +292,7 @@ ul.shop li,ol.steps li{margin-bottom:4px}
 .hero .cap b{display:block;font-size:20px;font-weight:500;letter-spacing:-.01em}
 .hero .cap span{font-size:13px;color:var(--ink2)}
 .sunline{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--acc),var(--sun));opacity:.8;margin:10px 0 2px}
+.weigh{border-color:var(--acc)}
 .linkbtn{color:var(--acc);font:inherit;text-decoration:underline;text-underline-offset:2px;padding:0}
 .movebox{margin-top:10px;background:var(--warn-bg);border-radius:12px;padding:10px 12px;font-size:13.5px;color:var(--ink)}
 .dot.part::before{content:"";position:absolute;right:3px;top:3px;width:8px;height:8px;border-radius:50%;background:var(--warn);z-index:1}
@@ -645,25 +646,34 @@ function render(){
 function renderToday(){
  var iso=todayISO(),p=planFor(iso),mac=E.macros(state.profile),ses=state.sessions[iso];
  var h='<p class="eyebrow" style="margin-top:6px">'+niceDate(iso)+' · week '+p.week+'</p>';
- h+=installCard('today')+nextFoodCard(iso,p,mac)+cookTodayCard(iso,mac);
+ h+=weighCard(iso);
+ var sesCard='';
  if(p.training){
   var exs=(ses?ses.ex.map(function(e){var c=E.findCfg(e.base)||{};return {id:e.id,prio:c.prio};}):p.exercises);
-  h+='<div class="card"><div class="hero"><span class="num">'+(ses&&ses.done?'✓':esc(p.time||'—'))+'</span><div class="cap"><b>Session '+p.day+(ses&&ses.done?' done':'')+'</b><span>'+exs.length+' exercises · ~'+E.RULES.sessionMinutes+' min</span></div></div><div class="sunline"></div>'+
+  sesCard='<div class="card"><div class="hero"><span class="num">'+(ses&&ses.done?'✓':esc(p.time||'—'))+'</span><div class="cap"><b>Session '+p.day+(ses&&ses.done?' done':'')+'</b><span>'+exs.length+' exercises · ~'+E.RULES.sessionMinutes+' min</span></div></div><div class="sunline"></div>'+
    '<div class="row between" style="margin-top:8px"><span class="eyebrow">Today\'s plan</span>'+
    (p.calibration?'<span class="badge calib">calibration week</span>':p.deload?'<span class="badge deload">deload week</span>':'<span class="badge">week '+p.week+'</span>')+'</div>'+
    '<p class="sm" style="margin:6px 0 10px">'+(p.calibration?'This week is about finding your weights: 2 sets per exercise, stop with 3 reps in the tank, log honestly. Next week the app starts pushing.':p.deload?'Lighter loads, half the sets. You grow while you recover; skipping this week is how people get hurt.':'Full body. Compounds first, 1–3 reps in reserve on every working set.')+'</p>'+
    moveNote(iso,p,ses)+
-   '<div class="exlist">'+exs.map(function(c){return exRow(c.id,'',c.prio?'prio':'');}).join('')+'</div>'+
+   (ses&&ses.done?'':'<details class="fold"><summary><span class="eyebrow">'+exs.length+' exercises</span></summary><div class="exlist" style="margin-top:6px">'+exs.map(function(c){return exRow(c.id,'',c.prio?'prio':'');}).join('')+'</div></details>')+
    (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>':'<button class="btn wide" data-act="start" style="margin-top:14px">'+(ses?'Continue session':'Start session')+'</button>')+
    '</div>';
  }else{
-  h+='<div class="card"><div class="hero"><span class="num">Rest</span><div class="cap"><b>Recovery day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+restNote(iso,p)+nextSessionLine(iso)+'</div>';
+  sesCard='<div class="card"><div class="hero"><span class="num">Rest</span><div class="cap"><b>Recovery day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+restNote(iso,p)+nextSessionLine(iso)+'</div>';
  }
- h+=weekCard(mac);
- h+=dailyCard(iso,mac);
- var sl=E.timeline(state.profile,p,mac).filter(function(s){return s.key!=='train';}),ml=(state.daily[iso]||{}).meals||{},nd=sl.filter(function(s){return ml[s.key];}).length;
- h+='<div class="card"><div class="row between"><h2>Eating today</h2><span class="chip'+(nd===sl.length?' acc':'')+'">'+nd+' of '+sl.length+' done</span></div><p class="xs" style="margin:2px 0 4px">'+(mac?mac.kcal+' kcal · '+mac.protein+' g protein in total. Tap a row when you have had it.':'set up your profile')+'</p>'+timelineHTML(iso,p,mac,true,true)+'</div>';
+ // what comes first: the session when it is close (or running), otherwise the next food
+ var soon=p.training&&!(ses&&ses.done)&&(ses||nowMin()>=E.hm(p.time||'16:00')-90);
+ h+=soon?sesCard+foodCard(iso,p,mac):foodCard(iso,p,mac)+sesCard;
+ h+=cookTodayCard(iso,mac);
+ h+=weekCard(mac)+dailyCard(iso,mac)+installCard('today');
  $('#v-today').innerHTML=h;
+}
+function foodCard(iso,p,mac){
+ if(!mac)return '';
+ var sl=E.timeline(state.profile,p,mac).filter(function(s){return s.key!=='train';}),ml=(state.daily[iso]||{}).meals||{},nd=sl.filter(function(s){return ml[s.key];}).length;
+ var tail='';if(nd===sl.length||!sl.some(function(s){return !ml[s.key]&&s.t+45>=nowMin();})){var ti=addDays(iso,1),first=E.timeline(state.profile,planFor(ti),mac).filter(function(s){return s.key!=='train';})[0];
+  if(first)tail='<p class="xs" style="margin-top:8px">Tomorrow first: <b>'+first.time+' · '+esc(first.what||first.label)+'</b></p>';}
+ return '<div class="card eatnext"><div class="row between"><h2>Eating today</h2><span class="chip'+(nd===sl.length?' acc':'')+'">'+nd+' of '+sl.length+' done</span></div><p class="xs" style="margin:2px 0 4px">'+(mac?mac.kcal+' kcal · '+mac.protein+' g protein in total. Tap a row when you have had it.':'set up your profile')+'</p>'+timelineHTML(iso,p,mac,true,true)+tail+'</div>';
 }
 /* Follow the clock: redraw Today every minute and whenever the app comes back to the front
    (a phone app is often left open for hours or overnight). Skipped while typing or with a fold open. */
@@ -692,19 +702,19 @@ function weekCard(mac){
  if(!mac)return '';
  var today=todayISO(),m=mondayOf(today);m.setDate(m.getDate()+wkv.off*7);
  var days=[];for(var i=0;i<7;i++){var d=new Date(m);d.setDate(m.getDate()+i);days.push(E.isoDate(d));}
- var sel=wkv.sel&&days.indexOf(wkv.sel)>=0?wkv.sel:(days.indexOf(today)>=0?today:days[0]);
+ var sel=wkv.sel&&days.indexOf(wkv.sel)>=0?wkv.sel:null;
  var DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
  var strip=days.map(function(di){var dp=dayPlan(di),d=E.parseISO(di);
   return '<button class="wkday'+(di===sel?' on':'')+(di<today?' past':'')+(di===today?' today':'')+'" data-wkday="'+di+'"><span class="dn">'+DN[d.getDay()]+'</span><b>'+d.getDate()+'</b>'+
    '<span class="tags">'+(dp.p.training&&(dp.done||di>=today)?'<i class="tg train" title="training">'+(dp.done?'✓':dp.p.day)+'</i>':'')+(dp.cook?'<i class="tg cook" title="cook">🍲</i>':'')+'</span></button>';}).join('');
- var dp=dayPlan(sel),slots=E.timeline(state.profile,dp.p,mac).filter(function(s){return s.key!=='cr';});
+ var ws=niceDate(days[0])+' – '+niceDate(days[6]),detail='<p class="xs" style="margin-top:10px">Tap a day to see its plan.</p>';
+ if(sel&&sel!==today){var dp=dayPlan(sel),slots=E.timeline(state.profile,dp.p,mac).filter(function(s){return s.key!=='cr';});
  var head=dp.p.training?(dp.done?'Session '+dp.p.day+' done ✓':'Training · session '+dp.p.day+' at '+dp.p.time):'Rest day';
- var ws=niceDate(days[0])+' – '+niceDate(days[6]);
+ detail='<div class="wkdetail"><p class="eyebrow">'+niceDate(sel)+(sel===today?' · today':'')+'</p><h3 style="margin-top:4px">'+head+(dp.cook?' · <span style="color:var(--warn)">cook 4 boxes</span>':'')+'</h3>'+
+  '<ul class="wklist">'+slots.map(function(s){return '<li><span class="mono">'+s.time+'</span><span>'+esc(s.what==='No-cook meal'?'No-cook: '+s.detail:(s.what||s.label))+'</span></li>';}).join('')+'</ul></div>';}
  return '<div class="card weekcard"><div class="row between"><h2>Week ahead</h2><div class="row" style="gap:4px"><button class="wknav" data-wknav="-1"'+(wkv.off<=0?' disabled':'')+' aria-label="Previous week">‹</button><span class="xs mono">'+(wkv.off===0?'this week':wkv.off===1?'next week':'in '+wkv.off+' weeks')+'</span><button class="wknav" data-wknav="1"'+(wkv.off>=3?' disabled':'')+' aria-label="Next week">›</button></div></div>'+
   '<p class="xs" style="margin:2px 0 8px">'+ws+' · <i class="tg train">A</i> training · 🍲 cook day</p>'+
-  '<div class="wkstrip">'+strip+'</div>'+
-  '<div class="wkdetail"><p class="eyebrow">'+niceDate(sel)+(sel===today?' · today':'')+'</p><h3 style="margin-top:4px">'+head+(dp.cook?' · <span style="color:var(--warn)">cook 4 boxes</span>':'')+'</h3>'+
-  '<ul class="wklist">'+slots.map(function(s){return '<li><span class="mono">'+s.time+'</span><span>'+esc(s.what==='No-cook meal'?'No-cook: '+s.detail:(s.what||s.label))+'</span></li>';}).join('')+'</ul></div></div>';
+  '<div class="wkstrip">'+strip+'</div>'+detail+'</div>';
 }
 /* Life moves a day: rest after yesterday's session, move to tomorrow, or catch up a missed one. */
 function moveNote(iso,p,ses){
@@ -731,31 +741,26 @@ function sessionSummary(s){
  var mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
  return sets+' sets · '+Math.round(vol).toLocaleString()+' kg moved'+(mins?' · '+mins+' min':'')+(up?' · '+up+' exercises went up':'');
 }
+/* Morning weigh-in (and the weekly waist) first thing on Today, until it is filled in. */
+function waistDue(iso){var ks=Object.keys(state.daily).filter(function(k){return state.daily[k]&&state.daily[k].waist>0&&k<iso;}).sort(),l=ks[ks.length-1];return !(state.daily[iso]||{}).waist&&(!l||l<=addDays(iso,-7));}
+function weighCard(iso){
+ var w=state.weight[iso],due=waistDue(iso),skip=false;try{skip=localStorage.getItem('lift.wskip')===iso;}catch(e){}
+ if((w&&!due)||skip)return '';
+ return '<div class="card weigh"><div class="row between"><h2>'+(w?'Waist this week':'Good morning — weigh in')+'</h2><button class="linkbtn xs" data-act="wskip">not today</button></div>'+
+  '<div class="grid2" style="margin-top:10px">'+(w?'':'<label class="field" style="margin:0"><span class="l">Weight kg</span><input type="text" inputmode="decimal" autocomplete="off" data-daily="weight" placeholder="'+(state.profile.weight||'')+'"></label>')+
+  (due?'<label class="field" style="margin:0"><span class="l">Waist cm (weekly)</span><input type="text" inputmode="decimal" autocomplete="off" data-daily="waist" placeholder="e.g. 108"></label>':'')+'</div>'+
+  '<p class="xs" style="margin-top:8px">'+(w?'':'After the toilet, before breakfast. ')+(due?'Waist: tape at the belly button, relaxed, once a week. ':'')+'Single days mean nothing; the 7-day trend decides calories.</p></div>';
+}
 function dailyCard(iso,mac){
  var d=state.daily[iso]||{},w=state.weight[iso];
- return '<div class="card"><h2>Check-in</h2><div class="grid3" style="margin-top:10px">'+
+ return '<details class="card fold"><summary><h2>Check-in</h2><span class="xs">'+(w?w+' kg':'')+(d.sleep?' · '+d.sleep+' h sleep':'')+(d.steps?' · '+d.steps+' steps':'')+'</span></summary><div class="grid3" style="margin-top:10px">'+
   '<label class="field" style="margin:0"><span class="l">Weight kg</span><input type="text" inputmode="decimal" autocomplete="off" data-daily="weight" value="'+(w||'')+'" placeholder="'+(state.profile.weight||'')+'"></label>'+
   '<label class="field" style="margin:0"><span class="l">Sleep h</span><input type="text" inputmode="decimal" autocomplete="off" data-daily="sleep" value="'+(d.sleep||'')+'" placeholder="7.5"></label>'+
   '<label class="field" style="margin:0"><span class="l">Steps</span><input type="number" inputmode="numeric" step="500" data-daily="steps" value="'+(d.steps||'')+'" placeholder="8000"></label></div>'+
-  '<p class="xs" style="margin-top:8px">Weigh in after the toilet, before breakfast. Single days mean nothing; the 7-day trend decides calories.</p></div>';
+  '</div><p class="xs" style="margin-top:8px">Sleep and steps are optional — they help explain a bad week.</p></details>';
 }
 /* The one thing to eat next, big, with a Done button. */
-function nextFoodCard(iso,p,mac){
- if(!mac)return '';
- var slots=E.timeline(state.profile,p,mac).filter(function(s){return s.key!=='train';}),meals=(state.daily[iso]||{}).meals||{},now=nowMin(),nx=null;
- slots.forEach(function(s){if(!nx&&!meals[s.key]&&s.t+45>=now)nx=s;});
- if(!nx){var left=slots.filter(function(s){return !meals[s.key];});
-  var tm=new Date(E.parseISO(iso));tm.setDate(tm.getDate()+1);var ti=E.isoDate(tm),first=E.timeline(state.profile,planFor(ti),mac).filter(function(s){return s.key!=='train';})[0];
-  return '<div class="card eatnext"><p class="eyebrow">Food</p><h2 style="margin-top:4px">'+(left.length?'Nothing more to eat today':'All eaten today ✓')+'</h2>'+
-   (left.length?'<p class="sm" style="margin-top:4px">'+left.length+' not ticked off — if you had them, tick them in the list below.</p>':'')+
-   (first?'<p class="sm" style="margin-top:8px">Tomorrow first: <b>'+first.time+' · '+esc(first.what||first.label)+'</b></p>':'')+'</div>';}
- var when=nx.t>now?'in '+fmtDur(nx.t-now):'now';
- return '<div class="card eatnext"><div class="row between"><p class="eyebrow">Eat next · '+nx.time+'</p><span class="chip acc">'+when+'</span></div>'+
-  '<h2 class="what">'+esc(nx.what||nx.label)+'</h2>'+(nx.detail?'<p class="sm" style="margin-top:4px">'+esc(nx.detail)+'</p>':'')+
-  (nx.what==='No-cook meal'?'<p class="xs" style="margin-top:6px">Add fruit or an extra slice of bread if you are still hungry.</p>':'')+
-  ((nx.key==='m1'||nx.key==='m2')&&nx.protein?'<p class="xs" style="margin-top:6px">Eating something else? Fine — the protein is what counts: about <b>'+Math.round((nx.protein-5)/0.22/10)*10+' g raw chicken, beef or fish</b> (~'+nx.protein+' g protein), a fist of rice, pasta or potatoes, and vegetables.</p>':'')+(nx.protein&&nx.what!=='No-cook meal'?'<p class="xs mono" style="margin-top:6px">~'+nx.protein+' g protein'+(nx.kcal?' · ~'+nx.kcal+' kcal':'')+'</p>':'')+
-  '<button class="btn wide" data-mealdone="'+nx.key+'" style="margin-top:12px">Done ✓</button></div>';
-}
+function plateRule(s){return (s.key==='m1'||s.key==='m2')&&s.protein?'<p class="xs" style="margin-top:6px">Eating something else? Fine — the protein is what counts: about <b>'+Math.round((s.protein-5)/0.22/10)*10+' g raw chicken, beef or fish</b>, a fist of rice, pasta or potatoes, and vegetables.</p>':'';}
 /* On a cook day: what to buy and how to make the 4 boxes. */
 /* Cooking something else: tap protein / carb / veg; amounts and shopping follow. */
 var pickOpen={};
@@ -786,7 +791,9 @@ function timelineHTML(iso,p,mac,live,simple){
  return '<ul class="tl">'+slots.map(function(s){
   var done=!!meals[s.key],past=isToday&&s.t+45<now,next=isToday&&!nextDone&&!done&&!past;if(next)nextDone=true;
   var cd=next?(s.t>now?'in '+fmtDur(s.t-now):'now'):'';
-  if(simple)return '<li'+(s.key!=='train'&&live?' data-mealrow="'+s.key+'"':'')+' class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.what||s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div>'+(s.detail?'<div class="foods">'+esc(s.detail)+'</div>':'')+'</div>'+
+  if(simple)return '<li'+(s.key!=='train'&&live&&!next?' data-mealrow="'+s.key+'"':'')+' class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.what||s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div>'+
+   (next&&s.detail?'<div class="foods">'+esc(s.detail)+'</div>':'')+(next?plateRule(s):'')+(next&&s.protein?'<div class="macro">~'+s.protein+' g protein'+(s.kcal?' · ~'+s.kcal+' kcal':'')+'</div>':'')+
+   (next&&live?'<button class="btn small" data-mealdone="'+s.key+'" style="margin-top:8px">Done ✓</button>':'')+'</div>'+
    (s.key==='train'||!live?'<span></span>':'<input type="checkbox" data-meal="'+s.key+'"'+(done?' checked':'')+'>')+'</li>';
   return '<li'+(s.key!=='train'&&live?' data-mealrow="'+s.key+'"':'')+' class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div><div class="why">'+esc(s.why)+'</div>'+
    (s.cook?'<span class="chip warn" style="margin-top:4px">cook today</span>':'')+(s.foods?'<div class="foods">'+esc(s.foods[(hashDay(iso)+slots.indexOf(s))%s.foods.length])+'</div>':'')+
@@ -1113,7 +1120,7 @@ function renderProfile(){
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
  var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen],[data-cookday],[data-mealdone],[data-fam],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-later],[data-cookpick],[data-cookreset],[data-shopspan]');if(!b)return;
- if(b.dataset.wkday){wkv.sel=b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
+ if(b.dataset.wkday){wkv.sel=wkv.sel===b.dataset.wkday||b.dataset.wkday===todayISO()?null:b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
  if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
  if(b.dataset.fam){var fa=b.dataset.fam.split(':'),fm=E.family(state.profile);fm[fa[0]]=Math.max(0,Math.min(fa[0]==='adults'?3:4,fm[fa[0]]+(+fa[1])));state.profile.family=fm;save();var fy=scrollY;renderEat();scrollTo(0,fy);return;}
  if(b.dataset.mealdone){var di=todayISO();state.daily[di]=state.daily[di]||{};state.daily[di].meals=state.daily[di].meals||{};state.daily[di].meals[b.dataset.mealdone]=1;save();renderToday();toast('Nice — ticked off');return;}
@@ -1167,6 +1174,7 @@ document.addEventListener('click',function(ev){
  if(act==='clearshop'){state.settings.shop={since:todayISO(),ticks:{}};save();shopCard.open=true;renderEat();return;}
  if(act==='ics'){var ics=E.calendarICS(state.profile,E.macros(state.profile),todayISO(),b.dataset.meals==='1'),blob=new Blob([ics],{type:'text/calendar'}),u2=URL.createObjectURL(blob),a3=document.createElement('a');a3.href=u2;a3.download='lift-reminders.ics';document.body.appendChild(a3);a3.click();a3.remove();setTimeout(function(){URL.revokeObjectURL(u2);},5000);toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
  if(act==='install'){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(c){if(c&&c.outcome==='accepted')installEvt=null;render();});}return;}
+ if(act==='wskip'){try{localStorage.setItem('lift.wskip',todayISO());}catch(e){}renderToday();return;}
  if(act==='installlater'){try{localStorage.setItem('lift.installLater',todayISO().slice(0,7));}catch(e){}renderToday();return;}
  if(act==='adj'){state.profile.kcalAdj=(state.profile.kcalAdj||0)+ +b.dataset.adj;save();renderEat();toast('Calories adjusted');return;}
  if(act==='update'){if(!('serviceWorker' in navigator)){location.reload();return;}toast('Checking…');navigator.serviceWorker.getRegistration().then(function(r){return r?r.update():null;}).then(function(){setTimeout(function(){location.reload();},1500);});return;}
@@ -1189,7 +1197,8 @@ document.addEventListener('change',function(ev){
  if(t.dataset.rir){var r=t.dataset.rir.split(':');ses.ex[+r[0]].sets[+r[1]].rir=t.value===''?null:+t.value;save();return;}
  if(t.dataset.warm){ses.warm=ses.warm||{};ses.warm[t.dataset.warm]=t.checked?1:0;save();return;}
  if(t.dataset.daily){var iso=todayISO();var dv=num(t.value);if(t.dataset.daily==='weight'){if(dv!=null){state.weight[iso]=dv;state.profile.weight=dv;}else delete state.weight[iso];}
-  else{state.daily[iso]=state.daily[iso]||{};state.daily[iso][t.dataset.daily]=dv;}save();if(t.dataset.daily==='waist'&&view==='progress'){var sy=scrollY;renderProgress();scrollTo(0,sy);}return;}
+  else{state.daily[iso]=state.daily[iso]||{};state.daily[iso][t.dataset.daily]=dv;}save();if(t.dataset.daily==='waist'&&view==='progress'){var sy=scrollY;renderProgress();scrollTo(0,sy);}
+  if(view==='today'&&t.closest('.weigh')){renderToday();toast('Saved ✓');}return;}
  if(t.dataset.shop){var cur=shopTicks();if(!Object.keys(cur).length)state.settings.shop={since:todayISO(),ticks:{}};
   var sw=state.settings.shop.ticks;if(t.checked)sw[t.dataset.shop]=1;else delete sw[t.dataset.shop];
   save();shopCard.open=true;var sy=scrollY;renderEat();scrollTo(0,sy);return;}
