@@ -19,9 +19,9 @@
     warmupMinutes: 8,
     proteinPerKg: { lean: 2.0, high: 1.6 }, // high = BMI >= 30
     fatShare: 0.25,
-    phase: { lean: 0.85, maintain: 1.0, bulk: 1.10 },
+    phase: { lean: 0.90, maintain: 1.0, bulk: 1.10 },  // lean = −10 %: small enough that muscle gain is barely slowed
     activity: { desk: 1.35, feet: 1.5, active: 1.65 },
-    trendTarget: { lean: [-0.6, -0.3], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] }, // kg/week
+    trendTarget: { lean: [-0.5, -0.2], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] }, // kg/week
     creatineG: 5,
     volumeBand: { normal: [10, 16], priority: [14, 20] },
     dumbbellMaxKg: 30 // heaviest dumbbell at B1973 Fitness (per hand)
@@ -58,6 +58,10 @@
         where: 'Light dumbbells, standing.',
         tip: 'Lead with the elbows, raise to shoulder height with a slight forward lean. Light weight, no swinging.',
         alts: ['Seated_Side_Lateral_Raise', 'Cable_Seated_Lateral_Raise'] },
+      { id: 'Incline_Dumbbell_Curl', sets: 3, reps: [10, 15], inc: 1, rest: 75, prio: 'arms',
+        where: 'Bench tilted back to ~45–60°, lie back with a dumbbell in each hand, arms hanging straight down.',
+        tip: 'Arms hang behind the body — that stretch is what makes this curl grow the arm more. Curl up without moving the elbows forward, lower slowly all the way.',
+        alts: ['Dumbbell_Bicep_Curl', 'Standing_Biceps_Cable_Curl'] },
       { id: 'Triceps_Pushdown_-_Rope_Attachment', sets: 2, reps: [10, 15], inc: 2.5, rest: 75,
         where: 'High pulley on the multi-station, rope attachment.',
         tip: 'Elbows glued to the sides, push down and split the rope at the bottom.',
@@ -96,6 +100,10 @@
         where: 'Dumbbells, standing or seated.',
         tip: 'Elbows stay at the sides, curl all the way up, lower for 2–3 seconds.',
         alts: ['Preacher_Curl', 'Hammer_Curls', 'Standing_Biceps_Cable_Curl'] },
+      { id: 'Cable_Rope_Overhead_Triceps_Extension', sets: 3, reps: [10, 15], inc: 2.5, rest: 75, prio: 'arms',
+        where: 'Multi-station pulley with the rope, set low or at chest height. Face away from the machine, rope behind your head.',
+        tip: 'Elbows point forward and stay put. Straighten the arms overhead, then let the rope go deep behind the head — the stretch there is what grows the back of the arm.',
+        alts: ['Standing_Dumbbell_Triceps_Extension', 'Triceps_Pushdown_-_Rope_Attachment'] },
       { id: 'Calf_Press_On_The_Leg_Press_Machine', sets: 3, reps: [10, 15], inc: 5, rest: 75,
         where: 'Leg press, only the balls of your feet on the bottom edge of the footplate.',
         tip: 'Legs almost straight, let the heels drop for a full stretch (pause 1 s), push up onto the toes. No bouncing.',
@@ -127,7 +135,8 @@
     Face_Pull: 'Rope pull to the face', Cable_Rear_Delt_Fly: 'Rear-shoulder fly with the cable', Reverse_Flyes: 'Rear-shoulder fly with dumbbells',
     'Triceps_Pushdown_-_Rope_Attachment': 'Push-down with the rope', Triceps_Pushdown: 'Push-down with the bar',
     Dumbbell_Bicep_Curl: 'Dumbbell curl', Hammer_Curls: 'Hammer curl (thumbs up)', Preacher_Curl: 'Preacher bench curl',
-    Standing_Biceps_Cable_Curl: 'Curl with the cable',
+    Standing_Biceps_Cable_Curl: 'Curl with the cable', Incline_Dumbbell_Curl: 'Dumbbell curl lying back on a tilted bench',
+    Cable_Rope_Overhead_Triceps_Extension: 'Overhead rope extension', Standing_Dumbbell_Triceps_Extension: 'Overhead extension with one dumbbell',
     Ab_Crunch_Machine: 'Ab crunch machine', Hyperextensions_Back_Extensions: 'Low back machine', Cable_Crunch: 'Kneeling crunch with the cable', Plank: 'Plank (hold on elbows)',
     Bicycling_Stationary: 'Exercise bike', Rowing_Stationary: 'Rowing machine', Standing_Hip_Circles: 'Hip circles',
     Bodyweight_Squat: 'Squat, no weight', Arm_Circles: 'Arm circles', Cat_Stretch: 'Cat–cow back stretch',
@@ -172,6 +181,8 @@
       tip: 'Arms almost straight, sweep the rope down to the thighs using the sides of the back, not the arms.' },
     Preacher_Curl: { where: 'Preacher bench with the curl bar; upper arms resting on the angled pad.',
       tip: 'Curl up without lifting the elbows off the pad, lower slowly until the arms are almost straight.' },
+    Standing_Dumbbell_Triceps_Extension: { where: 'One dumbbell held with both hands above your head, seated on an upright bench or standing.',
+      tip: 'Elbows point forward, lower the dumbbell behind the head until you feel the stretch, straighten the arms. Slow on the way down.' },
     Hammer_Curls: { where: 'Dumbbells, thumbs pointing up.',
       tip: 'Elbows stay at the sides, curl up with the thumbs up, lower for 2–3 seconds.' },
     Standing_Biceps_Cable_Curl: { where: 'Low pulley on the multi-station, straight bar, standing.',
@@ -191,7 +202,7 @@
   /* Exercises loaded with dumbbells: capped at RULES.dumbbellMaxKg. */
   var DUMBBELL = ['Dumbbell_Bench_Press', 'Incline_Dumbbell_Press', 'Dumbbell_Shoulder_Press', 'Side_Lateral_Raise',
     'Seated_Side_Lateral_Raise', 'Stiff-Legged_Dumbbell_Deadlift', 'One-Arm_Dumbbell_Row', 'Dumbbell_Incline_Row',
-    'Dumbbell_Bicep_Curl', 'Hammer_Curls', 'Goblet_Squat', 'Reverse_Flyes', 'Standing_Dumbbell_Calf_Raise'];
+    'Dumbbell_Bicep_Curl', 'Hammer_Curls', 'Incline_Dumbbell_Curl', 'Standing_Dumbbell_Triceps_Extension', 'Goblet_Squat', 'Reverse_Flyes', 'Standing_Dumbbell_Calf_Raise'];
 
   /* Muscles each priority tag covers (free-exercise-db names). */
   var PRIORITY = {
@@ -258,7 +269,7 @@
       (ses.ex || []).forEach(function (e) {
         if (e.id !== exId) return;
         var sets = (e.sets || []).filter(function (s) { return s.done && s.kg > 0 && s.reps > 0; });
-        if (sets.length) out.push({ date: k, sets: sets });
+        if (sets.length) out.push({ date: k, sets: sets, calib: !!ses.calibration });
       });
     });
     return out;
@@ -286,6 +297,15 @@
         state: 'deload', note: 'Deload: lighter, fewer sets, stop with 3–4 reps in reserve. Recovery is the point.' };
     }
     var cap = DUMBBELL.indexOf(cfg.id) !== -1 ? RULES.dumbbellMaxKg : null;
+    if (hist[hist.length - 1].calib) {
+      // Calibration weights are guesses. Estimate the weight for the middle of the rep range
+      // with 2 reps in the tank from the best calibration set (Epley; no tank logged = 2).
+      var e1 = Math.max.apply(null, last.map(function (s) { return epley(s.kg, s.reps + Math.min(3, s.rir == null ? 2 : s.rir)); }));
+      var mid = Math.round((lo + hi) / 2), est = roundTo(e1 / (1 + (mid + 2) / 30), cfg.inc);
+      if (cap) est = Math.min(cap, est);
+      if (est > 0) return { kg: est, reps: mid, sets: sets, state: 'set',
+        note: 'Set from your calibration sets: ' + est + ' kg × ' + mid + ', stopping with about 2 reps in the tank. Too easy? Go heavier on the next set.' };
+    }
     if (allTop && cap && kg + cfg.inc > cap) {
       // Out of heavier dumbbells: keep the heaviest pair, earn progress with reps, then move to a machine.
       var alt = (cfg.alts || []).filter(function (a) { return DUMBBELL.indexOf(a) === -1; })[0];
@@ -329,10 +349,20 @@
   }
 
   /* What does the calendar say for a date? */
-  function plan(dateISO, state) {
+  /* A session moved to another day: settings.moves = { fromISO: toISO }; '' = skipped. */
+  function movedFrom(state, dateISO) {
+    var mv = (state.settings && state.settings.moves) || {};
+    for (var k in mv) if (mv[k] === dateISO) return k;
+    return null;
+  }
+  function hasDoneSet(ses) { return (ses.ex || []).some(function (e) { return (e.sets || []).some(function (s) { return s.done; }); }); }
+  function plan(dateISO, state, todayISO) {
     var profile = state.profile || {}, sched = profile.sched || { 1: '16:00', 3: '16:00', 5: '16:00' };
     var d = parseISO(dateISO), wd = d.getDay();
     var existing = state.sessions && state.sessions[dateISO];
+    // a session opened on a past day but never trained is ignored
+    if (existing && todayISO && dateISO < todayISO && !existing.done && !hasDoneSet(existing)) existing = null;
+    var mv = (state.settings && state.settings.moves) || {}, from = movedFrom(state, dateISO);
     var done = completedSessions(state);
     var n = done.length;                       // sessions completed before today (if today not done)
     if (existing && existing.done) n = done.indexOf(dateISO);
@@ -341,9 +371,11 @@
     var deloadUntil = (state.settings && state.settings.deloadUntil) || 0;
     var deload = !calibration && (week % RULES.deloadEvery === 0 || n < deloadUntil);
     var day = existing ? existing.day : (n % 2 === 0 ? 'A' : 'B');
-    var training = !!existing || sched[wd] != null;
+    var movedAway = dateISO in mv, fromTime = from ? sched[parseISO(from).getDay()] || '16:00' : null;
+    var training = !!existing || (sched[wd] != null && !movedAway) || !!from;
     return {
-      date: dateISO, training: training, time: existing && existing.time || sched[wd] || null,
+      date: dateISO, training: training, movedAway: movedAway && !existing ? mv[dateISO] : null, movedFrom: from,
+      time: existing && existing.time || (sched[wd] != null && !movedAway ? sched[wd] : fromTime),
       day: training ? day : null, week: week, n: n, calibration: calibration, deload: deload,
       exercises: training ? exercisesFor(day, profile) : []
     };
@@ -836,7 +868,7 @@
     RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, weekShopping: weekShopping, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, buildDish: buildDish, VEG_PARTS: VEG_PARTS, CARB_PARTS: CARB_PARTS, FLAVOURS: FLAVOURS, PROTEIN_PARTS: PROTEIN_PARTS, MORNING: MORNING, morningFor: morningFor, pickRecipe: pickRecipe, fmtQty: fmtQty, family: family, batchServings: batchServings, batchBuy: batchBuy, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
-    suggest: suggest, recentStalls: recentStalls, plan: plan, buildSession: buildSession, rampSets: rampSets,
+    suggest: suggest, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, buildSession: buildSession, rampSets: rampSets,
     macros: macros, timeline: timeline, weightSeries: weightSeries, weightTrend: weightTrend,
     trendAdvice: trendAdvice, weeklyVolume: weeklyVolume, bestSets: bestSets
   };
