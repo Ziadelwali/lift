@@ -17,7 +17,7 @@
     stallDrop: 0.9,             // cut load 10 % after two failed sessions
     sessionMinutes: 65,
     warmupMinutes: 8,
-    proteinPerKg: { lean: 2.0, high: 1.6 }, // high = BMI >= 30
+    proteinPerKg: { lean: 2.0, high: 2.0 }, // 2 g per kg body weight: the top of the useful range, for maximum muscle while losing fat
     fatShare: 0.25,
     phase: { lean: 0.90, maintain: 1.0, bulk: 1.10 },  // lean = −10 %: small enough that muscle gain is barely slowed
     activity: { desk: 1.35, feet: 1.5, active: 1.65 },
@@ -424,7 +424,8 @@
      = 12 of 14 weekly meals; the 2 left are no-cook meals. */
   var SHAKES = {
     post: { label: 'Protein shake', short: 'Shake: whey 40 g + 500 ml milk + banana', P: 50, kcal: 420, how: 'Whey 40 g + 500 ml skimmed milk + 1 banana. Right after training (or mid-afternoon on rest days).' },
-    morning: { label: 'Morning protein', short: 'Skyr 400 g (or a whey shake)', P: 40, kcal: 250, how: 'Skyr 400 g — or whey 30 g in 300 ml milk. No cooking; at home or on the way.' }
+    morning: { label: 'Morning protein', short: 'Whey shake: 30 g whey in 300 ml milk', P: 35, kcal: 225, how: 'Whey 30 g in 300 ml skimmed milk. No cooking; at home or on the way.' },
+    bed: { label: 'Bedtime shake', short: 'Shake: whey 30 g + 300 ml milk', P: 35, kcal: 225, how: 'Whey 30 g in 300 ml skimmed milk, ~45 min before bed. The milk protein feeds the muscles through the night.' }
   };
   /* per 100 g raw/dry */
   var FOOD = {
@@ -560,12 +561,11 @@
   function buildDishFree(slot, wk) { var n = cookNo(mod(wk, 52), slot); return buildDish(n); }
   var RECIPES = [];   // kept for compatibility; dishes are generated
   /* Morning protein changes every day (no cooking in any of them). */
-  var MORNING = [
-    { short: 'Skyr 400 g + a handful of frozen berries', swap: 'a whey shake (30 g whey in 300 ml milk)', P: 42, kcal: 290, buy: [['dairy', 'skyr (400 g tubs)', 1, 'pcs'], ['veg', 'frozen berries', 80, 'g']] },
-    { short: 'Whey shake: 30 g whey in 300 ml milk', swap: 'skyr 400 g', P: 35, kcal: 225, buy: [['shake', 'whey protein', 30, 'g'], ['dairy', 'skimmed milk', 300, 'ml']] },
-    { short: 'Greek yoghurt 2 % 400 g + a handful of berries', swap: 'skyr 400 g or a whey shake (30 g whey in 300 ml milk)', P: 38, kcal: 300, buy: [['dairy', 'Greek yoghurt 2 %', 400, 'g'], ['veg', 'frozen berries', 80, 'g']] },
-    { short: 'Skyr 400 g with cinnamon', swap: 'a whey shake (30 g whey in 300 ml milk)', P: 40, kcal: 250, buy: [['dairy', 'skyr (400 g tubs)', 1, 'pcs']] }
-  ];
+  /* Morning protein is a whey shake; the no-cook alternative changes every day. */
+  var MORNING_ALT = ['skyr 400 g + a handful of berries', 'Greek yoghurt 2 % 400 g + berries', 'skyr 400 g with cinnamon', '4 boiled eggs + a glass of milk'];
+  var MORNING = MORNING_ALT.map(function (alt) {
+    return { short: SHAKES.morning.short, swap: alt, P: SHAKES.morning.P, kcal: SHAKES.morning.kcal, buy: [['shake', 'whey protein', 30, 'g'], ['dairy', 'skimmed milk', 300, 'ml']] };
+  });
   function dayNo(iso) { return Math.round(parseISO(iso).getTime() / 864e5); }
   function morningFor(iso) { return MORNING[mod(dayNo(iso), MORNING.length)]; }
   var NOCOOK = [
@@ -619,8 +619,9 @@
       morningFor(iso).buy.forEach(function (x) { add(x[0], x[1], x[2], x[3]); });
       [1, 2].forEach(function (m) { if (!batchFor(profile, iso, m)) { nocook++; NOCOOK_BUY[mod(dayNo(iso) * 2 + m, NOCOOK.length)].forEach(function (x) { add(x[0], x[1], x[2], x[3]); }); } });
     }
-    add('dairy', 'skimmed milk', nDays * 500, 'ml'); add('veg', 'bananas', nDays, 'pcs');
-    if (nDays >= 7) { add('shake', 'whey protein', 7 * 40, 'g'); add('shake', 'creatine monohydrate', 7 * 5, 'g'); }
+    add('dairy', 'skimmed milk', nDays * 800, 'ml'); add('veg', 'bananas', nDays, 'pcs');   // after-training + bedtime shakes
+    add('shake', 'whey protein', nDays * 70, 'g'); add('shake', 'creatine monohydrate', nDays * 5, 'g');
+    if (nDays < 7) Object.keys(items).forEach(function (k) { if (items[k].cat === 'shake') delete items[k]; });   // tubs: bought by the week
     var groups = SHOP_CATS.map(function (c) {
       return { cat: c[0], label: c[1], items: Object.keys(items).map(function (k) { return items[k]; }).filter(function (it) { return it.cat === c[0]; })
         .sort(function (a, b) { return a.name < b.name ? -1 : 1; }) };
@@ -634,7 +635,7 @@
     if (u === 'ml') return q >= 1000 ? (Math.round(q / 100) / 10) + ' L' : Math.round(q) + ' ml';
     if (u === 'slices') return q + ' slices' + (q >= 12 ? ' (~' + Math.ceil(q / 16) + ' loaf' + (Math.ceil(q / 16) > 1 ? 's' : '') + ')' : '');
     if (u === 'can') return q + (q > 1 ? ' cans' : ' can');
-    if (u === 'jar') return '1 jar (if you have none)';
+    if (u === 'jar') return 'spice';
     if (u === 'bulb') return q + ' bulb' + (q > 1 ? 's' : '');
     return (q % 1 ? q.toFixed(1).replace('.5', '½').replace(/^0/, '') : q) + '';
   }
@@ -660,7 +661,7 @@
   function mealTargets(mac, profile) {
     var P = mac ? mac.protein : 160, K = mac ? mac.kcal : 2400, n = lattes(profile) * 5 / 7;
     P -= Math.round(n * LATTE.P); K -= Math.round(n * LATTE.kcal);
-    return { P: Math.round((P - SHAKES.post.P - SHAKES.morning.P) / 2), kcal: Math.round((K - SHAKES.post.kcal - SHAKES.morning.kcal) / 20) * 10 };
+    return { P: Math.round((P - SHAKES.post.P - SHAKES.morning.P - SHAKES.bed.P) / 2), kcal: Math.round((K - SHAKES.post.kcal - SHAKES.morning.kcal - SHAKES.bed.kcal) / 20) * 10 };
   }
   /* Which batch feeds meal 1 (lunch) / meal 2 (dinner) on a date. */
   var COOK_DEFAULT = [0, 2, 4];   // Sun, Tue, Thu
@@ -711,7 +712,7 @@
       slots.push(Object.assign({ t: t, time: fmtHM(t), key: key, label: label, why: why, protein: P, kcal: kcal ? Math.round(kcal / 10) * 10 : 0, foods: foods ? [foods] : null }, extra || {}));
     }
     var m1 = mealText(profile, iso, 1, tgt), m2 = mealText(profile, iso, 2, tgt), mo = morningFor(iso);
-    var lunch = hm(profile.lunch || '11:30'), last = bed - 180;   // nothing in the last 3 h before bed
+    var lunch = hm(profile.lunch || '11:30'), last = bed - 180;   // meals end 3 h before bed; only the bedtime shake comes later
     if (p.training && p.time) {
       var T = hm(p.time); if (T < wake) T += 1440;
       var end = T + RULES.sessionMinutes;
@@ -727,6 +728,7 @@
       slot(Math.min(lunch + 240, last - 180), 'sh1', SHAKES.post.label, 'Mid-afternoon on rest days — keeps protein coming.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how, { what: SHAKES.post.short, detail: 'Or instead: skyr 400 g + a banana — same protein.' });
       slot(Math.min(wake + 720, last), 'm2', 'Meal 2 (dinner)', 'Protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, m2.text, { cook: m2.cook, what: m2.what, detail: m2.detail });
     }
+    slot(bed - 45, 'sh3', SHAKES.bed.label, 'Protein for the night: muscle keeps building while you sleep. A drink, not a meal.', SHAKES.bed.P, SHAKES.bed.kcal, SHAKES.bed.how, { what: SHAKES.bed.short, detail: 'Or instead: skyr 400 g — same protein.' });
     var wd = parseISO(iso).getDay(), nl = lattes(profile);
     if (wd >= 1 && wd <= 5) for (var li = 0; li < nl; li++) {
       var lt = li === 0 ? wake + 150 : li === 1 ? Math.min(lunch + 120, hm('14:45')) : Math.min(lunch + 60, hm('14:45'));
@@ -751,9 +753,10 @@
       var p = { training: training, time: training ? sched[wd] : null, day: 'A', date: fromIso };
       timeline(profile, p, mac).forEach(function (s) {
         if (s.key === 'train') add('train', 'Lift: training', s.t, RULES.sessionMinutes, wd, 'Open Lift → Train.');
-        else if (withMeals && s.key === 'sh2') add('morning', 'Lift: morning protein', s.t, 10, wd, 'Skyr or a whey shake. Open Lift → Today.');
+        else if (withMeals && s.key === 'sh2') add('morning', 'Lift: morning shake', s.t, 10, wd, 'Whey 30 g + 300 ml milk (or skyr). Open Lift → Today.');
         else if (withMeals && s.key === 'm1') add('m1', 'Lift: lunch', s.t, 20, wd, 'Open Lift → Today for what is in the box.');
         else if (withMeals && s.key === 'sh1') add('shake', 'Lift: protein shake', s.t, 10, wd, 'Whey 40 g + 500 ml milk + banana.');
+        else if (withMeals && s.key === 'sh3') add('bedshake', 'Lift: bedtime shake', s.t, 10, wd, 'Whey 30 g + 300 ml milk.');
         else if (withMeals && s.key === 'm2') {
           add('m2', 'Lift: dinner', s.t, 30, wd, 'Open Lift → Today for what is in the box.');
           if (cooks.indexOf(wd) >= 0) add('cook', 'Lift: cook 4 boxes tonight', s.t - 90, 60, wd, 'Shopping list and steps: Lift → Eat.');

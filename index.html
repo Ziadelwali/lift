@@ -774,7 +774,8 @@ function cookTodayCard(iso,mac){
 }
 function cookDetails(recipe,pt,wrap){
  var f=E.family(state.profile),fam=f.adults+f.kids;
- var body='<p class="eyebrow" style="margin-top:10px">Buy for your 4 boxes'+(fam?' + '+famText(f)+' at dinner':'')+'</p><ul class="shop">'+E.batchBuy(recipe,pt,state.profile).map(function(it){return '<li><b class="mono">'+esc(E.fmtQty(it))+'</b> '+esc(it.name)+'</li>';}).join('')+'</ul>'+
+ var body='<p class="eyebrow" style="margin-top:10px">Buy for your 4 boxes'+(fam?' + '+famText(f)+' at dinner':'')+'</p><ul class="shop">'+E.batchBuy(recipe,pt,state.profile).filter(function(it){return it.unit!=='jar';}).map(function(it){return '<li><b class="mono">'+esc(E.fmtQty(it))+'</b> '+esc(it.name)+'</li>';}).join('')+'</ul>'+
+  (function(){var sp=E.batchBuy(recipe,pt,state.profile).filter(function(it){return it.unit==='jar';}).map(function(it){return esc(it.name);});return sp.length?'<p class="sm" style="margin-top:4px"><b>Spices</b> (buy only if you are out): '+sp.join(', ')+'</p>':'';})()+
   (fam?'<p class="xs" style="margin-top:4px">Fill your 4 boxes first (one box = '+pt.items.map(function(it){return (it.slices?it.slices+' slice'+(it.slices>1?'s':''):it.g+' g')+' '+esc(it.name);}).join(', ')+'); the rest is for the family dinners.</p>':'')+
   '<details class="fold"><summary><span class="eyebrow">How to make it</span></summary><ol class="steps">'+recipe.steps.concat(['Season the '+(E.FOOD[recipe.protein].name.split(' (')[0])+' two ways: half with '+recipe.flavours[0]+', half with '+recipe.flavours[1]+'. Boxes 1 and 3 get '+recipe.flavours[0]+', boxes 2 and 4 get '+recipe.flavours[1]+' — so you never eat the same taste twice in a row.','Fill 4 boxes, fridge.']).map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol></details>';
  return body;
@@ -923,21 +924,21 @@ function renderEat(){
  var phaseTxt={lean:'Build & lean: a small deficit (−10 %), small enough that muscle gain is barely slowed. Muscle first, fat comes off alongside.',maintain:'Maintain: eat at your expenditure. Recomp for returning lifters, or a break between phases.',bulk:'Lean bulk: +10 %. Only when already lean — surplus beyond this is fat.'}[mac.phase];
  var h='<div class="card" style="margin-top:14px"><div class="row between"><h2>Daily targets</h2><span class="chip acc">'+({lean:'build & lean',maintain:'maintain',bulk:'lean bulk'})[mac.phase]+'</span></div>'+
   '<div class="grid2" style="margin-top:10px"><div class="stat"><div class="v">'+mac.kcal+'</div><div class="l">kcal / day</div></div><div class="stat"><div class="v">'+mac.protein+' g</div><div class="l">protein</div></div><div class="stat"><div class="v">'+mac.carbs+' g</div><div class="l">carbs</div></div><div class="stat"><div class="v">'+mac.fat+' g</div><div class="l">fat</div></div></div>'+
-  '<p class="xs" style="margin-top:10px">'+phaseTxt+' Expenditure ≈ '+mac.tdee+' kcal (BMR '+mac.bmr+' × activity)'+(p.kcalAdj?' · adjusted '+(p.kcalAdj>0?'+':'')+p.kcalAdj:'')+'. Protein '+(mac.bmi>=30?'1.6':'2.0')+' g/kg — the number that matters most; kcal second; carbs vs fat last.</p></div>';
+  '<p class="xs" style="margin-top:10px">'+phaseTxt+' Expenditure ≈ '+mac.tdee+' kcal (BMR '+mac.bmr+' × activity)'+(p.kcalAdj?' · adjusted '+(p.kcalAdj>0?'+':'')+p.kcalAdj:'')+'. Protein 2 g/kg — the number that matters most; kcal second; carbs vs fat last.</p></div>';
  h+='<div class="card"><h2>Weight trend</h2><p class="sm" style="margin-top:6px">'+(ta.rate!=null?'<b class="mono">'+(ta.rate>0?'+':'')+ta.rate.toFixed(2)+' kg/week</b> · ':'')+esc(ta.text)+'</p>'+(ta.adj?'<button class="btn small ghost" data-act="adj" data-adj="'+ta.adj+'" style="margin-top:10px">Apply '+(ta.adj>0?'+':'')+ta.adj+' kcal</button>':'')+'</div>';
  var pt=planFor(iso),pTrain=Object.assign({},pt,{training:true,time:pt.time||(p.sched&&p.sched[1])||'16:00',day:pt.day||'A'}),pRest=Object.assign({},pt,{training:false});
  h+=shopCard(p,mac,iso)+cookCard(p,mac,iso)+shakeCard();
- h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">What a training day looks like: morning protein, lunch, a shake after training, dinner — nothing in the last 3 hours before bed. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
- h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">What a rest day looks like: same protein, the shake moves to the afternoon, creatine still. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
+ h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">What a training day looks like: morning shake, lunch, a shake after training, dinner, and a shake before bed. Meals end 3 hours before bed; the bedtime shake is just a drink. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
+ h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">What a rest day looks like: same protein, the after-training shake moves to the afternoon, creatine still. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
  h+='<details class="card fold"><summary><h2>Supplements — what earns its place</h2></summary><div class="stack sm" style="margin-top:8px">'+
   '<p><b>Creatine monohydrate, 5 g every day.</b> The best-evidenced supplement there is: more reps per set, faster gains. No loading phase needed; any time of day; mix into anything. Cheapest own-brand is identical to expensive ones.</p>'+
-  '<p><b>Whey protein.</b> Just convenient milk protein — your two shakes replace two meals. Any plain whey works; price and taste decide.</p>'+
-  '<p><b>Skyr in the morning.</b> 30–40 g protein with zero cooking. (Protein right before bed is a small bonus some people use; with 4 feeds a day you do not need it.)</p>'+
+  '<p><b>Whey protein.</b> Just convenient milk protein — your three shakes are your no-cook protein. Any plain whey works; price and taste decide. Skyr, Greek yoghurt or eggs are the alternatives.</p>'+
+  '<p><b>A shake before bed.</b> About 35–40 g milk protein before sleep keeps muscle building through the night. It does not make you fat: it is counted inside your calories (the meals are a little smaller to make room).</p>'+
   '<p><b>Caffeine 1–3 mg/kg, 30–60 min pre-session</b> if you want it. A coffee. Not after 15:00 if sleep suffers — sleep beats caffeine.</p>'+
   '<p><b>Vitamin D 20–40 µg/day Oct–Apr</b> at Danish latitude. Fish oil only if you eat no oily fish.</p>'+
   '<p class="xs">Skip: BCAAs (pointless with enough protein), fat burners, test boosters, pre-workouts beyond caffeine.</p></div></details>';
  h+='<details class="card fold"><summary><h2>The rules behind the numbers</h2></summary><div class="stack sm" style="margin-top:8px">'+
-  '<p>• Protein: 1.6–2.2 g/kg a day. Total per day matters most; 2 meals + 2 shakes gives 4 feeds, which covers the small extra benefit of spreading it out.</p>'+
+  '<p>• Protein: 1.6–2.2 g/kg a day. Total per day matters most; 2 meals + 3 shakes spreads it over 5 feeds.</p>'+
   '<p>• Pre-workout meal 1–3 h before: carbs + protein. Post-workout meal within ~2 h. The "anabolic window" is hours wide, not minutes.</p>'+
   '<p>• Weigh most mornings; judge by the 7-day average, adjust ±150 kcal only when the trend is outside the band for 2 weeks.</p>'+
   '<p>• Sleep 7–9 h. Under 6 h measurably cuts muscle gain and raises fat gain — it is a training variable.</p></div></details>';
@@ -970,7 +971,7 @@ function shopCard(p,mac,iso){
   '<div class="seg" style="margin-top:10px">'+[['cook','Next cook (2 days)'],['week','Whole week']].map(function(o){return '<button data-shopspan="'+o[0]+'"'+(shopSpan()===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div>'+
   (short?'<p class="xs" style="margin-top:6px">Just what you need for the next cook and the days it covers. Whey and creatine: check the tubs.</p>':'')+
   w.groups.map(function(g){return '<p class="eyebrow" style="margin-top:12px">'+esc(g.label)+'</p>'+g.items.map(function(it){var on=!!ticks[it.key];
-   return '<label class="shopitem'+(on?' got':'')+'"><input type="checkbox" data-shop="'+esc(it.key)+'"'+(on?' checked':'')+'><span class="q mono">'+esc(E.fmtQty(it))+'</span><span>'+esc(it.name)+'</span></label>';}).join('');}).join('')+
+   return '<label class="shopitem'+(on?' got':'')+'"><input type="checkbox" data-shop="'+esc(it.key)+'"'+(on?' checked':'')+'><span class="q mono">'+esc(E.fmtQty(it))+'</span><span>'+(it.unit==='jar'?'<span class="xs">only if you are out: </span>':'')+esc(it.name)+'</span></label>';}).join('');}).join('')+
   '<div class="row" style="margin-top:12px;gap:8px"><button class="btn small ghost" data-act="copyshop">Copy list</button><button class="btn small ghost" data-act="clearshop">Untick all</button></div>'+
   '<p class="xs" style="margin-top:8px">Covers: '+w.cooks.map(function(c){return niceDate(c.date)+' '+esc(c.name);}).join(' · ')+'. Check the cupboard for oil and spices first.</p></details>';
 }
@@ -990,9 +991,9 @@ function familyPicker(){
 function fmtG(g){return g>=1000?(Math.round(g/100)/10)+' kg':g+' g';}
 function shakeCard(){
  var S=E.SHAKES;
- return '<div class="card"><h2>Shakes</h2><p class="xs" style="margin:4px 0 8px">Two a day do the job of two extra meals with no cooking. Whey is plain milk protein — safe for healthy kidneys; total daily protein is what matters.</p>'+
+ return '<div class="card"><h2>Shakes</h2><p class="xs" style="margin:4px 0 8px">Three a day — morning, after training, before bed — are your no-cook protein. They are counted in your calories, so they do not add fat. Whey is plain milk protein — safe for healthy kidneys; total daily protein is what matters.</p>'+
   '<div class="grid2"><div class="stat"><div class="v">'+S.post.P+' g</div><div class="l">after training / afternoon</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">'+esc(S.post.how)+'</p></div>'+
-  '<div class="stat"><div class="v">35–42 g</div><div class="l">morning</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">Changes every day: '+E.MORNING.map(function(m){return esc(m.short.toLowerCase());}).join(' · ')+'.</p></div></div>'+
+  '<div class="stat"><div class="v">'+S.morning.P+' g</div><div class="l">morning + before bed</div><p class="xs" style="margin-top:4px;text-transform:none;letter-spacing:0">'+esc(S.bed.how)+' Instead, if you like: '+E.MORNING.map(function(m){return esc(m.swap);}).join(' · ')+'.</p></div></div>'+
   '<p class="xs" style="margin-top:8px">The exact amounts for the week are in the shopping list above.</p></div>';
 }
 
