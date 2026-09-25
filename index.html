@@ -292,6 +292,15 @@ ul.shop li,ol.steps li{margin-bottom:4px}
 .hero .cap b{display:block;font-size:20px;font-weight:500;letter-spacing:-.01em}
 .hero .cap span{font-size:13px;color:var(--ink2)}
 .sunline{height:3px;border-radius:2px;background:linear-gradient(90deg,var(--acc),var(--sun));opacity:.8;margin:10px 0 2px}
+.linkbtn{color:var(--acc);font:inherit;text-decoration:underline;text-underline-offset:2px;padding:0}
+.movebox{margin-top:10px;background:var(--warn-bg);border-radius:12px;padding:10px 12px;font-size:13.5px;color:var(--ink)}
+.dot.part::before{content:"";position:absolute;right:3px;top:3px;width:8px;height:8px;border-radius:50%;background:var(--warn);z-index:1}
+#rest .in.rirq{margin-top:6px;flex-wrap:wrap;font-size:13px;color:var(--ink2);gap:6px}#rest .in[hidden]{display:none}
+#rest .rirq button{min-width:44px;height:36px;border-radius:999px;background:var(--card2);font-family:var(--mono);font-size:14px;color:var(--ink)}
+#rest .rirq button.on{background:var(--acc);color:var(--on-acc);font-weight:600}
+.pickrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.pk{min-height:36px;padding:0 12px;border-radius:999px;background:var(--card2);font-size:13px;color:var(--ink2)}
+.pk.on{background:var(--acc);color:var(--on-acc);font-weight:600}
 .seg{display:flex;background:var(--card2);border-radius:999px;padding:3px;gap:2px}
 .seg button{flex:1;min-height:38px;border-radius:999px;font-size:14px;color:var(--ink2)}
 .seg button.on{background:var(--acc);color:var(--on-acc);font-weight:600}
@@ -333,7 +342,7 @@ ul.shop li,ol.steps li{margin-bottom:4px}
   <section class="view" id="v-progress"></section>
   <section class="view" id="v-profile"></section>
  </main>
- <div id="rest"><div class="in"><span class="t">2:30</span><span class="bar"><i></i></span><button class="btn small ghost" data-rest="-30">−30</button><button class="btn small ghost" data-rest="30">+30</button><button class="btn small ghost" id="restskip">Skip</button></div></div>
+ <div id="rest"><div class="in"><span class="t">2:30</span><span class="bar"><i></i></span><button class="btn small ghost" data-rest="-30">−30</button><button class="btn small ghost" data-rest="30">+30</button><button class="btn small ghost" id="restskip">Skip</button></div><div class="in rirq" id="restrir" hidden></div></div>
  <nav class="tabs">
   <button data-v="today" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</button>
   <button data-v="train"><svg viewBox="0 0 24 24"><path d="M2 12h3M19 12h3M6 8v8M18 8v8M9 6v12M15 6v12M9 12h6"/></svg>Train</button>
@@ -592,7 +601,13 @@ function tickRest(){
  if(left<=0&&!el.classList.contains('over')){el.classList.add('over');beep();buzz();}
  if(left<-120)stopRest();
 }
-function stopRest(){clearInterval(rest.t);$('#rest').classList.remove('on');}
+function stopRest(){clearInterval(rest.t);$('#rest').classList.remove('on');rest.set=null;restRir();}
+/* "Reps left in the tank?" for the set just ticked, right on the rest bar. */
+function restRir(){
+ var el=$('#restrir'),ses=activeSession(),r=rest.set,s=r&&ses&&ses.ex[r[0]]&&ses.ex[r[0]].sets[r[1]];
+ if(!s){el.hidden=true;return;}
+ el.hidden=false;el.innerHTML='<span>Set '+(r[1]+1)+' · reps left in the tank?</span>'+RIR_OPTS.map(function(o){return '<button data-rirset="'+r[0]+':'+r[1]+':'+o[0]+'"'+(s.rir===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('');
+}
 $('#restskip').addEventListener('click',stopRest);
 
 /* ---------------- wake lock ---------------- */
@@ -606,6 +621,9 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
 
 /* ---------------- sessions ---------------- */
 function activeSession(){var s=state.sessions[todayISO()];return s&&!s.done?s:null;}
+function planFor(iso){return E.plan(iso,state,todayISO());}
+function addDays(iso,n){var d=E.parseISO(iso);d.setDate(d.getDate()+n);return E.isoDate(d);}
+function trainedOn(iso){var s=state.sessions[iso];return !!(s&&s.done);}
 function profileReady(){var p=state.profile;return p.weight&&p.height&&p.age;}
 
 /* ---------------- rendering ---------------- */
@@ -625,7 +643,7 @@ function render(){
 
 /* ---- Today ---- */
 function renderToday(){
- var iso=todayISO(),p=E.plan(iso,state),mac=E.macros(state.profile),ses=state.sessions[iso];
+ var iso=todayISO(),p=planFor(iso),mac=E.macros(state.profile),ses=state.sessions[iso];
  var h='<p class="eyebrow" style="margin-top:6px">'+niceDate(iso)+' · week '+p.week+'</p>';
  h+=installCard('today')+nextFoodCard(iso,p,mac)+cookTodayCard(iso,mac);
  if(p.training){
@@ -634,11 +652,12 @@ function renderToday(){
    '<div class="row between" style="margin-top:8px"><span class="eyebrow">Today\'s plan</span>'+
    (p.calibration?'<span class="badge calib">calibration week</span>':p.deload?'<span class="badge deload">deload week</span>':'<span class="badge">week '+p.week+'</span>')+'</div>'+
    '<p class="sm" style="margin:6px 0 10px">'+(p.calibration?'This week is about finding your weights: 2 sets per exercise, stop with 3 reps in the tank, log honestly. Next week the app starts pushing.':p.deload?'Lighter loads, half the sets. You grow while you recover; skipping this week is how people get hurt.':'Full body. Compounds first, 1–3 reps in reserve on every working set.')+'</p>'+
+   moveNote(iso,p,ses)+
    '<div class="exlist">'+exs.map(function(c){return exRow(c.id,'',c.prio?'prio':'');}).join('')+'</div>'+
    (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>':'<button class="btn wide" data-act="start" style="margin-top:14px">'+(ses?'Continue session':'Start session')+'</button>')+
    '</div>';
  }else{
-  h+='<div class="card"><div class="hero"><span class="num">Rest</span><div class="cap"><b>Recovery day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+nextSessionLine(iso)+'</div>';
+  h+='<div class="card"><div class="hero"><span class="num">Rest</span><div class="cap"><b>Recovery day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+restNote(iso,p)+nextSessionLine(iso)+'</div>';
  }
  h+=weekCard(mac);
  h+=dailyCard(iso,mac);
@@ -661,10 +680,10 @@ document.addEventListener('visibilitychange',function(){if(!document.hidden)cloc
 var wkv={off:0,sel:null};
 function mondayOf(iso){var d=E.parseISO(iso),x=(d.getDay()+6)%7;d.setDate(d.getDate()-x);return d;}
 function dayPlan(iso){
- var today=todayISO(),p=E.plan(iso,state),ses=state.sessions[iso];
+ var today=todayISO(),p=planFor(iso),ses=state.sessions[iso];
  if(iso>today&&p.training){   // which session (A/B) it will be: count scheduled sessions from today
   var k=0,d=E.parseISO(today);var t=state.sessions[today];
-  for(;E.isoDate(d)<iso;d.setDate(d.getDate()+1)){var pi=E.plan(E.isoDate(d),state);if(pi.training&&!(E.isoDate(d)===today&&t&&t.done))k++;}
+  for(;E.isoDate(d)<iso;d.setDate(d.getDate()+1)){var pi=planFor(E.isoDate(d));if(pi.training&&!(E.isoDate(d)===today&&t&&t.done))k++;}
   p=Object.assign({},p,{day:(p.n+k)%2===0?'A':'B'});
  }
  return {p:p,done:!!(ses&&ses.done),cook:!!(function(){var b=E.batchFor(state.profile,iso,2);return b&&b.cookToday;})()};
@@ -677,7 +696,7 @@ function weekCard(mac){
  var DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
  var strip=days.map(function(di){var dp=dayPlan(di),d=E.parseISO(di);
   return '<button class="wkday'+(di===sel?' on':'')+(di<today?' past':'')+(di===today?' today':'')+'" data-wkday="'+di+'"><span class="dn">'+DN[d.getDay()]+'</span><b>'+d.getDate()+'</b>'+
-   '<span class="tags">'+(dp.p.training?'<i class="tg train" title="training">'+(dp.done?'✓':dp.p.day)+'</i>':'')+(dp.cook?'<i class="tg cook" title="cook">🍲</i>':'')+'</span></button>';}).join('');
+   '<span class="tags">'+(dp.p.training&&(dp.done||di>=today)?'<i class="tg train" title="training">'+(dp.done?'✓':dp.p.day)+'</i>':'')+(dp.cook?'<i class="tg cook" title="cook">🍲</i>':'')+'</span></button>';}).join('');
  var dp=dayPlan(sel),slots=E.timeline(state.profile,dp.p,mac).filter(function(s){return s.key!=='cr';});
  var head=dp.p.training?(dp.done?'Session '+dp.p.day+' done ✓':'Training · session '+dp.p.day+' at '+dp.p.time):'Rest day';
  var ws=niceDate(days[0])+' – '+niceDate(days[6]);
@@ -687,8 +706,23 @@ function weekCard(mac){
   '<div class="wkdetail"><p class="eyebrow">'+niceDate(sel)+(sel===today?' · today':'')+'</p><h3 style="margin-top:4px">'+head+(dp.cook?' · <span style="color:var(--warn)">cook 4 boxes</span>':'')+'</h3>'+
   '<ul class="wklist">'+slots.map(function(s){return '<li><span class="mono">'+s.time+'</span><span>'+esc(s.what==='No-cook meal'?'No-cook: '+s.detail:(s.what||s.label))+'</span></li>';}).join('')+'</ul></div></div>';
 }
+/* Life moves a day: rest after yesterday's session, move to tomorrow, or catch up a missed one. */
+function moveNote(iso,p,ses){
+ var h=p.movedFrom?'<p class="xs" style="margin-top:4px">Moved here from '+niceDate(p.movedFrom)+' · <button class="linkbtn" data-unmove="'+p.movedFrom+'">undo</button></p>':'';
+ if(ses)return h;
+ var t=addDays(iso,1),free=!planFor(t).training,dn=DOW[E.parseISO(t).getDay()];
+ var go=free?'<button class="btn small" data-move="'+iso+'|'+t+'">Rest today, train '+dn+'</button>':'<button class="btn small" data-move="'+iso+'|">Rest today</button>';
+ if(trainedOn(addDays(iso,-1)))return h+'<div class="movebox"><b>You trained yesterday.</b> Muscles grow in the ~48 h between full-body sessions, so two days in a row gives less. '+(free?'Rest today and train tomorrow instead?':'Tomorrow is already a training day, so skip today — the A/B order simply continues.')+'<div class="row" style="margin-top:8px;gap:8px">'+go+'</div></div>';
+ return h+'<p class="xs" style="margin-top:6px">Can\'t make it today? <button class="linkbtn" data-move="'+iso+'|'+(free?t:'')+'">'+(free?'Move to '+dn:'Skip today')+'</button></p>';
+}
+function restNote(iso,p){
+ if(p.movedAway!=null)return '<p class="xs" style="margin-top:8px">'+(p.movedAway?'Today\'s session moved to '+niceDate(p.movedAway):'Today\'s session skipped')+' · <button class="linkbtn" data-unmove="'+iso+'">undo</button></p>';
+ var y=addDays(iso,-1),yp=planFor(y);
+ if(yp.training&&!trainedOn(y)&&!state.sessions[iso])return '<div class="movebox"><b>Missed yesterday\'s session?</b> Do it today instead — the plan shifts with you.<div class="row" style="margin-top:8px"><button class="btn small" data-move="'+y+'|'+iso+'">Train today</button></div></div>';
+ return '';
+}
 function nextSessionLine(iso){
- var d=E.parseISO(iso);for(var i=1;i<=7;i++){d.setDate(d.getDate()+1);var n=E.isoDate(d),pp=E.plan(n,state);if(pp.training)return '<p class="xs" style="margin-top:8px">Next: session '+pp.day+' · '+niceDate(n)+' '+pp.time+'</p>';}
+ var d=E.parseISO(iso);for(var i=1;i<=7;i++){d.setDate(d.getDate()+1);var n=E.isoDate(d),pp=planFor(n);if(pp.training)return '<p class="xs" style="margin-top:8px">Next: session '+pp.day+' · '+niceDate(n)+' '+pp.time+'</p>';}
  return '';
 }
 function sessionSummary(s){
@@ -710,21 +744,32 @@ function nextFoodCard(iso,p,mac){
  var slots=E.timeline(state.profile,p,mac).filter(function(s){return s.key!=='train';}),meals=(state.daily[iso]||{}).meals||{},now=nowMin(),nx=null;
  slots.forEach(function(s){if(!nx&&!meals[s.key]&&s.t+45>=now)nx=s;});
  if(!nx){var left=slots.filter(function(s){return !meals[s.key];});
-  var tm=new Date(E.parseISO(iso));tm.setDate(tm.getDate()+1);var ti=E.isoDate(tm),first=E.timeline(state.profile,E.plan(ti,state),mac).filter(function(s){return s.key!=='train';})[0];
+  var tm=new Date(E.parseISO(iso));tm.setDate(tm.getDate()+1);var ti=E.isoDate(tm),first=E.timeline(state.profile,planFor(ti),mac).filter(function(s){return s.key!=='train';})[0];
   return '<div class="card eatnext"><p class="eyebrow">Food</p><h2 style="margin-top:4px">'+(left.length?'Nothing more to eat today':'All eaten today ✓')+'</h2>'+
    (left.length?'<p class="sm" style="margin-top:4px">'+left.length+' not ticked off — if you had them, tick them in the list below.</p>':'')+
    (first?'<p class="sm" style="margin-top:8px">Tomorrow first: <b>'+first.time+' · '+esc(first.what||first.label)+'</b></p>':'')+'</div>';}
  var when=nx.t>now?'in '+fmtDur(nx.t-now):'now';
  return '<div class="card eatnext"><div class="row between"><p class="eyebrow">Eat next · '+nx.time+'</p><span class="chip acc">'+when+'</span></div>'+
   '<h2 class="what">'+esc(nx.what||nx.label)+'</h2>'+(nx.detail?'<p class="sm" style="margin-top:4px">'+esc(nx.detail)+'</p>':'')+
-  (nx.what==='No-cook meal'?'<p class="xs" style="margin-top:6px">Add fruit or an extra slice of bread if you are still hungry.</p>':'')+(nx.protein&&nx.what!=='No-cook meal'?'<p class="xs mono" style="margin-top:6px">~'+nx.protein+' g protein'+(nx.kcal?' · ~'+nx.kcal+' kcal':'')+'</p>':'')+
+  (nx.what==='No-cook meal'?'<p class="xs" style="margin-top:6px">Add fruit or an extra slice of bread if you are still hungry.</p>':'')+
+  ((nx.key==='m1'||nx.key==='m2')&&nx.protein?'<p class="xs" style="margin-top:6px">Eating something else? Fine — the protein is what counts: about <b>'+Math.round((nx.protein-5)/0.22/10)*10+' g raw chicken, beef or fish</b> (~'+nx.protein+' g protein), a fist of rice, pasta or potatoes, and vegetables.</p>':'')+(nx.protein&&nx.what!=='No-cook meal'?'<p class="xs mono" style="margin-top:6px">~'+nx.protein+' g protein'+(nx.kcal?' · ~'+nx.kcal+' kcal':'')+'</p>':'')+
   '<button class="btn wide" data-mealdone="'+nx.key+'" style="margin-top:12px">Done ✓</button></div>';
 }
 /* On a cook day: what to buy and how to make the 4 boxes. */
+/* Cooking something else: tap protein / carb / veg; amounts and shopping follow. */
+var pickOpen={};
+function cookPicker(iso,recipe){
+ var cur={protein:recipe.protein,carb:recipe.carb,veg:recipe.vegKey},prot=[];
+ Object.keys(E.PROTEIN_PARTS).forEach(function(g){prot=prot.concat(E.PROTEIN_PARTS[g]);});
+ function row(kind,label,list){return '<p class="eyebrow" style="margin-top:10px">'+label+'</p><div class="pickrow">'+list.map(function(x){return '<button class="pk'+(cur[kind]===x.k?' on':'')+'" data-cookpick="'+iso+'|'+kind+'|'+x.k+'">'+esc(x.short)+'</button>';}).join('')+'</div>';}
+ return '<details class="fold"'+(pickOpen[iso]?' open':'')+' data-pickfold="'+iso+'"><summary><span class="eyebrow">'+(recipe.picked?'Your own dish ✓ — change it':'Cooking something else? Pick it')+'</span></summary>'+
+  '<p class="xs" style="margin-top:6px">Tap what you are making. Your box amounts and the shopping list follow.'+(recipe.picked?' <button class="linkbtn" data-cookreset="'+iso+'">Back to the suggestion ('+esc(recipe.suggested.name)+')</button>':'')+'</p>'+
+  row('protein','Protein',prot)+row('carb','With',E.CARB_PARTS)+row('veg','Vegetables',E.VEG_PARTS)+'</details>';
+}
 function cookTodayCard(iso,mac){
  if(!mac)return '';var b=E.batchFor(state.profile,iso,2);if(!b||!b.cookToday)return '';
  var tgt=E.mealTargets(mac,state.profile),pt=E.portion(b.recipe,tgt.P,tgt.kcal);
- return '<div class="card"><div class="row between"><h2>Cook today</h2><span class="chip warn">4 boxes</span></div><p class="sm" style="margin-top:4px"><b>'+esc(b.recipe.name)+'</b> — dinner tonight, lunch + dinner tomorrow, lunch the day after.</p>'+cookDetails(b.recipe,pt,false)+'</div>';
+ return '<div class="card"><div class="row between"><h2>Cook today</h2><span class="chip warn">4 boxes</span></div><p class="sm" style="margin-top:4px"><b>'+esc(b.recipe.name)+'</b> — dinner tonight, lunch + dinner tomorrow, lunch the day after.</p>'+cookPicker(iso,b.recipe)+cookDetails(b.recipe,pt,false)+'</div>';
 }
 function cookDetails(recipe,pt,wrap){
  var f=E.family(state.profile),fam=f.adults+f.kids;
@@ -752,7 +797,7 @@ function hashDay(iso){return iso.split('-').reduce(function(a,b){return a+ +b;},
 
 /* ---- Train ---- */
 function renderTrain(){
- var iso=todayISO(),ses=activeSession(),p=E.plan(iso,state);
+ var iso=todayISO(),ses=activeSession(),p=planFor(iso);
  var h='';
  if(!ses){
   var done=state.sessions[iso]&&state.sessions[iso].done;
@@ -768,6 +813,7 @@ function renderTrain(){
  var wdone=ses.warm||{};
  h+='<div class="card"><div class="row between"><h2>Warm-up</h2><span class="xs">≤ '+E.RULES.warmupMinutes+' min</span></div>'+
   '<p class="xs" style="margin-top:2px">Tap a move to see how it\'s done. Tick the box when you\'ve done it.</p>'+
+  '<p class="xs" style="margin-top:4px">Busy gym? Do the exercises in any order: tap a picture at the top to jump to whatever is free, or <b>⏭ Busy — later</b> on a card to send it to the end. Order barely matters for growth.</p>'+
   warmItem('gen',wl.general,fmtSec(wl.general.secs),wdone)+
   wl[ses.day].map(function(w){return warmItem(w.id,w,w.reps,wdone);}).join('')+
   (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(nm(firstRamp.id))+': '+E.rampSets(firstRamp.sets[0].kg).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
@@ -790,13 +836,14 @@ function warmItem(key,w,amount,wdone){
 }
 /* Sticky session progress: picture per exercise, tap to jump. */
 var SMOOTH=!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)?'smooth':'auto';
+function nextUndone(ses,from){for(var k=0;k<ses.ex.length;k++){var i=(from+k)%ses.ex.length;if(!exDone(ses.ex[i]))return i;}return -1;}
 function exDone(e){return e.sets.length>0&&e.sets.every(function(s){return s.done;});}
 function trackBar(ses){
  var n=ses.ex.filter(exDone).length,cur=-1;
  ses.ex.forEach(function(e,i){if(cur<0&&!exDone(e))cur=i;});
  return '<div class="trackbar" id="trackbar"><div class="row between"><span class="eyebrow">Session '+ses.day+(ses.calibration?' · calibration':ses.deload?' · deload':' · week '+ses.week)+'</span><span class="xs mono"><b>'+n+'</b>/'+ses.ex.length+' done · <span id="elapsed">'+fmtSec((Date.now()-ses.started)/1000)+'</span></span></div>'+
   '<div class="track"><i style="width:'+Math.round(n/ses.ex.length*100)+'%"></i></div>'+
-  '<div class="dots">'+ses.ex.map(function(e,ei){return '<button class="dot'+(exDone(e)?' done':'')+(ei===cur?' cur':'')+'" data-jump="'+ei+'" aria-label="'+esc(nm(e.id))+'">'+thumb(e.id)+'</button>';}).join('')+'</div></div>';
+  '<div class="dots">'+ses.ex.map(function(e,ei){return '<button class="dot'+(exDone(e)?' done':e.sets.some(function(s){return s.done;})?' part':'')+(ei===cur?' cur':'')+'" data-jump="'+ei+'" aria-label="'+esc(nm(e.id))+'">'+thumb(e.id)+'</button>';}).join('')+'</div></div>';
 }
 function updateTrack(){var ses=activeSession(),el=$('#trackbar');if(ses&&el){el.outerHTML=trackBar(ses);}}
 function measureBars(){
@@ -837,7 +884,7 @@ function exBody(e,ei,ses){
     '<button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'" aria-label="Set done">✓</button></div>'+
     (s.done?'<div class="rirrow"><span>Reps left in the tank?</span>'+RIR_OPTS.map(function(o){return '<button data-rirset="'+ei+':'+si+':'+o[0]+'"'+(s.rir===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div>':'');
   }).join('')+
-  '<div class="row between" style="margin-top:10px"><button class="btn small ghost" data-addset="'+ei+'">+ set</button>'+(alts.length?'<button class="btn small ghost" data-swapopen="'+ei+'">⇄ Other options ('+alts.length+')</button>':'')+'</div>'+
+  '<div class="row between" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="btn small ghost" data-addset="'+ei+'">+ set</button>'+(!exDone(e)&&ses.ex.some(function(x,i){return i!==ei&&!exDone(x);})?'<button class="btn small ghost" data-later="'+ei+'">⏭ Busy — later</button>':'')+(alts.length?'<button class="btn small ghost" data-swapopen="'+ei+'">⇄ Other options ('+alts.length+')</button>':'')+'</div>'+
   (alts.length?'<div class="swaps" id="swaps-'+ei+'" hidden>'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div>':'');
 }
 /* Update one exercise card without redrawing the screen (keeps the photo running). */
@@ -872,12 +919,12 @@ function renderEat(){
  var mac=E.macros(state.profile),p=state.profile,iso=todayISO();
  if(!mac){$('#v-eat').innerHTML='<div class="card"><p>Fill in your profile first.</p></div>';return;}
  var ta=E.trendAdvice(state);
- var phaseTxt={lean:'Build & lean: a modest deficit (−15 %). Muscle first, fat comes off alongside.',maintain:'Maintain: eat at your expenditure. Recomp for returning lifters, or a break between phases.',bulk:'Lean bulk: +10 %. Only when already lean — surplus beyond this is fat.'}[mac.phase];
+ var phaseTxt={lean:'Build & lean: a small deficit (−10 %), small enough that muscle gain is barely slowed. Muscle first, fat comes off alongside.',maintain:'Maintain: eat at your expenditure. Recomp for returning lifters, or a break between phases.',bulk:'Lean bulk: +10 %. Only when already lean — surplus beyond this is fat.'}[mac.phase];
  var h='<div class="card" style="margin-top:14px"><div class="row between"><h2>Daily targets</h2><span class="chip acc">'+({lean:'build & lean',maintain:'maintain',bulk:'lean bulk'})[mac.phase]+'</span></div>'+
   '<div class="grid2" style="margin-top:10px"><div class="stat"><div class="v">'+mac.kcal+'</div><div class="l">kcal / day</div></div><div class="stat"><div class="v">'+mac.protein+' g</div><div class="l">protein</div></div><div class="stat"><div class="v">'+mac.carbs+' g</div><div class="l">carbs</div></div><div class="stat"><div class="v">'+mac.fat+' g</div><div class="l">fat</div></div></div>'+
   '<p class="xs" style="margin-top:10px">'+phaseTxt+' Expenditure ≈ '+mac.tdee+' kcal (BMR '+mac.bmr+' × activity)'+(p.kcalAdj?' · adjusted '+(p.kcalAdj>0?'+':'')+p.kcalAdj:'')+'. Protein '+(mac.bmi>=30?'1.6':'2.0')+' g/kg — the number that matters most; kcal second; carbs vs fat last.</p></div>';
  h+='<div class="card"><h2>Weight trend</h2><p class="sm" style="margin-top:6px">'+(ta.rate!=null?'<b class="mono">'+(ta.rate>0?'+':'')+ta.rate.toFixed(2)+' kg/week</b> · ':'')+esc(ta.text)+'</p>'+(ta.adj?'<button class="btn small ghost" data-act="adj" data-adj="'+ta.adj+'" style="margin-top:10px">Apply '+(ta.adj>0?'+':'')+ta.adj+' kcal</button>':'')+'</div>';
- var pt=E.plan(iso,state),pTrain=Object.assign({},pt,{training:true,time:pt.time||(p.sched&&p.sched[1])||'16:00',day:pt.day||'A'}),pRest=Object.assign({},pt,{training:false});
+ var pt=planFor(iso),pTrain=Object.assign({},pt,{training:true,time:pt.time||(p.sched&&p.sched[1])||'16:00',day:pt.day||'A'}),pRest=Object.assign({},pt,{training:false});
  h+=shopCard(p,mac,iso)+cookCard(p,mac,iso)+shakeCard();
  h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">What a training day looks like: morning protein, lunch, a shake after training, dinner — nothing in the last 3 hours before bed. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
  h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">What a rest day looks like: same protein, the shake moves to the afternoon, creatine still. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
@@ -901,19 +948,26 @@ function cookCard(p,mac,iso){
  var tgt=E.mealTargets(mac,state.profile),days=E.cookDays(p),d=E.parseISO(iso),cooks=[];
  for(var i=0;i<7;i++){var x=new Date(d);x.setDate(d.getDate()+i);var ix=E.isoDate(x),b=E.batchFor(p,ix,2);if(b&&b.cookToday)cooks.push({iso:ix,b:b});}
  return '<div class="card"><div class="row between"><h2>Cooking plan</h2><span class="chip acc">3× a week</span></div>'+
-  '<p class="xs" style="margin:4px 0 8px">Each cook makes 4 boxes: dinner that day, lunch + dinner the next day, lunch the day after. That covers 12 of 14 meals; the other 2 are no-cook meals. Dishes are put together fresh each time from a protein, a grain or potato, a vegetable and two seasonings: chicken or turkey, fish, and lean red meat every other week; no grain or vegetable twice in a week, and the same dish does not come back for at least 6 weeks.</p>'+
+  '<p class="xs" style="margin:4px 0 8px">Each dish below is a suggestion — open a cook and pick what you actually want to make; amounts follow. Each cook makes 4 boxes: dinner that day, lunch + dinner the next day, lunch the day after. That covers 12 of 14 meals; the other 2 are no-cook meals. Dishes are put together fresh each time from a protein, a grain or potato, a vegetable and two seasonings: chicken or turkey, fish, and lean red meat every other week; no grain or vegetable twice in a week, and the same dish does not come back for at least 6 weeks.</p>'+
   '<p class="eyebrow" style="margin-top:6px">Cook on</p><div class="seg" style="margin-top:6px">'+[1,2,3,4,5,6,0].map(function(n){return '<button data-cookday="'+n+'"'+(days.indexOf(n)>=0?' class="on"':'')+'>'+DOW[n].slice(0,2)+'</button>';}).join('')+'</div>'+familyPicker()+
   cooks.map(function(c){var pt=E.portion(c.b.recipe,tgt.P,tgt.kcal);
-   return '<details class="fold cook"><summary><div><b>'+niceDate(c.iso)+' · '+esc(c.b.recipe.name)+'</b><div class="xs">per box ~'+pt.P+' g protein · ~'+Math.round(pt.kcal/10)*10+' kcal</div></div></summary>'+
-    cookDetails(c.b.recipe,pt)+
+   return '<details class="fold cook"'+(cookCard.open===c.iso?' open':'')+'><summary><div><b>'+niceDate(c.iso)+' · '+esc(c.b.recipe.name)+'</b><div class="xs">per box ~'+pt.P+' g protein · ~'+Math.round(pt.kcal/10)*10+' kcal</div></div></summary>'+
+    cookPicker(c.iso,c.b.recipe)+cookDetails(c.b.recipe,pt)+
     '<p class="xs" style="margin-top:6px">One box = '+pt.items.map(function(it){return (it.slices?it.slices+' slice'+(it.slices>1?'s':''):it.g+' g')+' '+esc(it.name);}).join(', ')+'.</p></details>';}).join('')+
   '<details class="fold cook"><summary><div><b>No-cook meals</b><div class="xs">for the 2 meals without a box, or a busy day</div></div></summary><ul class="shop">'+E.NOCOOK.map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ul><p class="xs" style="margin-top:6px">Add fruit or an extra slice of bread if you are still hungry.</p></details></div>';
 }
 /* Shopping list for the next 7 days, tick items off in the shop; ticks are kept per week. */
+function shopSpan(){try{return localStorage.getItem('lift.shopspan')||'cook';}catch(e){return 'cook';}}
+function shopList(p,mac,iso){
+ var nc=shopSpan()==='cook'&&E.nextCook(p,iso);
+ return nc?E.weekShopping(p,nc.date,mac,nc.days):E.weekShopping(p,iso,mac);
+}
 function shopCard(p,mac,iso){
- var w=E.weekShopping(p,iso,mac),ticks=shopTicks(),total=0,got=0;
+ var w=shopList(p,mac,iso),ticks=shopTicks(),total=0,got=0,short=shopSpan()==='cook';
  w.groups.forEach(function(g){g.items.forEach(function(it){total++;if(ticks[it.key])got++;});});
- return '<details class="card fold shopweek"'+(shopCard.open?' open':'')+'><summary><div><h2>Shopping list · 7 days</h2><div class="xs">'+niceDate(w.from)+' – '+niceDate(w.to)+' · '+w.cooks.length+' cooks'+(E.family(p).adults+E.family(p).kids?' (incl. '+famText(E.family(p))+' at dinner)':'')+', '+w.nocook+' no-cook meals, shakes · '+got+' of '+total+' in the basket</div></div></summary>'+
+ return '<details class="card fold shopweek"'+(shopCard.open?' open':'')+'><summary><div><h2>Shopping list · '+(short?'next cook':'7 days')+'</h2><div class="xs">'+niceDate(w.from)+' – '+niceDate(w.to)+' · '+w.cooks.length+' cooks'+(E.family(p).adults+E.family(p).kids?' (incl. '+famText(E.family(p))+' at dinner)':'')+', '+w.nocook+' no-cook meals, shakes · '+got+' of '+total+' in the basket</div></div></summary>'+
+  '<div class="seg" style="margin-top:10px">'+[['cook','Next cook (2 days)'],['week','Whole week']].map(function(o){return '<button data-shopspan="'+o[0]+'"'+(shopSpan()===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div>'+
+  (short?'<p class="xs" style="margin-top:6px">Just what you need for the next cook and the days it covers. Whey and creatine: check the tubs.</p>':'')+
   w.groups.map(function(g){return '<p class="eyebrow" style="margin-top:12px">'+esc(g.label)+'</p>'+g.items.map(function(it){var on=!!ticks[it.key];
    return '<label class="shopitem'+(on?' got':'')+'"><input type="checkbox" data-shop="'+esc(it.key)+'"'+(on?' checked':'')+'><span class="q mono">'+esc(E.fmtQty(it))+'</span><span>'+esc(it.name)+'</span></label>';}).join('');}).join('')+
   '<div class="row" style="margin-top:12px;gap:8px"><button class="btn small ghost" data-act="copyshop">Copy list</button><button class="btn small ghost" data-act="clearshop">Untick all</button></div>'+
@@ -922,7 +976,7 @@ function shopCard(p,mac,iso){
 /* Ticks live for 7 days from the first tick, then start fresh. */
 function shopTicks(){var s=state.settings.shop,d=new Date();d.setDate(d.getDate()-6);return s&&s.since&&s.since>=E.isoDate(d)?(s.ticks||{}):{};}
 function shopText(){
- var w=E.weekShopping(state.profile,todayISO(),E.macros(state.profile));
+ var w=shopList(state.profile,E.macros(state.profile),todayISO());
  return 'Shopping '+niceDate(w.from)+' – '+niceDate(w.to)+'\n'+w.groups.map(function(g){return '\n'+g.label+'\n'+g.items.map(function(it){return '- '+E.fmtQty(it)+' '+it.name;}).join('\n');}).join('\n');
 }
 function famText(f){var a=[];if(f.adults)a.push(f.adults+' adult'+(f.adults>1?'s':''));if(f.kids)a.push(f.kids+' child'+(f.kids>1?'ren':''));return a.join(' + ');}
@@ -1039,7 +1093,7 @@ function renderProfile(){
   '<div class="grid2"><label class="field"><span class="l">First goal kg</span><input type="text" inputmode="decimal" autocomplete="off" data-p="goal1" value="'+(p.goal1||100)+'"></label><label class="field"><span class="l">Final goal kg</span><input type="text" inputmode="decimal" autocomplete="off" data-p="goal2" value="'+(p.goal2||93)+'"></label></div>'+
   '<label class="field"><span class="l">Caffe lattes on work days (mini-mælk)</span><select data-p="lattes">'+opt([['0','None'],['1','1 a day'],['2','2 a day'],['3','3 a day']],String(p.lattes||0))+'</select></label>'+
   '<label class="field"><span class="l">Daily activity outside the gym</span><select data-p="activity">'+opt([['desk','Mostly sitting (desk job)'],['feet','On my feet a fair bit'],['active','Physically active job']],p.activity||'feet')+'</select></label>'+
-  '<label class="field"><span class="l">Phase</span><select data-p="phase">'+opt([['lean','Build & lean — muscle first, modest deficit'],['maintain','Maintain'],['bulk','Lean bulk (+10 %)']],p.phase||'lean')+'</select></label>'+
+  '<label class="field"><span class="l">Phase</span><select data-p="phase">'+opt([['lean','Build & lean — muscle first, small deficit (−10 %)'],['maintain','Maintain'],['bulk','Lean bulk (+10 %)']],p.phase||'lean')+'</select></label>'+
   '</div>';
  h+='<div class="card"><h2>Priority muscles</h2><p class="xs" style="margin:4px 0 6px">Each gets ~4 extra hard sets a week on top of the full-body base. Two at most.</p>'+
   Object.keys(E.PRIORITY).map(function(k){return '<label class="check"><input type="checkbox" data-prio="'+k+'"'+(prio.indexOf(k)>=0?' checked':'')+'><span>'+E.PRIORITY[k].label+'</span></label>';}).join('')+'</div>';
@@ -1056,7 +1110,7 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen],[data-cookday],[data-mealdone],[data-fam],[data-wkday],[data-wknav]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-rest],[data-mealrow],[data-wuopen],[data-cookday],[data-mealdone],[data-fam],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-later],[data-cookpick],[data-cookreset],[data-shopspan]');if(!b)return;
  if(b.dataset.wkday){wkv.sel=b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
  if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
  if(b.dataset.fam){var fa=b.dataset.fam.split(':'),fm=E.family(state.profile);fm[fa[0]]=Math.max(0,Math.min(fa[0]==='adults'?3:4,fm[fa[0]]+(+fa[1])));state.profile.family=fm;save();var fy=scrollY;renderEat();scrollTo(0,fy);return;}
@@ -1070,26 +1124,37 @@ document.addEventListener('click',function(ev){
  if(b.dataset.rest){rest.end+=(+b.dataset.rest)*1000;rest.total=Math.max(1,rest.total+(+b.dataset.rest));if(rest.end>Date.now())$('#rest').classList.remove('over');tickRest();return;}
  if(b.dataset.jump){var jc=$('#ex-'+b.dataset.jump);if(jc)jc.scrollIntoView({behavior:SMOOTH,block:'start'});return;}
  if(b.dataset.toggle){var tg=+b.dataset.toggle;openCards[tg]=!openCards[tg];refreshCard(tg);return;}
+ if(b.dataset.move!=null){var mv=b.dataset.move.split('|'),moves=Object.assign({},state.settings.moves||{}),old=addDays(todayISO(),-21);
+  Object.keys(moves).forEach(function(k){if(k<old)delete moves[k];});moves[mv[0]]=mv[1];state.settings.moves=moves;save();wkv.sel=null;renderToday();
+  toast(mv[1]===todayISO()?'Today is a training day now':mv[1]?'Moved to '+niceDate(mv[1]):'Rest today — the order just continues');return;}
+ if(b.dataset.unmove){var mu=Object.assign({},state.settings.moves||{});delete mu[b.dataset.unmove];state.settings.moves=mu;save();renderToday();return;}
+ if(b.dataset.cookpick){var cp=b.dataset.cookpick.split('|'),picks=Object.assign({},state.profile.cookPicks||{}),old2=addDays(todayISO(),-7);
+  Object.keys(picks).forEach(function(k){if(k<old2)delete picks[k];});picks[cp[0]]=Object.assign({},picks[cp[0]]||{});picks[cp[0]][cp[1]]=cp[2];state.profile.cookPicks=picks;
+  pickOpen[cp[0]]=1;cookCard.open=cp[0];save();var py=scrollY;render();scrollTo(0,py);return;}
+ if(b.dataset.cookreset){var pr=Object.assign({},state.profile.cookPicks||{});delete pr[b.dataset.cookreset];state.profile.cookPicks=pr;cookCard.open=b.dataset.cookreset;save();var ry=scrollY;render();scrollTo(0,ry);return;}
+ if(b.dataset.shopspan){try{localStorage.setItem('lift.shopspan',b.dataset.shopspan);}catch(e){}shopCard.open=true;var sy2=scrollY;renderEat();scrollTo(0,sy2);return;}
  if(b.dataset.themeset){setTheme(b.dataset.themeset);return;}
  if(b.dataset.swapopen){var box=$('#swaps-'+b.dataset.swapopen);if(box)box.hidden=!box.hidden;return;}
  if(b.dataset.swapto){var sw=b.dataset.swapto.split(':');doSwap(+sw[0],sw.slice(1).join(':'));return;}
  var ses=activeSession();
- if(b.dataset.rirset){var rr=b.dataset.rirset.split(':');ses.ex[+rr[0]].sets[+rr[1]].rir=+rr[2];save();refreshCard(+rr[0]);return;}
+ if(b.dataset.rirset){var rr=b.dataset.rirset.split(':');ses.ex[+rr[0]].sets[+rr[1]].rir=+rr[2];save();refreshCard(+rr[0]);restRir();return;}
+ if(b.dataset.later){var li=+b.dataset.later;ses.ex.push(ses.ex.splice(li,1)[0]);openCards={};rest.set=null;restRir();save();renderTrain();
+  var nl=nextUndone(ses,li);if(nl>=0)setTimeout(function(){var c=$('#ex-'+nl);if(c)c.scrollIntoView({behavior:SMOOTH,block:'start'});},100);toast('Moved to the end — do it when it\'s free');return;}
  if(b.dataset.step){var a=b.dataset.step.split(':'),e=ses.ex[+a[1]],si=+a[2],s=e.sets[si],inc=+a[3];var cur=+s[a[0]]||0;s[a[0]]=Math.max(0,Math.round((cur+inc)*100)/100);
   var inp=$('[data-val="'+a[0]+':'+a[1]+':'+si+'"]');if(inp)inp.value=s[a[0]];
   if(a[0]==='kg'&&!s.done)e.sets.forEach(function(x,i){if(i>si&&!x.done&&(x.kg==null||x.kg===cur)){x.kg=s.kg;var q=$('[data-val="kg:'+a[1]+':'+i+'"]');if(q)q.value=x.kg;}});
   save();return;}
  if(b.dataset.tick){unlockAudio();var t=b.dataset.tick.split(':'),ex=ses.ex[+t[0]],st=ex.sets[+t[1]];
   if(!st.done){if(!(st.kg>0)||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
-   var cfg=E.findCfg(ex.base)||E.findCfg(ex.id);var lastSet=exDone(ex);startRest(lastSet?Math.min(cfg.rest,90):cfg.rest);
+   var cfg=E.findCfg(ex.base)||E.findCfg(ex.id);var lastSet=exDone(ex);startRest(lastSet?Math.min(cfg.rest,90):cfg.rest);rest.set=[+t[0],+t[1]];restRir();
    var ei=+t[0];if(lastSet)delete openCards[ei];save();refreshCard(ei);
-   if(lastSet){var nx=-1;ses.ex.forEach(function(x,i){if(nx<0&&i>ei&&!exDone(x))nx=i;});if(nx>=0)setTimeout(function(){var c=$('#ex-'+nx);if(c)c.scrollIntoView({behavior:SMOOTH,block:'start'});},300);}
+   if(lastSet){var nx=nextUndone(ses,ei+1);if(nx>=0)setTimeout(function(){var c=$('#ex-'+nx);if(c)c.scrollIntoView({behavior:SMOOTH,block:'start'});},300);}
    return;}
   else st.done=false;
   save();refreshCard(+t[0]);return;}
  if(b.dataset.addset){var exx=ses.ex[+b.dataset.addset],lastS=exx.sets[exx.sets.length-1];exx.sets.push({kg:lastS?lastS.kg:null,reps:lastS?lastS.reps:null,rir:null,done:false});save();refreshCard(+b.dataset.addset);return;}
  var act=b.dataset.act;
- if(act==='start'){var iso=todayISO();if(!state.sessions[iso]){var p=E.plan(iso,state);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
+ if(act==='start'){var iso=todayISO();if(!state.sessions[iso]){var p=planFor(iso);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
  if(act==='finish'){if(!ses)return;var n=0;ses.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done)n++;});});if(!n){toast('No sets logged yet');return;}
   if(!confirm('Finish session with '+n+' sets logged?'))return;
   ses.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});});ses.done=true;ses.finished=Date.now();
