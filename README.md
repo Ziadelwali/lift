@@ -61,9 +61,12 @@ Goal: an athletic, defined physique — **muscle first, with the diet set so fat
 **Training** (engine.js `PROGRAM`, `suggest`, `plan`)
 - Full body, sessions A/B alternating, 3 days/week (Mon/Wed/Fri 16:00 by default). Every muscle 3×/week, 10–20 hard sets/muscle/week; priority muscles (default: side delts + upper back) get ~4 extra sets.
 - Compounds 6–10 reps, isolation 10–15, all with 1–3 reps in reserve. Rest 2–3 min on compounds.
-- Week 1 = calibration (2 sets, find loads). Then double progression: all sets at the top of the rep range → weight goes up by the exercise's increment; under the bottom of the range two sessions running → −10 %.
+- Week 1 = calibration (2 sets, find loads). The first session after calibration sets each weight from the best calibration set (Epley, aiming mid-range with ~2 reps in reserve). Then double progression: all sets at the top of the rep range → weight goes up by the exercise's increment; under the bottom of the range two sessions running → −10 %.
 - Every 6th week, or after two stalled lifts, a deload (−10 % load, half the sets).
 - Fitted to the gym (`tools/gym-inventory.json`, mostly Nautilus One machines, dumbbells up to 30 kg). Dumbbell lifts stop adding weight at 30 kg (`RULES.dumbbellMaxKg`): the app asks for more reps, then points to the machine swap.
+- Priority muscles add exercises: side delts (side raise), upper back (straight-arm pull-down), arms (incline dumbbell curl in A, overhead rope extension in B — stretched-position exercises, which grow the arm more than curls/pushdowns alone).
+- Busy gym: any order is fine. Tap a picture in the top bar to jump, or "⏭ Busy — later" sends an exercise to the end. After each set the rest bar asks "reps left in the tank?".
+- Life moves a day: `settings.moves = {fromISO: toISO}` ('' = skipped). The day after a session, Today offers "rest today, train tomorrow"; the day after a missed one it offers "train today". Empty sessions left open on a past day are ignored.
 - Swaps: every exercise has 1–3 alternatives on the same muscles, shown as photo tiles. Main lifts keep their where/form text in `PROGRAM`; swap-only exercises in `ALT_INFO`.
 - Warm-up ≤ 8 min: easy bike, 3–4 dynamic moves for the day, ramp sets (50/70/85 %) on the first compound only. No static stretching.
 
@@ -73,8 +76,9 @@ Goal: an athletic, defined physique — **muscle first, with the diet set so fat
 - Light ("clear day") and dark ("clear night") themes; Auto follows the phone. Colours are CSS tokens on `:root` / `:root[data-theme=light]`; the theme is applied before first paint from `localStorage['lift.theme']`.
 
 **Diet** (engine.js `macros`, `timeline`)
-- Mifflin-St Jeor × activity = expenditure; phase multiplier (build & lean 0.85 / maintain 1.0 / lean bulk 1.10).
+- Mifflin-St Jeor × activity = expenditure; phase multiplier (build & lean 0.90, i.e. −10 %, kept under the ~500 kcal/day deficit where lean-mass gain is seen to slow / maintain 1.0 / lean bulk 1.10).
 - Protein 1.6 g/kg at BMI ≥ 30, else 2.0 g/kg; fat 25 % of kcal; carbs the rest.
+- Cooking: each cook shows a suggested dish; the user can tap their own protein / carb / veg and the box amounts and shopping follow (`profile.cookPicks`). Shopping list defaults to the next cook (2 days), or the whole week.
 - Clock-time meal schedule anchored on the session: 4 protein feeds ~3–4 h apart, pre-workout meal 2.5 h before, post-workout meal ~20 min after, skyr/casein an hour before bed. Creatine 5 g daily.
 - 7-day weight trend vs the phase's target band → ±150 kcal advice.
 

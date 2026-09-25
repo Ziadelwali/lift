@@ -44,8 +44,25 @@ eq('session sets calib', ses.ex[0].sets.length, 2);
 var p4 = E.plan('2026-09-28', st);
 eq('week 2 day B', [p4.day, p4.week, p4.calibration], ['B', 2, false]);
 var s4 = E.buildSession(p4, st);
-eq('week 2 hack squat up', s4.ex[0].suggest.state, 'up');
+eq('after calibration: weight set from the best set', s4.ex[0].suggest.state, 'set');
 eq('week 2 hack squat kg', s4.ex[0].suggest.kg, 45);
+
+// calibration estimate from real week-1 numbers (bench 50×14, no tank logged → 2)
+var cb = { id: 'Machine_Bench_Press', sets: 3, reps: [6, 10], inc: 2 };
+eq('calibration estimate bench', E.suggest(cb, [{ date: 'x', calib: true, sets: [{ kg: 44, reps: 10, rir: 2, done: true }, { kg: 50, reps: 14, done: true }] }]).kg, 58);
+eq('calibration estimate capped at 30 kg dumbbells', E.suggest({ id: 'Dumbbell_Shoulder_Press', sets: 3, reps: [8, 12], inc: 2 }, [{ date: 'x', calib: true, sets: [{ kg: 30, reps: 15, done: true }] }]).kg, 30);
+eq('normal progression after a normal session', E.suggest(cfg, [h([[40, 12, 2], [40, 12, 1]])]).state, 'up');
+// moved and skipped sessions
+var mst = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: { moves: { '2026-09-25': '2026-09-26', '2026-09-28': '' } } };
+eq('moved away: Friday rests', E.plan('2026-09-25', mst).training, false);
+eq('moved here: Saturday trains at Friday time', [E.plan('2026-09-26', mst).training, E.plan('2026-09-26', mst).time], [true, '16:00']);
+eq('skipped Monday rests', E.plan('2026-09-28', mst).training, false);
+mst.sessions['2026-09-23'] = { day: 'A', done: false, ex: [{ id: 'Leg_Press', sets: [{ kg: null, reps: 10, done: false }] }] };
+eq('empty unfinished past session is ignored (still scheduled)', E.plan('2026-09-23', mst, '2026-09-25').training, true);
+mst.sessions['2026-09-22'] = mst.sessions['2026-09-23'];
+eq('empty unfinished past session on a rest day is not training', E.plan('2026-09-22', mst, '2026-09-25').training, false);
+eq('empty session today still counts', E.plan('2026-09-22', mst, '2026-09-22').training, true);
+eq('arms priority adds a curl to A and an overhead extension to B', [E.exercisesFor('A', { priority: ['arms'] }).some(function (c) { return c.id === 'Incline_Dumbbell_Curl'; }), E.exercisesFor('B', { priority: ['arms'] }).some(function (c) { return c.id === 'Cable_Rope_Overhead_Triceps_Extension'; })], [true, true]);
 
 var tl = E.timeline(prof, E.plan('2026-09-21', st), m).map(function (s) { return s.time + ' ' + s.label; });
 console.log(tl.join('\n'));
