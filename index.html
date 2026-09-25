@@ -712,6 +712,7 @@ function moveNote(iso,p,ses){
  if(ses)return h;
  var t=addDays(iso,1),free=!planFor(t).training,dn=DOW[E.parseISO(t).getDay()];
  var go=free?'<button class="btn small" data-move="'+iso+'|'+t+'">Rest today, train '+dn+'</button>':'<button class="btn small" data-move="'+iso+'|">Rest today</button>';
+ if(E.parseISO(iso).getDay()===1&&trainedOn(addDays(iso,-1)))return h+'<p class="xs" style="margin-top:6px">New week — back to your normal days. (Trained yesterday? Fine: today’s session still counts.)</p>';
  if(trainedOn(addDays(iso,-1)))return h+'<div class="movebox"><b>You trained yesterday.</b> Muscles grow in the ~48 h between full-body sessions, so two days in a row gives less. '+(free?'Rest today and train tomorrow instead?':'Tomorrow is already a training day, so skip today — the A/B order simply continues.')+'<div class="row" style="margin-top:8px;gap:8px">'+go+'</div></div>';
  return h+'<p class="xs" style="margin-top:6px">Can\'t make it today? <button class="linkbtn" data-move="'+iso+'|'+(free?t:'')+'">'+(free?'Move to '+dn:'Skip today')+'</button></p>';
 }
