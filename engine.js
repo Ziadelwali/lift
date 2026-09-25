@@ -732,7 +732,7 @@
     var wd = parseISO(iso).getDay(), nl = lattes(profile);
     if (wd >= 1 && wd <= 5) for (var li = 0; li < nl; li++) {
       var lt = li === 0 ? wake + 150 : li === 1 ? Math.min(lunch + 120, hm('14:45')) : Math.min(lunch + 60, hm('14:45'));
-      slot(lt, 'la' + (li + 1), 'Caffe latte', 'Counted in your day: less food in the meals to make room. Last one before 15:00 for sleep.', LATTE.P, LATTE.kcal, null, { what: 'Caffe latte (mini-mælk, sweetener)', detail: '~' + LATTE.kcal + ' kcal · ' + LATTE.P + ' g protein — already counted. Last one before 15:00.' });
+      slot(lt, 'la' + (li + 1), 'Caffe latte', 'Counted in your day: less food in the meals to make room. Last one before 15:00 for sleep.', LATTE.P, LATTE.kcal, null, { what: 'Caffe latte', detail: '~' + LATTE.kcal + ' kcal · ' + LATTE.P + ' g protein — already counted. Last one before 15:00.' });
     }
     slots.sort(function (a, b) { return a.t - b.t; });
     return slots;
