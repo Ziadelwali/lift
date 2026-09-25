@@ -531,16 +531,30 @@
       if (prev.some(function (d) { return d.combo === combo; })) continue;
       break;
     }
-    var p = best.pr, c = best.cb, v = best.vg, pf = FOOD[p.k];
+    COOKS[n] = makeDish(group, best.pr, best.cb, best.vg, [best.f1, best.f2]); return COOKS[n];
+  }
+  function makeDish(group, p, c, v, fl) {
+    var pf = FOOD[p.k];
     var dish = {
       key: p.k + '-' + c.k + '-' + v.k, combo: p.k + '|' + c.k + '|' + v.k, group: group, carb: c.k, vegKey: v.k,
       name: p.short + ', ' + c.short + ' & ' + v.short, protein: p.k, extra: { name: v.name, g: 250, P: v.P, kcal: v.kcal },
-      oil: p.k === 'salmon' ? 0 : 10, flavours: [best.f1.name, best.f2.name],
-      buy: v.buy.concat(best.f1.buy, best.f2.buy),
+      oil: p.k === 'salmon' ? 0 : 10, flavours: [fl[0].name, fl[1].name],
+      buy: v.buy.concat(fl[0].buy, fl[1].buy),
       steps: [c.step, PROTEIN_STEP[p.how](pf.name.split(' (')[0], v.k), v.step]
     };
     dish.carbKey = c.k; dish.carb = c.k;
-    COOKS[n] = dish; return dish;
+    return dish;
+  }
+  /* The user's own pick for a cook: { protein, carb, veg } (any may be missing = keep the suggestion).
+     Seasonings stay those of the suggested dish. */
+  function findPart(list, k) { for (var i = 0; i < list.length; i++) if (list[i].k === k) return list[i]; return null; }
+  function proteinPart(k) { for (var g in PROTEIN_PARTS) { var x = findPart(PROTEIN_PARTS[g], k); if (x) return { part: x, group: g }; } return null; }
+  function flavourByName(nm) { return FLAVOURS.filter(function (f) { return f.name === nm; })[0]; }
+  function customDish(sugg, pick) {
+    var pp = proteinPart(pick.protein) || proteinPart(sugg.protein), c = findPart(CARB_PARTS, pick.carb) || findPart(CARB_PARTS, sugg.carb),
+      v = findPart(VEG_PARTS, pick.veg) || findPart(VEG_PARTS, sugg.vegKey);
+    var d = makeDish(pp.group, pp.part, c, v, [flavourByName(sugg.flavours[0]), flavourByName(sugg.flavours[1])]);
+    d.picked = true; d.suggested = sugg; return d;
   }
   function pickRecipe(slot, wk) { return wk < 0 ? buildDishFree(slot, wk) : buildDish(cookNo(wk, slot)); }
   function buildDishFree(slot, wk) { var n = cookNo(mod(wk, 52), slot); return buildDish(n); }
@@ -590,10 +604,11 @@
   var SHOP_CATS = [['meat', 'Meat & fish'], ['carb', 'Rice, bulgur & bread'], ['veg', 'Vegetables & fruit'], ['dairy', 'Dairy & eggs'], ['shake', 'Shakes & creatine'], ['cupboard', 'Cupboard']];
   /* Everything to buy for the 7 days from fromIso: the cook days' batches, the no-cook
      meals, the daily shakes, skyr and creatine. Same items are added together. */
-  function weekShopping(profile, fromIso, mac) {
+  function weekShopping(profile, fromIso, mac, nDays) {
+    nDays = nDays || 7;
     var tgt = mealTargets(mac, profile), d0 = parseISO(fromIso), items = {}, cooks = [], nocook = 0;
     function add(cat, name, qty, unit) { var k = cat + '|' + name + '|' + unit; if (!items[k]) items[k] = { key: k, cat: cat, name: name, qty: 0, unit: unit }; items[k].qty += qty; }
-    for (var i = 0; i < 7; i++) {
+    for (var i = 0; i < nDays; i++) {
       var dt = new Date(d0); dt.setDate(d0.getDate() + i); var iso = isoDate(dt);
       var b = batchFor(profile, iso, 2);
       if (b && b.cookToday) {
@@ -604,13 +619,13 @@
       morningFor(iso).buy.forEach(function (x) { add(x[0], x[1], x[2], x[3]); });
       [1, 2].forEach(function (m) { if (!batchFor(profile, iso, m)) { nocook++; NOCOOK_BUY[mod(dayNo(iso) * 2 + m, NOCOOK.length)].forEach(function (x) { add(x[0], x[1], x[2], x[3]); }); } });
     }
-    add('shake', 'whey protein', 7 * 40, 'g'); add('dairy', 'skimmed milk', 7 * 500, 'ml'); add('veg', 'bananas', 7, 'pcs');
-    add('shake', 'creatine monohydrate', 7 * 5, 'g');
+    add('dairy', 'skimmed milk', nDays * 500, 'ml'); add('veg', 'bananas', nDays, 'pcs');
+    if (nDays >= 7) { add('shake', 'whey protein', 7 * 40, 'g'); add('shake', 'creatine monohydrate', 7 * 5, 'g'); }
     var groups = SHOP_CATS.map(function (c) {
       return { cat: c[0], label: c[1], items: Object.keys(items).map(function (k) { return items[k]; }).filter(function (it) { return it.cat === c[0]; })
         .sort(function (a, b) { return a.name < b.name ? -1 : 1; }) };
     }).filter(function (g) { return g.items.length; });
-    var to = new Date(d0); to.setDate(d0.getDate() + 6);
+    var to = new Date(d0); to.setDate(d0.getDate() + nDays - 1);
     return { from: fromIso, to: isoDate(to), cooks: cooks, nocook: nocook, groups: groups };
   }
   function fmtQty(it) {
@@ -649,6 +664,15 @@
   }
   /* Which batch feeds meal 1 (lunch) / meal 2 (dinner) on a date. */
   var COOK_DEFAULT = [0, 2, 4];   // Sun, Tue, Thu
+  /* The next cook day from fromIso (within a week) and how many days its boxes cover (until the following cook). */
+  function nextCook(profile, fromIso) {
+    var d0 = parseISO(fromIso), days = cookDays(profile), first = null;
+    for (var i = 0; i < 14; i++) {
+      var d = new Date(d0); d.setDate(d0.getDate() + i);
+      if (days.indexOf(d.getDay()) >= 0) { if (first == null) first = i; else return { date: isoDate(new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + first)), days: Math.min(4, i - first) }; }
+    }
+    return null;
+  }
   function cookDays(profile) { var c = profile && profile.cookDays; return (c && c.length ? c : COOK_DEFAULT).slice().sort(); }
   function batchFor(profile, iso, meal) {
     var d = parseISO(iso), days = cookDays(profile);
@@ -660,6 +684,8 @@
       if (idx >= 0) {
         var wk = Math.floor(Math.round((c.getTime() - new Date(2026, 0, 4).getTime()) / 864e5) / 7); // weeks since a Sunday (round: DST)
         var box = meal === 2 ? (offs[i] === 0 ? 0 : 2) : (offs[i] === 1 ? 1 : 3), recipe = pickRecipe(idx, wk);
+        var pick = profile && profile.cookPicks && profile.cookPicks[isoDate(c)];
+        if (pick) recipe = customDish(recipe, pick);
         return { recipe: recipe, cookedOn: isoDate(c), cookToday: offs[i] === 0, box: box, flavour: recipe.flavours[box % 2] };
       }
     }
@@ -865,7 +891,7 @@
 
   return {
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, weekShopping: weekShopping, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, buildDish: buildDish, VEG_PARTS: VEG_PARTS, CARB_PARTS: CARB_PARTS, FLAVOURS: FLAVOURS, PROTEIN_PARTS: PROTEIN_PARTS, MORNING: MORNING, morningFor: morningFor, pickRecipe: pickRecipe, fmtQty: fmtQty, family: family, batchServings: batchServings, batchBuy: batchBuy, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, FOOD: FOOD, RECIPES: RECIPES, NOCOOK: NOCOOK, portion: portion, weekShopping: weekShopping, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, buildDish: buildDish, VEG_PARTS: VEG_PARTS, CARB_PARTS: CARB_PARTS, FLAVOURS: FLAVOURS, PROTEIN_PARTS: PROTEIN_PARTS, MORNING: MORNING, morningFor: morningFor, pickRecipe: pickRecipe, fmtQty: fmtQty, family: family, batchServings: batchServings, batchBuy: batchBuy, mealTargets: mealTargets, cookDays: cookDays, batchFor: batchFor, nextCook: nextCook, customDish: customDish,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, buildSession: buildSession, rampSets: rampSets,
