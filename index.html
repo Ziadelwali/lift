@@ -658,7 +658,7 @@ function restRir(){
  if(ses&&(rest.ask==null||!ses.ex[rest.ask]||ses.ex[rest.ask].feel))for(var i=ses.ex.length-1;i>=0;i--){if(exDone(ses.ex[i])&&!ses.ex[i].feel){rest.ask=i;break;}}
  var e=ses&&rest.ask!=null&&ses.ex[rest.ask];
  if(!e||e.feel||!exDone(e)){rest.ask=null;el.hidden=true;bar.classList.remove('askonly');if(!(rest.end>0))bar.classList.remove('on');return;}
- el.hidden=false;el.innerHTML='<span>How was <b>'+esc(nm(e.id))+'</b>?</span>'+feelButtons(rest.ask,e);
+ el.hidden=false;el.innerHTML='<span><b>'+esc(nm(e.id))+'</b> done ✓ — how was it?</span>'+feelButtons(rest.ask,e);
  bar.classList.add('on');bar.classList.toggle('askonly',!(rest.end>0));
 }
 $('#restskip').addEventListener('click',stopRest);
@@ -1166,7 +1166,8 @@ document.addEventListener('click',function(ev){
    var prev=E.bestSets(state,ex.id).reduce(function(m,x){return Math.max(m,x.e1rm);},0),mine=E.epley(st.kg,st.reps);
    var beat=ex.sets.some(function(x){return x!==st&&x.pr;});
    if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+st.kg+' kg × '+st.reps+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
-   var cfg=E.findCfg(ex.base)||E.findCfg(ex.id);var lastSet=exDone(ex);startRest(lastSet?Math.min(cfg.rest,90):cfg.rest);rest.set=[+t[0],+t[1]];if(lastSet&&!ex.feel)rest.ask=+t[0];restRir();
+   var cfg=E.findCfg(ex.base)||E.findCfg(ex.id);var lastSet=exDone(ex);// last set: no timer over the next exercise (walking to the next machine is the rest), only the question
+   if(lastSet){clearInterval(rest.t);rest.end=0;rest.set=null;if(!ex.feel)rest.ask=+t[0];}else{startRest(cfg.rest);rest.set=[+t[0],+t[1]];}restRir();
    var ei=+t[0];if(lastSet)delete openCards[ei];save();refreshCard(ei);
    if(lastSet){var nx=nextUndone(ses,ei+1);if(nx>=0)setTimeout(function(){trainFocus=nx;renderTrain();scrollTo(0,0);toast('Next: '+nm(ses.ex[nx].id));},700);}
    return;}
