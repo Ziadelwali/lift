@@ -81,6 +81,16 @@ eq('palms wording', [E.palms(30), E.palms(45), E.palms(60)], ['a palm', 'a palm 
 eq('hand plate: protein, veg, carb, fat', E.handPlate(35).map(function (x) { return x.k; }), ['protein', 'veg', 'carb', 'fat']);
 eq('meals say nothing about cooking', E.timeline(prof, E.plan('2026-09-21', st), m).filter(function (s) { return /cook today|cook,|box|fridge|shopping/i.test((s.what || '') + (s.detail || '')); }).length, 0);
 
+// a moved session pushes the rest of the week (never two days in a row, never into next week)
+var sw = E.shiftWeek({ profile: prof, sessions: {}, settings: {} }, '2026-09-28', '2026-09-29');
+eq('Mon→Tue pushes Wed→Thu and Fri→Sat', sw.moves, { '2026-09-28': '2026-09-29', '2026-09-30': '2026-10-01', '2026-10-02': '2026-10-03' });
+var swst = { profile: prof, sessions: {}, settings: { moves: sw.moves, autoMoves: sw.auto } };
+eq('week after the push: Tue, Thu, Sat train', ['2026-09-29', '2026-09-30', '2026-10-01', '2026-10-02', '2026-10-03'].map(function (d) { return E.plan(d, swst).training; }), [true, false, true, false, true]);
+eq('undo removes the pushes too', E.unshiftWeek(swst, '2026-09-28').moves, {});
+eq('Fri→Sat pushes nothing', E.shiftWeek({ profile: prof, sessions: {}, settings: {} }, '2026-10-02', '2026-10-03').moves, { '2026-10-02': '2026-10-03' });
+eq('Wed→Thu pushes Fri→Sat', E.shiftWeek({ profile: prof, sessions: {}, settings: {} }, '2026-09-30', '2026-10-01').moves, { '2026-09-30': '2026-10-01', '2026-10-02': '2026-10-03' });
+eq('skip (no new day) pushes nothing', E.shiftWeek({ profile: prof, sessions: {}, settings: {} }, '2026-09-28', '').moves, { '2026-09-28': '' });
+
 // weight trend
 var w = {}; for (var i = 0; i < 21; i++) { var d = new Date(2026, 8, 1 + i); w[E.isoDate(d)] = 112 - i * 0.07; }
 st.weight = w;

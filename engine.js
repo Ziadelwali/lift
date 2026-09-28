@@ -355,6 +355,36 @@
     for (var k in mv) if (mv[k] === dateISO) return k;
     return null;
   }
+  /* Move a session from one day to another and push the rest of that week along, so two
+     sessions never land on back-to-back days (Mon→Tue makes Wed→Thu and Fri→Sat). A push
+     never crosses into next week: Monday always starts the normal schedule again.
+     Returns { moves, auto } — auto maps each pushed day to the move that caused it (for undo). */
+  function shiftWeek(state, fromISO, toISO) {
+    var st = state.settings || {}, moves = Object.assign({}, st.moves || {}), auto = Object.assign({}, st.autoMoves || {});
+    moves[fromISO] = toISO;
+    if (!toISO) return { moves: moves, auto: auto };
+    var sched = (state.profile && state.profile.sched) || { 1: '16:00', 3: '16:00', 5: '16:00' };
+    function add(iso, n) { var d = parseISO(iso); d.setDate(d.getDate() + n); return isoDate(d); }
+    function trains(iso) { if (iso in moves) return false; for (var k in moves) if (moves[k] === iso) return true; return sched[parseISO(iso).getDay()] != null; }
+    var cur = toISO;
+    while (true) {
+      var next = add(cur, 1);
+      if (parseISO(next).getDay() === 1) break;                        // next week: back to normal
+      var ses = state.sessions && state.sessions[next];
+      if (!trains(next) || (ses && ses.done)) break;                  // a rest day in between: done
+      var to = add(next, 1);
+      if (parseISO(to).getDay() === 1) break;                          // would spill into next week
+      moves[next] = to; auto[next] = fromISO; cur = to;
+    }
+    return { moves: moves, auto: auto };
+  }
+  /* Undo a move and every push it caused. */
+  function unshiftWeek(state, fromISO) {
+    var st = state.settings || {}, moves = Object.assign({}, st.moves || {}), auto = Object.assign({}, st.autoMoves || {});
+    delete moves[fromISO]; delete auto[fromISO];
+    Object.keys(auto).forEach(function (k) { if (auto[k] === fromISO) { delete moves[k]; delete auto[k]; } });
+    return { moves: moves, auto: auto };
+  }
   function hasDoneSet(ses) { return (ses.ex || []).some(function (e) { return (e.sets || []).some(function (s) { return s.done; }); }); }
   function plan(dateISO, state, todayISO) {
     var profile = state.profile || {}, sched = profile.sched || { 1: '16:00', 3: '16:00', 5: '16:00' };
@@ -641,7 +671,7 @@
     RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
-    suggest: suggest, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, buildSession: buildSession, rampSets: rampSets,
+    suggest: suggest, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
     macros: macros, timeline: timeline, weightSeries: weightSeries, weightTrend: weightTrend,
     trendAdvice: trendAdvice, weeklyVolume: weeklyVolume, bestSets: bestSets
   };
