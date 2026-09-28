@@ -954,7 +954,7 @@ function exBody(e,ei,ses){
   '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?sg.kg+' kg × '+sg.reps:'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
   '<div class="sethead"><span></span><span>kg</span><span>reps</span><span></span></div>'+
   e.sets.map(function(s,si){
-   return '<div class="setrow'+(s.done?' done':'')+'"><span class="sn mono">'+(si+1)+'</span>'+stepper('kg',ei,si,s.kg,cfg.inc)+stepper('reps',ei,si,s.reps,1)+
+   return '<div class="setrow'+(s.done?' done':'')+'"><span class="sn mono">'+(si+1)+'</span>'+stepper('kg',ei,si,s.kg,1)+stepper('reps',ei,si,s.reps,1)+
     '<button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'" aria-label="Set done">'+(s.pr?'★':'✓')+'</button></div>'+
     (s.done?'<div class="rirrow"><span>Reps left in the tank?</span>'+RIR_OPTS.map(function(o){return '<button data-rirset="'+ei+':'+si+':'+o[0]+'"'+(s.rir===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div>':'');
   }).join('')+
@@ -1260,6 +1260,7 @@ function doSwap(ei,id){
  state.settings.swaps=state.settings.swaps||{};if(id===e.base)delete state.settings.swaps[e.base];else state.settings.swaps[e.base]=id;
  save();renderTrain();toast('Swapped to '+nm(id));
 }
+document.addEventListener('focusin',function(ev){var t=ev.target;if(t.dataset&&t.dataset.val)setTimeout(function(){try{t.select();}catch(e){}},0);});
 document.addEventListener('change',function(ev){
  var t=ev.target,ses=activeSession();
  if(t.dataset.val){var a=t.dataset.val.split(':'),ex0=ses.ex[+a[1]],s=ex0.sets[+a[2]],old=s[a[0]],nv=num(t.value);s[a[0]]=nv;
