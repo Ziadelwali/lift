@@ -78,8 +78,8 @@ Goal: an athletic, defined physique — **muscle first, with the diet set so fat
 **Diet** (engine.js `macros`, `timeline`)
 - Mifflin-St Jeor × activity = expenditure; phase multiplier (build & lean 0.90, i.e. −10 %, kept under the ~500 kcal/day deficit where lean-mass gain is seen to slow / maintain 1.0 / lean bulk 1.10).
 - Protein 2.0 g/kg body weight (top of the useful range, for maximum muscle in a deficit); fat 25 % of kcal; carbs the rest. Calories stay fixed — extra protein replaces carbs.
-- Cooking: each cook shows a suggested dish; the user can tap their own protein / carb / veg and the box amounts and shopping follow (`profile.cookPicks`). Shopping list defaults to the next cook (2 days), or the whole week.
+- No cooking plan or shopping list, nothing to weigh: lunch and dinner are the user's own plate, built with the hand (`handPlate`: a palm of protein per ~30 g, a fist of veg, a cupped hand of carbs, a thumb of fat). Only the daily protein number is shown; kcal is used internally for the trend band.
 - Clock-time schedule anchored on the session: 2 meals + 3 whey shakes (morning, after training, ~45 min before bed; skyr/yoghurt/eggs are the alternatives). Meals end 3 h before bed; only the bedtime shake comes later. Creatine 5 g daily.
-- 7-day weight trend vs the phase's target band → ±150 kcal advice.
+- 7-day weight trend vs the phase's target band → plain portion advice (a bit more or less rice, potatoes or bread).
 
 Evidence: Pelland et al. 2025 (volume/frequency dose–response), Robinson et al. 2024 (proximity to failure), Haugen et al. 2023 (machines vs free weights), ISSN position stands (protein; creatine 2025), warm-up reviews. Not medical advice.
