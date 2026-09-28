@@ -60,19 +60,19 @@ Goal: an athletic, defined physique — **muscle first, with the diet set so fat
 
 **Training** (engine.js `PROGRAM`, `suggest`, `plan`)
 - Full body, sessions A/B alternating, 3 days/week (Mon/Wed/Fri 16:00 by default). Every muscle 3×/week, 10–20 hard sets/muscle/week; priority muscles (default: side delts + upper back) get ~4 extra sets.
-- Compounds 6–10 reps, isolation 10–15, all with 1–3 reps in reserve. Rest 2–3 min on compounds.
+- Compounds 6–10 reps, isolation 10–15, all with 1–3 reps in reserve. Rest 2 min on the big compounds, 60–100 s on the rest (cut by at most 30 s to keep sessions near 65 min; sets unchanged).
 - Week 1 = calibration (2 sets, find loads). The first session after calibration sets each weight from the best calibration set (Epley, aiming mid-range with ~2 reps in reserve). Then double progression: all sets at the top of the rep range → weight goes up by the exercise's increment; under the bottom of the range two sessions running → −10 %.
 - Every 6th week, or after two stalled lifts, a deload (−10 % load, half the sets).
 - Fitted to the gym (`tools/gym-inventory.json`, mostly Nautilus One machines, dumbbells up to 30 kg). Dumbbell lifts stop adding weight at 30 kg (`RULES.dumbbellMaxKg`): the app asks for more reps, then points to the machine swap.
 - Priority muscles add exercises: side delts (side raise), upper back (straight-arm pull-down), arms (incline dumbbell curl in A, overhead rope extension in B — stretched-position exercises, which grow the arm more than curls/pushdowns alone).
-- Busy gym: any order is fine. Tap a picture in the top bar to jump, or "⏭ Busy — later" sends an exercise to the end. After each set the rest bar asks "reps left in the tank?".
+- Busy gym: any order is fine. Tap a picture in the top bar to jump, or "⏭ Busy — later" sends an exercise to the end. After the last set of an exercise the rest bar asks "How was it? Easy / About right / Hard" (stored as rir 3 / 2 / 0 on the sets, `ex.feel`); it stays on screen until answered.
 - Life moves a day: `settings.moves = {fromISO: toISO}` ('' = skipped). The day after a session, Today offers "rest today, train tomorrow"; the day after a missed one it offers "train today". Empty sessions left open on a past day are ignored.
-- Swaps: every exercise has 1–3 alternatives on the same muscles, shown as photo tiles. Main lifts keep their where/form text in `PROGRAM`; swap-only exercises in `ALT_INFO`.
+- Swaps: every exercise has 1–3 alternatives on the same muscles, shown as photo tiles. "Just today" (default) swaps this session only; "From now on" saves it in `settings.swaps`. Main lifts keep their where/form text in `PROGRAM`; swap-only exercises in `ALT_INFO`.
 - Warm-up ≤ 8 min: easy bike, 3–4 dynamic moves for the day, ramp sets (50/70/85 %) on the first compound only. No static stretching.
 
 **Made for someone who doesn't know the names** (index.html)
 - Plain names as titles (`LABEL` in engine.js), the official name small underneath; muscles as body parts ("front of thigh"); photos everywhere a choice is made. `node tools/test-engine.js` fails if an exercise lacks a plain name or where/form text.
-- Training screen: big −/+ and ✓, "reps left in the tank 0/1/2/3+" after each set, sticky progress with a photo per exercise, finished exercises fold, rest timer ±30 s. Comma or dot decimals.
+- Training screen: big −/+ and ✓, "How was it?" once per exercise, sticky progress with a photo per exercise, finished exercises fold, rest timer ±30 s. Comma or dot decimals.
 - Light ("clear day") and dark ("clear night") themes; Auto follows the phone. Colours are CSS tokens on `:root` / `:root[data-theme=light]`; the theme is applied before first paint from `localStorage['lift.theme']`.
 
 **Diet** (engine.js `macros`, `timeline`)
