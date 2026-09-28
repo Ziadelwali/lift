@@ -74,15 +74,12 @@ eq('timeline meal 2 at 18:45', tl.indexOf('18:45 Meal 2 (dinner)') >= 0, true);
 eq('timeline 2 meals + 3 shakes', tl.filter(function (x) { return /Meal \d|shake|Morning protein/i.test(x); }).length, 5);
 eq('bedtime shake 45 min before bed', tl.indexOf('21:45 Bedtime shake') >= 0, true);
 
-// simple eating: every portion reaches the meal's protein; 3 cooks cover 12 of 14 meals a week
+// simple eating: meals are a hand-built plate, no cooking plan
 var tgt = E.mealTargets(m, prof);
-var dishes = []; for (var nn = 0; nn < 150; nn++) dishes.push(E.buildDish(nn));
-eq('portions reach protein', dishes.filter(function (r) { return E.portion(r, tgt.P, tgt.kcal).P < tgt.P; }).map(function (r) { return r.key; }), []);
-eq('portions near kcal', dishes.filter(function (r) { return Math.abs(E.portion(r, tgt.P, tgt.kcal).kcal - tgt.kcal) > 150; }).map(function (r) { return r.key + ' ' + E.portion(r, tgt.P, tgt.kcal).kcal; }), []);
-var nocook = 0, keys = {};
-for (var dd = 0; dd < 14; dd++) { var di = E.isoDate(new Date(2026, 8, 27 + dd)); [1, 2].forEach(function (ml) { var bb = E.batchFor(prof, di, ml); if (!bb) nocook++; else if (bb.cookToday) keys[di] = bb.recipe.key; }); }
-eq('no-cook meals in 2 weeks', nocook, 4);
-eq('cook days rotate recipes', Object.keys(keys).length === 6 && Object.keys(keys).map(function (k) { return keys[k]; }).slice(0, 3).filter(function (v, i, a) { return a.indexOf(v) === i; }).length, 3);
+eq('meal protein ~1 palm or more', tgt.P >= 25, true);
+eq('palms wording', [E.palms(30), E.palms(45), E.palms(60)], ['a palm', 'a palm and a half', 'two palms']);
+eq('hand plate: protein, veg, carb, fat', E.handPlate(35).map(function (x) { return x.k; }), ['protein', 'veg', 'carb', 'fat']);
+eq('meals say nothing about cooking', E.timeline(prof, E.plan('2026-09-21', st), m).filter(function (s) { return /cook today|cook,|box|fridge|shopping/i.test((s.what || '') + (s.detail || '')); }).length, 0);
 
 // weight trend
 var w = {}; for (var i = 0; i < 21; i++) { var d = new Date(2026, 8, 1 + i); w[E.isoDate(d)] = 112 - i * 0.07; }
@@ -125,42 +122,6 @@ eq('all have plain names', allIds.filter(function (id) { return !E.LABEL[id]; })
 var warm = [E.WARMUP.general].concat(E.WARMUP.A, E.WARMUP.B);
 eq('warm-ups explain how', warm.filter(function (w) { return !(w.how && w.how.length); }).map(function (w) { return w.id; }), []);
 
-// weekly shopping: 3 cooks, 2 no-cook meals, daily shakes; family scales the pots only
-var wk = E.weekShopping(prof, '2026-09-23', m);
-eq('shop: 3 cooks, 2 no-cook', [wk.cooks.length, wk.nocook], [3, 2]);
-function qty(w, name) { var q = 0; w.groups.forEach(function (g) { g.items.forEach(function (it) { if (it.name === name) q += it.qty; }); }); return q; }
-eq('shop: whey for 7 shakes (+ whey mornings)', qty(wk, 'whey protein') >= 280, true);
-var fam = Object.assign({}, prof, { family: { adults: 1, kids: 1 } });
-eq('family servings 6.4', E.batchServings(fam), 6.4);
-var wkf = E.weekShopping(fam, '2026-09-23', m);
-var meat = function (w) { return w.groups.filter(function (g) { return g.cat === 'meat'; })[0].items.reduce(function (s, it) { return s + (it.unit === 'g' ? it.qty : 0); }, 0); };
-eq('family: more meat, same whey', [meat(wkf) > meat(wk), qty(wkf, 'whey protein') === qty(wk, 'whey protein')], [true, true]);
-
-// variety: 8 weeks of the default cook days
-var groups = [], keysByWeek = [], fishWeeks = 0, redWeeks = 0, sameTasteInARow = 0, prevMeal = null;
-for (var wkn = 0; wkn < 8; wkn++) {
-  var ks = [], gs = [];
-  for (var dd2 = 0; dd2 < 7; dd2++) {
-    var dx = E.isoDate(new Date(2026, 9, 4 + wkn * 7 + dd2));   // weeks starting Sunday 4 Oct
-    [1, 2].forEach(function (ml) {
-      var bb = E.batchFor(prof, dx, ml), tag = bb ? bb.recipe.key + '/' + bb.flavour : 'nocook-' + dx + ml;
-      if (tag === prevMeal) sameTasteInARow++; prevMeal = tag;
-      if (bb && bb.cookToday) { ks.push(bb.recipe.key); gs.push(bb.recipe.group); }
-    });
-  }
-  keysByWeek.push(ks); if (gs.indexOf('fish') >= 0) fishWeeks++; if (gs.indexOf('red') >= 0) redWeeks++;
-  groups.push(ks.filter(function (k, i) { return ks.indexOf(k) !== i; }).length);
-}
-eq('no recipe twice in a week', groups.filter(Boolean).length, 0);
-eq('fish every week', fishWeeks, 8);
-eq('red meat every other week', redWeeks, 4);
-eq('never the same taste twice in a row', sameTasteInARow, 0);
-var used = {}; keysByWeek.forEach(function (ks) { ks.forEach(function (k) { used[k] = 1; }); });
-eq('24 cooks in 8 weeks, 24 different dishes', Object.keys(used).length, 24);
-var repeats = 0; for (var q = 18; q < 150; q++) for (var q2 = q - 18; q2 < q; q2++) if (dishes[q].combo === dishes[q2].combo) repeats++;
-eq('no dish back within 6 weeks (50 weeks checked)', repeats, 0);
-var carbClash = 0; for (var wq = 0; wq < 50; wq++) { var c3 = [0, 1, 2].map(function (s) { return dishes[wq * 3 + s].carb; }); if (c3[0] === c3[1] || c3[1] === c3[2] || c3[0] === c3[2]) carbClash++; }
-eq('different grain in each cook of a week', carbClash, 0);
 var lat = Object.assign({}, prof, { lattes: 2 });
 eq('2 lattes: meals give way (~65 kcal each)', E.mealTargets(m, prof).kcal - E.mealTargets(m, lat).kcal >= 60, true);
 eq('lattes show on a work day, not on Sunday', [E.timeline(lat, E.plan('2026-09-21', st), m).filter(function (s) { return /^la/.test(s.key); }).length, E.timeline(lat, E.plan('2026-09-27', st), m).filter(function (s) { return /^la/.test(s.key); }).length], [2, 0]);
