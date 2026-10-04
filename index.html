@@ -125,6 +125,10 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 @keyframes frameB{0%,49%{opacity:0}50%,100%{opacity:1}}
 .ex .media .map{position:absolute;right:8px;bottom:8px;width:112px;height:auto;background:var(--map-bg);border-radius:10px;padding:4px}
 .ex .body{padding:12px 16px 14px}
+.gymph{float:right;width:92px;margin:0 0 6px 10px;padding:0;border:0;background:none;color:var(--ink3);font:inherit;font-size:11px;text-align:center;cursor:zoom-in}
+.gymph img{display:block;width:100%;height:auto;border-radius:10px;background:var(--card2)}
+.gymph span{display:block;margin-top:3px}
+.gymph.big{float:none;width:100%;margin:0 0 10px;cursor:zoom-out}.gymph.big img{width:auto;max-width:100%;max-height:70vh;margin:0 auto}
 .sethead,.setrow{display:grid;grid-template-columns:14px 1fr 1fr 44px;gap:5px;align-items:center}
 .sethead{margin-top:12px;font-family:var(--mono);font-size:10.5px;color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;text-align:center}
 .setrow{margin-top:6px}
@@ -591,6 +595,13 @@ var EQUIP_WORDS={machine:'machine',dumbbell:'dumbbells',cable:'cable pulley',bar
 function mw(m){return MUSCLE_WORDS[m]||m;}
 function nm(id){return E.LABEL[id]||(EX[id]?EX[id].name:id);}
 var GYM_EQUIP={'Wide-Grip_Lat_Pulldown':'machine','Close-Grip_Front_Lat_Pulldown':'machine',Seated_Cable_Rows:'machine',Hyperextensions_Back_Extensions:'machine'}; // cable in the photo, Nautilus machine at the gym
+/* Your own gym: one cropped photo per machine (B1973 Fitness, Oct 2026), shown under Where. */
+var GYM_PHOTO=(function(){var m={'leg-extension':['Leg_Extensions'],'leg-press':['Leg_Press','Calf_Press_On_The_Leg_Press_Machine'],'leg-curl':['Seated_Leg_Curl'],
+ smith:['Smith_Machine_Squat','Smith_Machine_Bench_Press','Smith_Machine_Incline_Bench_Press','Smith_Machine_Overhead_Shoulder_Press','Smith_Machine_Calf_Raise','Smith_Machine_Stiff-Legged_Deadlift'],
+ preacher:['Preacher_Curl'],bench:['Dumbbell_Bench_Press','Incline_Dumbbell_Press','Dumbbell_Incline_Row','Incline_Dumbbell_Curl'],'cable-row':['Seated_Cable_Rows'],
+ cables:['Triceps_Pushdown','Triceps_Pushdown_-_Rope_Attachment','Straight-Arm_Pulldown','Rope_Straight-Arm_Pulldown','Face_Pull','Cable_Crunch','Cable_Seated_Lateral_Raise','Cable_Rear_Delt_Fly','Standing_Biceps_Cable_Curl','Cable_Rope_Overhead_Triceps_Extension'],
+ 'ab-crunch':['Ab_Crunch_Machine'],'shoulder-press':['Leverage_Shoulder_Press'],'chest-press':['Machine_Bench_Press'],rower:['Rowing_Stationary'],bike:['Bicycling_Stationary']},o={};
+ Object.keys(m).forEach(function(f){m[f].forEach(function(id){o[id]='img/gym/'+f+'.jpg';});});return o;})();
 function equipWord(id){var x=EX[id];if(GYM_EQUIP[id])return GYM_EQUIP[id];return x&&x.equipment?(EQUIP_WORDS[x.equipment]||x.equipment):'no equipment';}
 function thumb(id){var x=EX[id];return x?'<img class="th" src="'+x.images[0]+'" alt="" loading="lazy">':'';}
 function exRow(id,extra,cls){return '<div class="exrow'+(cls?' '+cls:'')+'">'+thumb(id)+'<span style="flex:1;min-width:0">'+esc(nm(id))+'</span>'+(extra||'')+'</div>';}
@@ -949,7 +960,7 @@ function exBody(e,ei,ses){
  var ex=EX[e.id],cfg=E.findCfg(e.base)||E.findCfg(e.id),sg=e.suggest||{};
  var alts=(cfg.alts||[]).concat(e.id!==e.base?[e.base]:[]).filter(function(a){return a!==e.id&&EX[a];});
  var inf=E.info(e.id)||cfg;
- return '<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+
+ return (GYM_PHOTO[e.id]?'<button class="gymph" data-gymph="1" aria-label="Show the machine at your gym bigger"><img src="'+GYM_PHOTO[e.id]+'" alt="" loading="lazy"><span>At your gym</span></button>':'')+'<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+
   '<details style="margin-top:6px"><summary>Step by step</summary><ol>'+ex.instructions.map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol></details>'+
   lastTime(e.id)+
   '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?sg.kg+' kg × '+sg.reps:'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
@@ -1144,7 +1155,8 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-gymph]');if(!b)return;
+ if(b.dataset.gymph){b.classList.toggle('big');return;}
  if(b.dataset.wkday){wkv.sel=wkv.sel===b.dataset.wkday||b.dataset.wkday===todayISO()?null:b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
  if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
  if(b.dataset.mealdone){var di=todayISO();state.daily[di]=state.daily[di]||{};state.daily[di].meals=state.daily[di].meals||{};state.daily[di].meals[b.dataset.mealdone]=1;save();renderToday();toast('Nice — ticked off');return;}

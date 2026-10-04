@@ -85,7 +85,8 @@
       ],
       "unlocks": [
         "Seated_Cable_Rows"
-      ]
+      ],
+      "note": "Photographed 2026-10-04 as a cable row bench with foot plate and two separate handles (img/gym/cable-row.jpg)."
     },
     {
       "id": "dual_pulley_lat_pulldown",
@@ -203,7 +204,7 @@
       "id": "bench",
       "name": "Flat / incline bench",
       "type": "free weight",
-      "status": "reported",
+      "status": "photographed",
       "unlocks": []
     },
     {
@@ -274,6 +275,52 @@
       "name": "Stair machine (Matrix)",
       "type": "cardio",
       "status": "listed",
+      "unlocks": []
+    },
+    {
+      "id": "power_rack",
+      "name": "Half racks x2 with spotter arms, Olympic bars, plates, EZ curl bar",
+      "type": "free weight",
+      "status": "photographed",
+      "note": "Seen in the user's photos 2026-10-04. Not used by the program yet (it is machine/dumbbell based).",
+      "unlocks": []
+    },
+    {
+      "id": "cable_tower",
+      "name": "Cable crossover tower (Nautilus): two adjustable pulleys, pull-up handles on top; rope, straight bar, EZ bar, V-handle, single handles, ankle straps",
+      "type": "cable",
+      "status": "photographed",
+      "note": "Photo img/gym/cables.jpg. Pull-up handles exist here and on the knee-raise station.",
+      "unlocks": []
+    },
+    {
+      "id": "knee_raise_station",
+      "name": "Knee-raise / dip station (Nautilus) with pull-up handles",
+      "type": "bodyweight",
+      "status": "photographed",
+      "unlocks": []
+    },
+    {
+      "id": "back_extension_bench",
+      "name": "45° back extension bench (Nautilus)",
+      "type": "bodyweight",
+      "status": "photographed",
+      "unlocks": [
+        "Hyperextensions_Back_Extensions"
+      ]
+    },
+    {
+      "id": "decline_ab_bench",
+      "name": "Decline ab bench (Nautilus)",
+      "type": "bodyweight",
+      "status": "photographed",
+      "unlocks": []
+    },
+    {
+      "id": "kettlebells",
+      "name": "Kettlebells, about 4-24 kg (group room)",
+      "type": "free weight",
+      "status": "photographed",
       "unlocks": []
     }
   ]

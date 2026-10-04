@@ -51,7 +51,7 @@
         tip: 'Start with dumbbells beside the ears, press up until arms are nearly straight. Ribs down, no arching.',
         alts: ['Leverage_Shoulder_Press', 'Smith_Machine_Overhead_Shoulder_Press'] },
       { id: 'Seated_Cable_Rows', sets: 3, reps: [8, 12], inc: 2.5, rest: 100,
-        where: 'Nautilus row machine: seated, chest tall, two separate handles.',
+        where: 'Cable row bench: sit, feet on the foot plate, one handle in each hand.',
         tip: 'Chest tall, pull the handles to the belly button squeezing the shoulder blades, let the arms go fully long on the return.',
         alts: ['One-Arm_Dumbbell_Row', 'Dumbbell_Incline_Row'] },
       { id: 'Side_Lateral_Raise', sets: 3, reps: [12, 15], inc: 1, rest: 60, prio: 'shoulders',
