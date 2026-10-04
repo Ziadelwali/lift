@@ -378,6 +378,19 @@
     }
     return { moves: moves, auto: auto };
   }
+  /* Trained on a Sunday: Monday rests and the week moves a day (Tue/Thu/Sat), so there are never
+     two days in a row. Returns { from, to } for shiftWeek, or null. settings.keepMon[mon] = the user
+     undid it and wants Monday as normal. */
+  function sundayShift(state, todayISO) {
+    var st = state.settings || {}, mv = st.moves || {}, ss = state.sessions || {};
+    var sched = (state.profile && state.profile.sched) || { 1: '16:00', 3: '16:00', 5: '16:00' };
+    var t = parseISO(todayISO); t.setDate(t.getDate() + (8 - t.getDay()) % 7);   // today if Monday, else next Monday
+    var mon = isoDate(t); t.setDate(t.getDate() - 1); var sun = isoDate(t); t.setDate(t.getDate() + 2); var tue = isoDate(t);
+    if (sched[1] == null || mon in mv || movedFrom(state, mon) || (st.keepMon || {})[mon] || ss[mon]) return null;
+    if (!(ss[sun] && ss[sun].done)) return null;
+    var tueTrains = !(tue in mv) && (sched[2] != null || !!movedFrom(state, tue));
+    return { from: mon, to: tueTrains ? '' : tue };
+  }
   /* Undo a move and every push it caused. */
   function unshiftWeek(state, fromISO) {
     var st = state.settings || {}, moves = Object.assign({}, st.moves || {}), auto = Object.assign({}, st.autoMoves || {});
@@ -671,7 +684,7 @@
     RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
-    suggest: suggest, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
+    suggest: suggest, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
     macros: macros, timeline: timeline, weightSeries: weightSeries, weightTrend: weightTrend,
     trendAdvice: trendAdvice, weeklyVolume: weeklyVolume, bestSets: bestSets
   };

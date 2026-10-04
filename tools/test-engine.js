@@ -91,6 +91,17 @@ eq('Fri→Sat pushes nothing', E.shiftWeek({ profile: prof, sessions: {}, settin
 eq('Wed→Thu pushes Fri→Sat', E.shiftWeek({ profile: prof, sessions: {}, settings: {} }, '2026-09-30', '2026-10-01').moves, { '2026-09-30': '2026-10-01', '2026-10-02': '2026-10-03' });
 eq('skip (no new day) pushes nothing', E.shiftWeek({ profile: prof, sessions: {}, settings: {} }, '2026-09-28', '').moves, { '2026-09-28': '' });
 
+// trained on Sunday: Monday rests, the week moves to Tue/Thu/Sat
+var sun = { profile: prof, sessions: { '2026-10-04': { day: 'A', done: true, ex: [] } }, settings: {} };
+eq('Sunday trained → Mon moves to Tue', E.sundayShift(sun, '2026-10-04'), { from: '2026-10-05', to: '2026-10-06' });
+eq('still applies on the Monday itself', E.sundayShift(sun, '2026-10-05'), { from: '2026-10-05', to: '2026-10-06' });
+var ssw = E.shiftWeek(sun, '2026-10-05', '2026-10-06');
+eq('pushes Wed→Thu and Fri→Sat', ssw.moves, { '2026-10-05': '2026-10-06', '2026-10-07': '2026-10-08', '2026-10-09': '2026-10-10' });
+eq('not again once moved', E.sundayShift({ profile: prof, sessions: sun.sessions, settings: { moves: ssw.moves } }, '2026-10-04'), null);
+eq('not when the user kept Monday', E.sundayShift({ profile: prof, sessions: sun.sessions, settings: { keepMon: { '2026-10-05': 1 } } }, '2026-10-04'), null);
+eq('not without a Sunday session', E.sundayShift({ profile: prof, sessions: {}, settings: {} }, '2026-10-04'), null);
+eq('a Sunday a week back moves nothing', E.sundayShift(sun, '2026-10-08'), null);
+
 // weight trend
 var w = {}; for (var i = 0; i < 21; i++) { var d = new Date(2026, 8, 1 + i); w[E.isoDate(d)] = 112 - i * 0.07; }
 st.weight = w;
