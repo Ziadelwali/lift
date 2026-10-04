@@ -1097,9 +1097,12 @@ function lineChart(pts,opts){
  (opts.goals||[]).forEach(function(g){ys.push(g.y);});
  var x0=Math.min.apply(null,xs),x1=Math.max.apply(null,xs),y0=Math.min.apply(null,ys),y1=Math.max.apply(null,ys);
  var pad=(y1-y0)*0.15||1;y0-=pad;y1+=pad;
+ var st=opts.step,ticks=[];   // opts.step: round labels (95, 100, 105…) instead of 4 even splits
+ if(st){y0=Math.floor(y0/st)*st;y1=Math.ceil(y1/st)*st;while((y1-y0)/st>6)st*=2;for(var v=y0;v<=y1+1e-9;v+=st)ticks.push(v);}
+ else for(var i=0;i<=3;i++)ticks.push(y0+(y1-y0)*i/3);
  function X(v){return L+(v-x0)/((x1-x0)||1)*(W-L-R);}function Y(v){return T+(1-(v-y0)/(y1-y0))*(H-T-B);}
  var h='<svg class="chart" viewBox="0 0 '+W+' '+H+'">';
- for(var i=0;i<=3;i++){var yv=y0+(y1-y0)*i/3;h+='<line class="grid" x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(yv)+'" y2="'+Y(yv)+'"/><text x="0" y="'+(Y(yv)+3)+'">'+yv.toFixed(opts.dec==null?1:opts.dec)+'</text>';}
+ ticks.forEach(function(yv){h+='<line class="grid" x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(yv)+'" y2="'+Y(yv)+'"/><text x="0" y="'+(Y(yv)+3)+'">'+yv.toFixed(st?0:opts.dec==null?1:opts.dec)+'</text>';});
  (opts.goals||[]).forEach(function(g){h+='<line class="goal" x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(g.y)+'" y2="'+Y(g.y)+'"/><text class="goaltext" x="'+(W-R)+'" y="'+(Y(g.y)-4)+'" text-anchor="end">'+esc(g.label)+'</text>';});
  h+='<text x="'+L+'" y="'+(H-6)+'">'+opts.fmtX(x0)+'</text><text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end">'+opts.fmtX(x1)+'</text>';
  pts.forEach(function(p){h+='<circle class="dot" cx="'+X(p.x)+'" cy="'+Y(p.y)+'" r="2.2"/>';});
@@ -1117,7 +1120,7 @@ function weightChart(){
   line=left>0?'<b class="mono">'+left+' kg</b> to '+(next===g.g1?'your first goal':'your goal')+' ('+next+' kg)'+(ta.rate!=null&&ta.rate<-0.05?' · at your pace ~'+Math.ceil(left/-ta.rate)+' weeks':''):'Goal reached — '+next+' kg. Set the next one under Profile.';}
  return (last?'<p class="sm" style="margin:4px 0 2px"><b class="mono" style="font-size:22px">'+last.avg.toFixed(1)+' kg</b> 7-day average'+(ta.rate!=null?' · <b class="mono">'+(ta.rate>0?'+':'')+ta.rate.toFixed(2)+' kg/week</b>':'')+'</p>':'')+
   (line?'<p class="sm" style="margin:0 0 6px">'+line+'</p>':'')+
-  lineChart(pts,{fmtX:fmtX,empty:'weigh in on the Today tab.',goals:[{y:g.g1,label:'first goal '+g.g1},{y:g.g2,label:'goal '+g.g2}]});
+  lineChart(pts,{fmtX:fmtX,step:5,empty:'weigh in on the Today tab.',goals:[{y:g.g1,label:'first goal '+g.g1},{y:g.g2,label:'goal '+g.g2}]});
 }
 function waistCard(){
  var iso=todayISO(),g=goals(),rows=Object.keys(state.daily).sort().filter(function(k){return state.daily[k]&&state.daily[k].waist>0;}),
@@ -1167,9 +1170,10 @@ function renderProfile(){
   '</div>';
  h+='<div class="card"><h2>Priority muscles</h2><p class="xs" style="margin:4px 0 6px">Each gets ~4 extra hard sets a week on top of the full-body base. Two at most.</p>'+
   Object.keys(E.PRIORITY).map(function(k){return '<label class="check"><input type="checkbox" data-prio="'+k+'"'+(prio.indexOf(k)>=0?' checked':'')+'><span>'+E.PRIORITY[k].label+'</span></label>';}).join('')+'</div>';
- h+='<div class="card"><h2>Training days</h2><p class="xs" style="margin:4px 0 6px">Three days with a rest day between is the default. The start time anchors your meals.</p>'+
-  [1,2,3,4,5,6,0].map(function(d){return '<div class="row" style="min-height:44px"><label class="check" style="flex:1"><input type="checkbox" data-day="'+d+'"'+(sched[d]!=null?' checked':'')+'><span>'+DOW[d]+'</span></label><input type="time" class="rir" style="width:110px" data-time="'+d+'" value="'+(sched[d]||'16:00')+'"'+(sched[d]!=null?'':' disabled')+'></div>';}).join('')+
-  '<div class="grid3"><label class="field"><span class="l">Wake</span><input type="time" data-p="wake" value="'+(p.wake||'06:30')+'"></label><label class="field"><span class="l">Lunch</span><input type="time" data-p="lunch" value="'+(p.lunch||'11:30')+'"></label><label class="field"><span class="l">Bed</span><input type="time" data-p="bed" value="'+(p.bed||'22:30')+'"></label></div><p class="xs">Meals are planned around these; nothing is scheduled in the last 3 hours before bed.</p></div>';
+ var tt=sched[Object.keys(sched)[0]]||'16:00';
+ h+='<div class="card"><h2>Your day</h2><p class="xs" style="margin:4px 0 6px">Meals are timed around these. Training days move by themselves.</p>'+
+  '<label class="field"><span class="l">Training at</span><input type="time" data-time="all" value="'+tt+'"></label>'+
+  '<div class="grid3"><label class="field"><span class="l">Wake</span><input type="time" data-p="wake" value="'+(p.wake||'06:30')+'"></label><label class="field"><span class="l">Lunch</span><input type="time" data-p="lunch" value="'+(p.lunch||'11:30')+'"></label><label class="field"><span class="l">Bed</span><input type="time" data-p="bed" value="'+(p.bed||'22:30')+'"></label></div></div>';
  var tm=themeMode();
  h+='<div class="card"><h2>Appearance</h2><p class="xs" style="margin:4px 0 10px">Auto follows your phone\'s light/dark setting.</p><div class="seg">'+[['auto','Auto'],['light','Light'],['dark','Dark']].map(function(o){return '<button data-themeset="'+o[0]+'"'+(tm===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div></div>';
  h+=installCard('profile')+remindersCard();
@@ -1265,6 +1269,7 @@ document.addEventListener('change',function(ev){
  if(t.dataset.prio){var list=(state.profile.priority||['shoulders','back']).slice();if(t.checked){if(list.length>=2){t.checked=false;toast('Two at most');return;}list.push(t.dataset.prio);}else list=list.filter(function(x){return x!==t.dataset.prio;});state.profile.priority=list;save();return;}
  if(t.dataset.day||t.dataset.time){var sched=Object.assign({},state.profile.sched||{1:'16:00',3:'16:00',5:'16:00'});
   if(t.dataset.day){if(t.checked)sched[t.dataset.day]='16:00';else delete sched[t.dataset.day];}
+  else if(t.dataset.time==='all'){if(!t.value)return;Object.keys(sched).forEach(function(d){sched[d]=t.value;});}
   else sched[t.dataset.time]=t.value;
   state.profile.sched=sched;save();renderProfile();return;}
  if(t.dataset.act==='pick'){renderProgress.sel=t.value;renderProgress();return;}
