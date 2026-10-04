@@ -31,86 +31,86 @@
   var PROGRAM = {
     A: [
       { id: 'Leg_Press', sets: 3, reps: [6, 10], inc: 5, rest: 120, ramp: true,
-        where: 'Nautilus leg press: sit and push the footplate away with your feet.',
-        tip: 'Feet shoulder-width, mid-platform. Lower until knees are ~90°, never let the lower back curl off the pad.',
+        where: 'Nautilus leg press.',
+        tip: 'Feet mid-plate. Knees to 90°, lower back stays on the pad.',
         alts: ['Smith_Machine_Squat', 'Leg_Extensions'] },
       { id: 'Dumbbell_Bench_Press', sets: 3, reps: [6, 10], inc: 2, rest: 120, ramp: true,
-        where: 'Flat bench in the free-weight area, one dumbbell in each hand (the rack goes up to 30 kg).',
-        tip: 'Shoulder blades pinned back and down, elbows ~45° from the body. Lower to chest level, press up and slightly in.',
+        where: 'Flat bench, two dumbbells.',
+        tip: 'Shoulder blades back. Lower to the chest, press up.',
         alts: ['Machine_Bench_Press', 'Smith_Machine_Bench_Press'] },
       { id: 'Wide-Grip_Lat_Pulldown', sets: 3, reps: [8, 12], inc: 2.5, rest: 100,
-        where: 'Nautilus lat pulldown: seat, knee pad and two separate handles overhead.',
-        tip: 'Lean back slightly, pull the handles down to the upper chest with the elbows, pause, control the way up.',
+        where: 'Nautilus lat pulldown.',
+        tip: 'Lean back a little, pull the elbows down to your sides.',
         alts: ['Close-Grip_Front_Lat_Pulldown'] },
       { id: 'Seated_Leg_Curl', sets: 3, reps: [10, 15], inc: 5, rest: 75,
-        where: 'Machine where you sit and curl a pad down with the backs of your legs.',
-        tip: 'Hips pinned by the lap pad. Curl all the way, then control the return for 2–3 seconds.',
+        where: 'Nautilus leg curl.',
+        tip: 'Curl all the way, let it back up slowly.',
         alts: ['Smith_Machine_Stiff-Legged_Deadlift'] },
       { id: 'Dumbbell_Shoulder_Press', sets: 3, reps: [8, 12], inc: 2, rest: 100,
-        where: 'Upright bench (back at ~85°), dumbbells at shoulder height.',
-        tip: 'Start with dumbbells beside the ears, press up until arms are nearly straight. Ribs down, no arching.',
+        where: 'Upright bench, two dumbbells.',
+        tip: 'From the ears up to almost straight arms. No arching.',
         alts: ['Leverage_Shoulder_Press', 'Smith_Machine_Overhead_Shoulder_Press'] },
       { id: 'Seated_Cable_Rows', sets: 3, reps: [8, 12], inc: 2.5, rest: 100,
-        where: 'Cable row bench: sit, feet on the foot plate, one handle in each hand.',
-        tip: 'Chest tall, pull the handles to the belly button squeezing the shoulder blades, let the arms go fully long on the return.',
+        where: 'Cable row bench, two handles.',
+        tip: 'Chest tall, pull to the belly, squeeze the shoulder blades.',
         alts: ['One-Arm_Dumbbell_Row', 'Dumbbell_Incline_Row'] },
       { id: 'Side_Lateral_Raise', sets: 3, reps: [12, 15], inc: 1, rest: 60, prio: 'shoulders',
         where: 'Light dumbbells, standing.',
-        tip: 'Lead with the elbows, raise to shoulder height with a slight forward lean. Light weight, no swinging.',
+        tip: 'Lead with the elbows up to shoulder height. No swinging.',
         alts: ['Seated_Side_Lateral_Raise', 'Cable_Seated_Lateral_Raise'] },
       { id: 'Incline_Dumbbell_Curl', sets: 3, reps: [10, 15], inc: 1, rest: 60, prio: 'arms',
-        where: 'Bench tilted back to ~45–60°, lie back with a dumbbell in each hand, arms hanging straight down.',
-        tip: 'Arms hang behind the body — that stretch is what makes this curl grow the arm more. Curl up without moving the elbows forward, lower slowly all the way.',
+        where: 'Bench tilted back, arms hanging down.',
+        tip: 'Elbows stay back. Curl up, lower all the way.',
         alts: ['Dumbbell_Bicep_Curl', 'Standing_Biceps_Cable_Curl'] },
       { id: 'Triceps_Pushdown_-_Rope_Attachment', sets: 2, reps: [10, 15], inc: 2.5, rest: 60,
-        where: 'High pulley on the multi-station, rope attachment.',
-        tip: 'Elbows glued to the sides, push down and split the rope at the bottom.',
-        alts: ['Triceps_Pushdown', 'Dip_Machine'] },
+        where: 'Cable tower, high pulley, rope.',
+        tip: 'Elbows at your sides, push down, split the rope.',
+        alts: ['Triceps_Pushdown', 'Standing_Dumbbell_Triceps_Extension'] },
       { id: 'Ab_Crunch_Machine', sets: 2, reps: [10, 15], inc: 2.5, rest: 60,
-        where: 'Nautilus abdominal crunch machine.',
-        tip: 'Crunch the ribs toward the hips, let the abs do it, not the arms. Slow on the way back.',
+        where: 'Nautilus ab crunch.',
+        tip: 'Curl ribs to hips with the belly, not the arms.',
         alts: ['Cable_Crunch', 'Plank'] }
     ],
     B: [
       { id: 'Smith_Machine_Squat', sets: 3, reps: [6, 10], inc: 5, rest: 120, ramp: true,
-        where: 'Smith machine: the bar that slides up and down on two rails. Bar across the upper back.',
-        tip: 'Feet slightly in front of the bar, squat until thighs pass parallel, drive through the whole foot. Set the safety stops just below your bottom position.',
+        where: 'Smith machine, bar on your upper back.',
+        tip: 'Feet a bit forward. Down to parallel, stand up. Safety stops just below.',
         alts: ['Leg_Press', 'Goblet_Squat'] },
       { id: 'Stiff-Legged_Dumbbell_Deadlift', sets: 3, reps: [8, 12], inc: 2, rest: 120, ramp: true,
-        where: 'Two dumbbells, standing. This is the Romanian deadlift done with dumbbells.',
-        tip: 'Soft knees, push the hips back, dumbbells slide down the thighs until you feel the hamstrings stretch. Flat back always.',
+        where: 'Two dumbbells, standing.',
+        tip: 'Soft knees, hips back, flat back. Down until the back of the thigh stretches.',
         alts: ['Smith_Machine_Stiff-Legged_Deadlift', 'Hyperextensions_Back_Extensions'] },
       { id: 'Incline_Dumbbell_Press', sets: 3, reps: [8, 12], inc: 2, rest: 120,
-        where: 'Bench set to ~30° incline, dumbbells.',
-        tip: 'Same as flat press but the bench is tilted — upper chest does more. Lower to the upper chest.',
+        where: 'Bench at ~30°, two dumbbells.',
+        tip: 'Lower to the upper chest, press up.',
         alts: ['Smith_Machine_Incline_Bench_Press', 'Dumbbell_Bench_Press'] },
       { id: 'One-Arm_Dumbbell_Row', sets: 3, reps: [8, 12], inc: 2, rest: 100,
-        where: 'Flat bench and one dumbbell: one knee and hand on the bench, row with the other arm.',
-        tip: 'Back flat, pull the dumbbell toward the hip (not the chest) so the lat does the work, squeeze, slow return. Weight shown is per dumbbell.',
+        where: 'Bench and one dumbbell, knee and hand on the bench.',
+        tip: 'Flat back, pull toward the hip, lower slowly.',
         alts: ['Seated_Cable_Rows', 'Dumbbell_Incline_Row'] },
       { id: 'Seated_Side_Lateral_Raise', sets: 3, reps: [12, 15], inc: 1, rest: 60,
-        where: 'Sit on the end of a bench with light dumbbells.',
-        tip: 'Seated removes the leg swing. Raise to shoulder height, pause, lower slowly.',
+        where: 'End of a bench, light dumbbells.',
+        tip: 'Raise to shoulder height, lower slowly.',
         alts: ['Side_Lateral_Raise', 'Cable_Seated_Lateral_Raise'] },
       { id: 'Straight-Arm_Pulldown', sets: 2, reps: [10, 15], inc: 2.5, rest: 60, prio: 'back',
-        where: 'High pulley on the multi-station with a straight bar or rope, standing.',
-        tip: 'Arms almost straight, sweep the bar down to the thighs using the lats, not the triceps.',
+        where: 'Cable tower, high pulley, bar or rope.',
+        tip: 'Straight arms, sweep down to the thighs.',
         alts: ['Rope_Straight-Arm_Pulldown'] },
       { id: 'Dumbbell_Bicep_Curl', sets: 2, reps: [10, 15], inc: 1, rest: 60,
-        where: 'Dumbbells, standing or seated.',
-        tip: 'Elbows stay at the sides, curl all the way up, lower for 2–3 seconds.',
+        where: 'Two dumbbells.',
+        tip: 'Elbows at your sides, curl up, lower slowly.',
         alts: ['Preacher_Curl', 'Hammer_Curls', 'Standing_Biceps_Cable_Curl'] },
       { id: 'Cable_Rope_Overhead_Triceps_Extension', sets: 3, reps: [10, 15], inc: 2.5, rest: 60, prio: 'arms',
-        where: 'Multi-station pulley with the rope, set low or at chest height. Face away from the machine, rope behind your head.',
-        tip: 'Elbows point forward and stay put. Straighten the arms overhead, then let the rope go deep behind the head — the stretch there is what grows the back of the arm.',
+        where: 'Cable tower, low pulley, rope. Face away.',
+        tip: 'Elbows forward and still. Straighten overhead, then let the rope go deep behind the head.',
         alts: ['Standing_Dumbbell_Triceps_Extension', 'Triceps_Pushdown_-_Rope_Attachment'] },
       { id: 'Calf_Press_On_The_Leg_Press_Machine', sets: 3, reps: [10, 15], inc: 5, rest: 60,
-        where: 'Leg press, only the balls of your feet on the bottom edge of the footplate.',
-        tip: 'Legs almost straight, let the heels drop for a full stretch (pause 1 s), push up onto the toes. No bouncing.',
+        where: 'Leg press, balls of the feet on the plate edge.',
+        tip: 'Heels down for a stretch, pause, up on the toes. No bouncing.',
         alts: ['Smith_Machine_Calf_Raise', 'Standing_Dumbbell_Calf_Raise'] },
       { id: 'Face_Pull', sets: 2, reps: [12, 15], inc: 2.5, rest: 60,
-        where: 'Multi-station pulley at face height with the rope.',
-        tip: 'Pull the rope toward the face, hands finish beside the ears, elbows high. Keeps shoulders healthy.',
+        where: 'Cable tower, face height, rope.',
+        tip: 'Pull to the face, hands by the ears, elbows high.',
         alts: ['Cable_Rear_Delt_Fly', 'Reverse_Flyes'] }
     ]
   };
@@ -124,7 +124,7 @@
     Standing_Dumbbell_Calf_Raise: 'Calf raise holding dumbbells',
     Dumbbell_Bench_Press: 'Dumbbell chest press, flat bench', Incline_Dumbbell_Press: 'Dumbbell chest press, tilted bench',
     Machine_Bench_Press: 'Chest press machine', Smith_Machine_Bench_Press: 'Bench press in the Smith machine',
-    Smith_Machine_Incline_Bench_Press: 'Tilted bench press in the Smith machine', Dip_Machine: 'Dip machine',
+    Smith_Machine_Incline_Bench_Press: 'Tilted bench press in the Smith machine',
     'Wide-Grip_Lat_Pulldown': 'Lat pulldown machine, wide', 'Close-Grip_Front_Lat_Pulldown': 'Lat pulldown machine, narrow',
     Seated_Cable_Rows: 'Row machine', 'One-Arm_Dumbbell_Row': 'One-arm dumbbell row', Dumbbell_Incline_Row: 'Dumbbell row, chest on tilted bench',
     'Straight-Arm_Pulldown': 'Straight-arm pull-down, bar', 'Rope_Straight-Arm_Pulldown': 'Straight-arm pull-down, rope',
@@ -145,56 +145,54 @@
 
   /* Where / form text for exercises that are only swap options (main lifts carry theirs in PROGRAM). */
   var ALT_INFO = {
-    Leg_Extensions: { where: 'Nautilus leg extension: sit, roller in front of your lower shins.',
-      tip: 'Straighten the legs fully, squeeze the front of the thigh for a second, lower slowly. Back stays against the pad.' },
-    Machine_Bench_Press: { where: 'Nautilus chest press: sit, handles at chest height.',
-      tip: 'Seat so the handles line up with mid-chest. Press forward without locking the elbows, return slowly until you feel a chest stretch.' },
-    Smith_Machine_Bench_Press: { where: 'Smith machine with a flat bench under the bar.',
-      tip: 'Bar lowers to the lower chest, elbows ~45° from the body. Set the safety stops just above your chest.' },
-    'Close-Grip_Front_Lat_Pulldown': { where: 'Nautilus lat pulldown, hands closer together.',
-      tip: 'Pull the handles to the upper chest, elbows down and back. Control the way up until the arms are long.' },
-    'Smith_Machine_Stiff-Legged_Deadlift': { where: 'Smith machine, bar starting at mid-thigh.',
-      tip: 'Soft knees, push the hips back, slide the bar down to mid-shin until the back of the thigh stretches. Flat back always.' },
-    Hyperextensions_Back_Extensions: { where: 'Nautilus low back machine: sit, pad behind your upper back. (The photo shows the bench version of the same movement.)',
-      tip: 'Lean back slowly against the pad by extending the hips and lower back, pause, come forward with control. Smooth, no jerking.' },
-    Leverage_Shoulder_Press: { where: 'Nautilus shoulder press: sit, handles beside the shoulders.',
-      tip: 'Press up until the arms are nearly straight, ribs down, back against the pad. Lower to shoulder height.' },
-    Smith_Machine_Overhead_Shoulder_Press: { where: 'Smith machine with an upright bench under the bar.',
-      tip: 'Bar starts at chin height. Press up just in front of the face, lower under control. No arching.' },
-    Dumbbell_Incline_Row: { where: 'Bench tilted ~30°, lie chest-down, a dumbbell in each hand.',
-      tip: 'Pull the dumbbells up beside the ribs, squeeze the shoulder blades together, lower until the arms are long.' },
-    Cable_Seated_Lateral_Raise: { where: 'Low pulley on the multi-station, single handle, sit or stand side-on.',
-      tip: 'Raise the arm out to the side up to shoulder height, lead with the elbow, lower slowly. Light weight.' },
-    Triceps_Pushdown: { where: 'High pulley on the multi-station, straight bar.',
-      tip: 'Elbows glued to the sides, push the bar down until the arms are straight, control it back up.' },
-    Dip_Machine: { where: 'Nautilus dip machine: sit, handles beside your hips.',
-      tip: 'Push the handles down until the arms are straight, slight lean forward, return slowly to about 90° at the elbow.' },
-    Cable_Crunch: { where: 'Kneel under the multi-station high pulley holding the rope behind your head.',
-      tip: 'Crunch the ribs toward the hips, hips stay still. Slow on the way up.' },
-    Plank: { where: 'On the floor (a mat from the group room).',
-      tip: 'Elbows under shoulders, body straight from head to heels, squeeze the belly and buttocks. Hold, breathe.' },
-    Goblet_Squat: { where: 'One dumbbell held upright against your chest.',
-      tip: 'Feet shoulder-width, sit down between the heels, chest up, elbows inside the knees. Stand through the whole foot.' },
-    Smith_Machine_Incline_Bench_Press: { where: 'Smith machine with the bench tilted ~30° under the bar.',
-      tip: 'Bar lowers to the upper chest. Set the safety stops just above your chest.' },
-    'Rope_Straight-Arm_Pulldown': { where: 'High pulley on the multi-station, rope, standing.',
-      tip: 'Arms almost straight, sweep the rope down to the thighs using the sides of the back, not the arms.' },
-    Preacher_Curl: { where: 'Preacher bench with the curl bar; upper arms resting on the angled pad.',
-      tip: 'Curl up without lifting the elbows off the pad, lower slowly until the arms are almost straight.' },
-    Standing_Dumbbell_Triceps_Extension: { where: 'One dumbbell held with both hands above your head, seated on an upright bench or standing.',
-      tip: 'Elbows point forward, lower the dumbbell behind the head until you feel the stretch, straighten the arms. Slow on the way down.' },
-    Hammer_Curls: { where: 'Dumbbells, thumbs pointing up.',
-      tip: 'Elbows stay at the sides, curl up with the thumbs up, lower for 2–3 seconds.' },
-    Standing_Biceps_Cable_Curl: { where: 'Low pulley on the multi-station, straight bar, standing.',
-      tip: 'Elbows at the sides, curl the bar up, lower slowly. No swinging.' },
-    Smith_Machine_Calf_Raise: { where: 'Smith machine, bar on the upper back, balls of the feet on a step or plate.',
-      tip: 'Let the heels drop for a full stretch (pause 1 s), rise high onto the toes. No bouncing.' },
-    Standing_Dumbbell_Calf_Raise: { where: 'Dumbbell in one hand, balls of the feet on a step, other hand holding on.',
-      tip: 'Full stretch at the bottom (pause 1 s), full rise onto the toes. One leg at a time makes it harder.' },
-    Cable_Rear_Delt_Fly: { where: 'Multi-station pulley at shoulder height, single handle.',
-      tip: 'Arm almost straight, pull out and back to the side at shoulder height, squeeze the back of the shoulder, return slowly.' },
-    Reverse_Flyes: { where: 'Light dumbbells, bent forward at the hips (or chest on a tilted bench).',
-      tip: 'Arms slightly bent, raise out to the sides until level with the body, squeeze, lower slowly.' }
+    Leg_Extensions: { where: 'Nautilus leg extension.',
+      tip: 'Straighten fully, squeeze 1 s, lower slowly.' },
+    Machine_Bench_Press: { where: 'Nautilus chest press.',
+      tip: 'Handles at mid-chest. Press, return slowly.' },
+    Smith_Machine_Bench_Press: { where: 'Smith machine, flat bench.',
+      tip: 'Bar to the lower chest. Safety stops just above the chest.' },
+    'Close-Grip_Front_Lat_Pulldown': { where: 'Nautilus lat pulldown, hands close.',
+      tip: 'Pull to the upper chest, elbows down.' },
+    'Smith_Machine_Stiff-Legged_Deadlift': { where: 'Smith machine, bar at mid-thigh.',
+      tip: 'Soft knees, hips back, flat back. Bar to mid-shin.' },
+    Hyperextensions_Back_Extensions: { where: 'Nautilus low back machine.',
+      tip: 'Lean back slowly against the pad, pause, return.' },
+    Leverage_Shoulder_Press: { where: 'Nautilus shoulder press.',
+      tip: 'Press up, lower to shoulder height. Back on the pad.' },
+    Smith_Machine_Overhead_Shoulder_Press: { where: 'Smith machine, upright bench.',
+      tip: 'From chin height, press up. No arching.' },
+    Dumbbell_Incline_Row: { where: 'Chest down on a tilted bench, two dumbbells.',
+      tip: 'Pull beside the ribs, squeeze, lower.' },
+    Cable_Seated_Lateral_Raise: { where: 'Cable tower, low pulley, one handle.',
+      tip: 'Raise out to shoulder height, lower slowly.' },
+    Triceps_Pushdown: { where: 'Cable tower, high pulley, straight bar.',
+      tip: 'Elbows at your sides, push down.' },
+    Cable_Crunch: { where: 'Kneel at the cable tower, rope behind the head.',
+      tip: 'Curl ribs to hips; hips stay still.' },
+    Plank: { where: 'Floor mat.',
+      tip: 'Elbows under shoulders, body straight. Hold.' },
+    Goblet_Squat: { where: 'One dumbbell at your chest.',
+      tip: 'Sit down between the heels, chest up.' },
+    Smith_Machine_Incline_Bench_Press: { where: 'Smith machine, bench at ~30°.',
+      tip: 'Bar to the upper chest. Safety stops just above.' },
+    'Rope_Straight-Arm_Pulldown': { where: 'Cable tower, high pulley, rope.',
+      tip: 'Straight arms, sweep down to the thighs.' },
+    Preacher_Curl: { where: 'Preacher bench, curl bar.',
+      tip: 'Elbows stay on the pad. Lower until almost straight.' },
+    Standing_Dumbbell_Triceps_Extension: { where: 'One dumbbell overhead, both hands.',
+      tip: 'Elbows forward, lower behind the head, straighten.' },
+    Hammer_Curls: { where: 'Dumbbells, thumbs up.',
+      tip: 'Elbows at your sides, curl, lower slowly.' },
+    Standing_Biceps_Cable_Curl: { where: 'Cable tower, low pulley, straight bar.',
+      tip: 'Elbows at your sides, curl. No swinging.' },
+    Smith_Machine_Calf_Raise: { where: 'Smith machine, toes on a step.',
+      tip: 'Heels down, pause, up high. No bouncing.' },
+    Standing_Dumbbell_Calf_Raise: { where: 'Dumbbell in one hand, toes on a step.',
+      tip: 'Heels down, pause, up high.' },
+    Cable_Rear_Delt_Fly: { where: 'Cable tower, shoulder height, one handle.',
+      tip: 'Straight arm, pull out and back, return slowly.' },
+    Reverse_Flyes: { where: 'Light dumbbells, bent forward.',
+      tip: 'Raise out to the sides, squeeze, lower.' }
   };
   /* Where / form text for any exercise id (main lift or swap option). */
   function info(id) { var c = findCfg(id); return c ? { where: c.where, tip: c.tip } : ALT_INFO[id] || null; }
@@ -282,7 +280,7 @@
     if (opts.calibration) sets = Math.max(2, Math.round(sets * 0.67));
     if (!hist || !hist.length) {
       return { kg: null, reps: hi, sets: sets, state: 'calibrate',
-        note: 'First time: pick a weight you could do about ' + hi + ' reps with, with 3 left in the tank. Log what you actually did.' };
+        note: 'First time: a weight you can lift ' + hi + ' times with 3 to spare.' };
     }
     var last = hist[hist.length - 1].sets;
     var kg = Math.max.apply(null, last.map(function (s) { return s.kg; }));
@@ -294,7 +292,7 @@
 
     if (opts.deload) {
       return { kg: roundTo(kg * RULES.deloadLoad, cfg.inc), reps: lo, sets: Math.max(1, Math.round(sets * RULES.deloadSets)),
-        state: 'deload', note: 'Deload: lighter, fewer sets, stop with 3–4 reps in reserve. Recovery is the point.' };
+        state: 'deload', note: 'Deload week: lighter, fewer sets, 3–4 reps to spare.' };
     }
     var cap = DUMBBELL.indexOf(cfg.id) !== -1 ? RULES.dumbbellMaxKg : null;
     if (hist[hist.length - 1].calib) {
@@ -304,37 +302,37 @@
       var mid = Math.round((lo + hi) / 2), est = roundTo(e1 / (1 + (mid + 2) / 30), cfg.inc);
       if (cap) est = Math.min(cap, est);
       if (est > 0) return { kg: est, reps: mid, sets: sets, state: 'set',
-        note: 'Set from your calibration sets: ' + est + ' kg × ' + mid + ', stopping with about 2 reps in the tank. Too easy? Go heavier on the next set.' };
+        note: 'From your test sets. Too easy? Go heavier next set.' };
     }
     if (allTop && cap && kg + cfg.inc > cap) {
       // Out of heavier dumbbells: keep the heaviest pair, earn progress with reps, then move to a machine.
       var alt = (cfg.alts || []).filter(function (a) { return DUMBBELL.indexOf(a) === -1; })[0];
-      var swapTo = alt ? ' Swap to ' + alt.replace(/_/g, ' ') + ' to keep adding weight.' : '';
+      var swapTo = alt ? ' Next: swap to the ' + (LABEL[alt] || alt).toLowerCase() + '.' : '';
       var more = Math.min(hi + 5, minReps + 1);
       if (minReps >= hi + 5) {
         return { kg: cap, reps: hi + 5, sets: sets, state: 'maxed',
-          note: cap + ' kg is the heaviest dumbbell here and you own it.' + (swapTo || ' Slow the lowering to 3–4 s to keep it hard.') };
+          note: cap + ' kg is the top dumbbell and you own it.' + (swapTo || ' Lower in 3–4 s.') };
       }
       return { kg: cap, reps: more, sets: sets, state: 'maxed',
-        note: cap + ' kg is the heaviest dumbbell here. Stay at ' + cap + ' kg and go for ' + more + ' reps, lowering in 3 s.' + swapTo };
+        note: cap + ' kg is the top dumbbell: go for ' + more + ' reps, lower in 3 s.' + swapTo };
     }
     if (allTop) {
       return { kg: roundTo(kg + cfg.inc, cfg.inc), reps: lo, sets: sets, state: 'up',
-        note: 'All sets hit ' + hi + ' last time — up ' + cfg.inc + ' kg. Aim for ' + lo + '+ reps.' };
+        note: 'Up ' + cfg.inc + ' kg. Aim for ' + lo + '+ reps.' };
     }
     if (anyBelow) {
       var prev = hist.length > 1 ? hist[hist.length - 2].sets : null;
       var prevBelow = prev && prev.some(function (s) { return s.kg >= kg && s.reps < lo; });
       if (prevBelow) {
         return { kg: roundTo(kg * RULES.stallDrop, cfg.inc), reps: lo, sets: sets, state: 'drop',
-          note: 'Two sessions under ' + lo + ' reps — drop 10 % and rebuild. That is normal, not failure.' };
+          note: 'Two sessions under ' + lo + ' reps: 10 % lighter and rebuild. Normal.' };
       }
       return { kg: kg, reps: lo, sets: sets, state: 'hold',
-        note: 'Under ' + lo + ' reps last time. Same weight, get every set to ' + lo + '.' };
+        note: 'Same weight, get every set to ' + lo + '.' };
     }
     var target = Math.min(hi, minReps + 1);
     return { kg: kg, reps: target, sets: sets, state: 'push',
-      note: 'Same weight. Beat last time: ' + target + ' reps on every set' + (maxRir >= 3 ? ' — you had reps left.' : '.') };
+      note: 'Same weight, ' + target + ' reps on every set.' };
   }
 
   /* Was the exercise stalled (dropped) in the recent sessions? */

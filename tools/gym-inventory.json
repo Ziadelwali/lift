@@ -173,14 +173,13 @@
       "id": "dip_machine",
       "name": "Dip machine (Nautilus)",
       "type": "machine",
-      "status": "listed",
+      "status": "not there",
       "trains": [
         "triceps",
         "chest"
       ],
-      "unlocks": [
-        "Dip_Machine"
-      ]
+      "unlocks": [],
+      "note": "On the official list, but the user says it is not in the gym (2026-10-04). Removed from the program."
     },
     {
       "id": "multistation",

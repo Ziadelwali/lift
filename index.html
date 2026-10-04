@@ -708,6 +708,17 @@ function fixSwaps(){
  E.PROGRAM.A.forEach(function(c){if(bIds.indexOf(c.id)<0)delete st.swaps[c.id];});
  st.swapFix1=1;save();
 }
+/* Machines that turned out not to be at the gym (dip machine, Oct 2026): drop saved swaps to them
+   and put the plan exercise back if today's session hasn't used it yet. */
+var GONE=['Dip_Machine'];
+function fixGone(){
+ var st=state.settings||{},ch=false,ses=activeSession();
+ Object.keys(st.swaps||{}).forEach(function(k){if(GONE.indexOf(st.swaps[k])>=0){delete st.swaps[k];ch=true;}});
+ if(ses)ses.ex.forEach(function(e){if(GONE.indexOf(e.id)>=0&&!e.sets.some(function(x){return x.done;})){
+  e.id=e.base;e.suggest=E.suggest(E.findCfg(e.base),E.history(state,e.base),{calibration:ses.calibration,deload:ses.deload});
+  e.sets=e.sets.map(function(){return {kg:e.suggest.kg,reps:e.suggest.reps,rir:null,done:false};});ch=true;}});
+ if(ch)save();
+}
 /* Moves made before the week was pushed along automatically: push them now (idempotent). */
 function fixMoves(){
  var st=state.settings,mv=st&&st.moves;if(!mv)return;var au=st.autoMoves||{},mon=E.isoDate(mondayOf(todayISO())),changed=false;
@@ -716,7 +727,7 @@ function fixMoves(){
  if(changed)save();
 }
 function render(){
- fixSwaps();fixMoves();
+ fixSwaps();fixMoves();fixGone();
  if(!profileReady()&&view!=='profile'){show('profile');return;}
  ({today:renderToday,train:renderTrain,eat:renderEat,progress:renderProgress,profile:renderProfile})[view]();
 }
@@ -961,7 +972,6 @@ function exBody(e,ei,ses){
  var alts=(cfg.alts||[]).concat(e.id!==e.base?[e.base]:[]).filter(function(a){return a!==e.id&&EX[a];});
  var inf=E.info(e.id)||cfg;
  return (GYM_PHOTO[e.id]?'<button class="gymph" data-gymph="1" aria-label="Show the machine at your gym bigger"><img src="'+GYM_PHOTO[e.id]+'" alt="" loading="lazy"><span>At your gym</span></button>':'')+'<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+
-  '<details style="margin-top:6px"><summary>Step by step</summary><ol>'+ex.instructions.map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol></details>'+
   lastTime(e.id)+
   '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?sg.kg+' kg × '+sg.reps:'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
   '<div class="sethead"><span></span><span>kg</span><span>reps</span><span></span></div>'+
@@ -972,7 +982,7 @@ function exBody(e,ei,ses){
   }).join('')+
   (exDone(e)?'<div class="rirrow feel"><span>How was it?</span>'+feelButtons(ei,e)+'</div>':'')+
   '<div class="row between" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="btn small ghost" data-addset="'+ei+'">+ set</button>'+(alts.length?'<button class="btn small ghost" data-swapopen="'+ei+'">⇄ Other options ('+alts.length+')</button>':'')+'</div>'+
-  (alts.length?'<div id="swaps-'+ei+'" hidden><div class="seg" style="margin-top:10px">'+[['today','Just today'],['always','From now on']].map(function(o){return '<button data-swapkeep="'+o[0]+'"'+(swapKeep===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div><p class="xs" style="margin-top:6px">'+(swapKeep==='always'?'Your pick replaces this exercise in every session from now on.':'Only this session — next time the plan is back to normal. Good when a machine is busy.')+'</p><div class="swaps">'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div></div>':'');
+  (alts.length?'<div id="swaps-'+ei+'" hidden><div class="seg" style="margin-top:10px">'+[['today','Just today'],['always','From now on']].map(function(o){return '<button data-swapkeep="'+o[0]+'"'+(swapKeep===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div><p class="xs" style="margin-top:6px">'+(swapKeep==='always'?'Replaces it in every session.':'Only today. Good when a machine is busy.')+'</p><div class="swaps">'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div></div>':'');
 }
 /* Update one exercise card without redrawing the screen (keeps the photo running). */
 function refreshCard(ei){
@@ -986,7 +996,7 @@ function refreshCard(ei){
 /* "Last time" line: what you did the previous time you did this exercise. */
 function lastTime(id){
  var hs=E.history(state,id),l=hs[hs.length-1];
- if(!l)return '<p class="lasttime">First time — no history yet.</p>';
+ if(!l)return '';
  var same=l.sets.every(function(s){return s.kg===l.sets[0].kg;});
  var txt=same?l.sets[0].kg+' kg × '+l.sets.map(function(s){return s.reps;}).join(', '):l.sets.map(function(s){return s.kg+'×'+s.reps;}).join(' · ');
  return '<p class="lasttime"><span>Last time · '+niceDate(l.date)+'</span><b class="mono">'+txt+'</b></p>';
