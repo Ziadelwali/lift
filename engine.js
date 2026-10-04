@@ -16,7 +16,7 @@
     deloadLoad: 0.9, deloadSets: 0.5,
     stallDrop: 0.9,             // cut load 10 % after two failed sessions
     sessionMinutes: 65,
-    warmupMinutes: 8,
+    warmupMinutes: 10,
     proteinPerKg: { lean: 2.0, high: 2.0 }, // 2 g per kg body weight: the top of the useful range, for maximum muscle while losing fat
     fatShare: 0.25,
     phase: { lean: 0.90, maintain: 1.0, bulk: 1.10 },  // lean = −10 %: small enough that muscle gain is barely slowed
@@ -212,14 +212,16 @@
 
   var SQUAT_HOW = ['Feet shoulder-width apart, arms straight out in front.', 'Sit down slowly as if onto a low chair, chest up, heels on the floor.', 'Stand back up. 10 slow ones.'];
   var WARMUP = {
-    general: { id: 'Bicycling_Stationary', label: 'Easy bike or rower', secs: 210, note: 'Conversational pace. Just warm, not tired.',
-      how: ['Sit on an exercise bike (or the rowing machine).', 'Pedal easily, slow enough that you could talk.', 'Aim to feel warm, not tired.'] },
+    // Walking: easy on the knees at this body weight. Incline warms up faster than walking longer.
+    general: { id: 'treadmill', photo: 'img/gym/treadmill.jpg', label: 'Uphill walk on the treadmill', amount: '6–8 min',
+      note: 'Like walking longer? Add the extra 5–10 min after training.',
+      how: ['Walk at 5.0–5.5 km/h.', 'After 2 min, raise the incline to 5–8 %.', 'A little out of breath, still able to talk.'] },
     A: [
       { id: 'Standing_Hip_Circles', label: 'Hip circles', reps: '8 each way, each leg',
         how: ['Stand on one leg and hold on to something.', 'Lift the other knee up to hip height.', 'Draw big, slow circles with that knee, out to the side and back. 8 each way, then switch legs.'] },
       { id: 'Bodyweight_Squat', label: 'Bodyweight squats', reps: '10 slow', how: SQUAT_HOW },
-      { id: 'Reverse_Flyes', label: 'Light dumbbell reverse fly', reps: '15',
-        how: ['Take very light dumbbells (2–5 kg).', 'Lie chest-down on a bench tilted up, arms hanging down.', 'Lift the arms out to the sides until level with your body, squeeze the shoulder blades together, lower slowly.'] },
+      { id: 'Face_Pull', label: 'Light rope pull to the face', reps: '15',
+        how: ['Cable tower at face height, rope, very light weight.', 'Pull the rope to your face, elbows high.', 'Squeeze the shoulder blades, return slowly.'] },
       { id: 'Arm_Circles', label: 'Arm circles', reps: '10 each way',
         how: ['Stand tall, arms straight out to the sides at shoulder height.', 'Draw small circles with your hands, slowly getting bigger.', '10 circles forwards, then 10 backwards.'] }
     ],

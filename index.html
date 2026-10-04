@@ -108,6 +108,7 @@ nav.tabs button.on svg{background:var(--acc2)}
 details summary{cursor:pointer;color:var(--acc);font-size:13px;list-style:none}
 details summary::-webkit-details-marker{display:none}
 details.fold{display:block}
+.yday{margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
 details.fold>summary{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--ink);font-size:inherit;min-height:28px}
 details.fold>summary::after{content:"";width:9px;height:9px;border-right:2px solid var(--ink3);border-bottom:2px solid var(--ink3);transform:rotate(45deg);margin:-4px 4px 0 0;transition:transform .2s;flex:none}
 details.fold[open]>summary::after{transform:rotate(225deg);margin-top:4px}
@@ -279,6 +280,7 @@ ul.shop li{margin-bottom:4px}
 .wumedia{position:relative;aspect-ratio:850/567;background:#000;border-radius:12px;overflow:hidden}
 .wumedia img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:frameA 2.4s steps(1) infinite}
 .wumedia img.f1{animation-name:frameB}
+.wumedia img.still{animation:none;object-fit:contain}
 .wuhow ol{margin:10px 0 0;padding-left:20px;font-size:14px;color:var(--ink2)}
 .wuhow ol li{margin-bottom:4px}
 @media (prefers-reduced-motion:reduce){.wumedia img{animation:none}.wumedia img.f1{opacity:0}}
@@ -762,7 +764,15 @@ function foodCard(iso,p,mac){
  var sl=E.timeline(state.profile,p,mac).filter(function(s){return s.key!=='train';}),ml=(state.daily[iso]||{}).meals||{},nd=sl.filter(function(s){return ml[s.key];}).length;
  var tail='';if(nd===sl.length||!sl.some(function(s){return !ml[s.key]&&s.t+45>=nowMin();})){var ti=addDays(iso,1),first=E.timeline(state.profile,planFor(ti),mac).filter(function(s){return s.key!=='train';})[0];
   if(first)tail='<p class="xs" style="margin-top:8px">Tomorrow first: <b>'+first.time+' · '+esc(first.what||first.label)+'</b></p>';}
- return '<div class="card eatnext t-food"><div class="row between"><h2>Eating today</h2><span class="chip'+(nd===sl.length?' acc':'')+'">'+nd+' of '+sl.length+' done</span></div><p class="xs" style="margin:2px 0 4px">'+(mac?'Protein today: <b>'+mac.protein+' g</b>. Tap a row when you have had it.':'set up your profile')+'</p>'+timelineHTML(iso,p,mac,true,true)+tail+'</div>';
+ return '<div class="card eatnext t-food"><div class="row between"><h2>Eating today</h2><span class="chip'+(nd===sl.length?' acc':'')+'">'+nd+' of '+sl.length+' done</span></div><p class="xs" style="margin:2px 0 4px">'+(mac?'Protein today: <b>'+mac.protein+' g</b>. Tap a row when you have had it.':'set up your profile')+'</p>'+timelineHTML(iso,p,mac,true,true)+tail+yesterdayHTML(iso,mac)+'</div>';
+}
+/* Forgot to tick something? Yesterday's list stays open for ticking all of today. */
+var keepY=false;
+function yesterdayHTML(iso,mac){
+ var y=addDays(iso,-1),yp=planFor(y),sl=E.timeline(state.profile,yp,mac).filter(function(s){return s.key!=='train';}),ml=(state.daily[y]||{}).meals||{},nd=sl.filter(function(s){return ml[s.key];}).length;
+ if(nd===sl.length||!Object.keys(state.daily).some(function(k){return k<=y;}))return '';
+ var open=keepY;keepY=false;
+ return '<details class="fold yday"'+(open?' open':'')+'><summary><span class="xs">Yesterday: '+nd+' of '+sl.length+' ticked. Forgot one?</span></summary>'+timelineHTML(y,yp,mac,true,true)+'</details>';
 }
 /* Follow the clock: redraw Today every minute and whenever the app comes back to the front
    (a phone app is often left open for hours or overnight). Skipped while typing or with a fold open. */
@@ -859,7 +869,7 @@ function plateHTML(P,small){
 function timelineHTML(iso,p,mac,live,simple){
  var slots=E.timeline(state.profile,p,mac),now=nowMin(),d=state.daily[iso]||{},meals=d.meals||{},nextDone=false;
  var isToday=iso===todayISO();
- return '<ul class="tl">'+slots.map(function(s){
+ return '<ul class="tl" data-day="'+iso+'">'+slots.map(function(s){
   var done=!!meals[s.key],past=isToday&&s.t+45<now,next=isToday&&!nextDone&&!done&&!past;if(next)nextDone=true;
   var cd=next?(s.t>now?'in '+fmtDur(s.t-now):'now'):'';
   if(simple)return '<li'+(s.key!=='train'&&live&&!next?' data-mealrow="'+s.key+'"':'')+' class="'+(s.key==='train'?'train ':'')+(done?'done ':past?'past ':'')+(next?'next':'')+'"><span class="t">'+s.time+'</span><div><div class="l">'+esc(s.what||s.label)+(cd?' <span class="cd">'+cd+'</span>':'')+'</div>'+
@@ -893,7 +903,7 @@ function renderTrain(){
  var wdone=ses.warm||{},anySet=ses.ex.some(function(e){return e.sets.some(function(x){return x.done;});});
  h+='<details class="card fold"'+(anySet?'':' open')+'><summary><h2>Warm-up</h2><span class="xs">≤ '+E.RULES.warmupMinutes+' min</span></summary>'+
   '<p class="xs" style="margin-top:2px">Tap a move to see how it\'s done. Tick the box when you\'ve done it.</p>'+
-  warmItem('gen',wl.general,fmtSec(wl.general.secs),wdone)+
+  warmItem('gen',wl.general,wl.general.amount,wdone)+
   wl[ses.day].map(function(w){return warmItem(w.id,w,w.reps,wdone);}).join('')+
   (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(nm(firstRamp.id))+': '+E.rampSets(firstRamp.sets[0].kg).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
   '</details>';
@@ -918,10 +928,10 @@ function renderTrain(){
 /* Warm-up move: tick box + tap-to-open picture and plain steps. */
 var openWarm={};
 function warmItem(key,w,amount,wdone){
- var ex=EX[w.id],open=!!openWarm[key];
+ var ex=EX[w.id],open=!!openWarm[key],pics=w.photo?[w.photo]:ex?ex.images:null;
  return '<div class="wuwrap" id="wu-'+key+'"><div class="wu'+(open?' open':'')+'"><label class="wubox"><input type="checkbox" data-warm="'+key+'"'+(wdone[key]?' checked':'')+' aria-label="Done"></label>'+
-  '<button class="wuhead" data-wuopen="'+key+'">'+thumb(w.id)+'<span class="wut"><b>'+esc(w.label)+'</b><span class="xs">'+esc(amount)+(open?'':' · how?')+'</span></span><i class="chev"></i></button></div>'+
-  (open&&ex?'<div class="wuhow"><div class="wumedia"><img src="'+ex.images[0]+'" alt=""><img class="f1" src="'+ex.images[1]+'" alt=""></div>'+
+  '<button class="wuhead" data-wuopen="'+key+'">'+(w.photo?'<img class="th" src="'+w.photo+'" alt="" loading="lazy">':thumb(w.id))+'<span class="wut"><b>'+esc(w.label)+'</b><span class="xs">'+esc(amount)+(open?'':' · how?')+'</span></span><i class="chev"></i></button></div>'+
+  (open&&pics?'<div class="wuhow"><div class="wumedia">'+(pics.length>1?'<img src="'+pics[0]+'" alt=""><img class="f1" src="'+pics[1]+'" alt="">':'<img class="still" src="'+pics[0]+'" alt="">')+'</div>'+
    '<ol>'+(w.how||[]).map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol>'+(w.note?'<p class="xs" style="margin-top:4px">'+esc(w.note)+'</p>':'')+'</div>':'')+'</div>';
 }
 /* Sticky session progress: picture per exercise, tap to jump. */
@@ -1170,7 +1180,7 @@ document.addEventListener('click',function(ev){
  if(b.dataset.wkday){wkv.sel=wkv.sel===b.dataset.wkday||b.dataset.wkday===todayISO()?null:b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
  if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
  if(b.dataset.mealdone){var di=todayISO();state.daily[di]=state.daily[di]||{};state.daily[di].meals=state.daily[di].meals||{};state.daily[di].meals[b.dataset.mealdone]=1;save();renderToday();toast('Nice — ticked off');return;}
- if(b.dataset.wuopen){var wk=b.dataset.wuopen;openWarm[wk]=!openWarm[wk];var wses=activeSession();if(!wses)return;var ww=wk==='gen'?E.WARMUP.general:E.WARMUP[wses.day].filter(function(x){return x.id===wk;})[0];var wel=$('#wu-'+wk);if(ww&&wel)wel.outerHTML=warmItem(wk,ww,wk==='gen'?fmtSec(ww.secs):ww.reps,wses.warm||{});return;}
+ if(b.dataset.wuopen){var wk=b.dataset.wuopen;openWarm[wk]=!openWarm[wk];var wses=activeSession();if(!wses)return;var ww=wk==='gen'?E.WARMUP.general:E.WARMUP[wses.day].filter(function(x){return x.id===wk;})[0];var wel=$('#wu-'+wk);if(ww&&wel)wel.outerHTML=warmItem(wk,ww,wk==='gen'?ww.amount:ww.reps,wses.warm||{});return;}
  if(b.dataset.mealrow){if(ev.target.tagName==='INPUT')return;var mi=b.querySelector('input');if(mi&&!mi.disabled){mi.checked=!mi.checked;mi.dispatchEvent(new Event('change',{bubbles:true}));}return;}
  if(b.dataset.rest){rest.end+=(+b.dataset.rest)*1000;rest.total=Math.max(1,rest.total+(+b.dataset.rest));if(rest.end>Date.now())$('#rest').classList.remove('over');tickRest();return;}
  if(b.dataset.jump){trainFocus=+b.dataset.jump;renderTrain();scrollTo(0,0);return;}
@@ -1244,7 +1254,7 @@ document.addEventListener('change',function(ev){
  if(t.dataset.daily){var iso=todayISO();var dv=num(t.value);if(t.dataset.daily==='weight'){if(dv!=null){state.weight[iso]=dv;state.profile.weight=dv;}else delete state.weight[iso];}
   else{state.daily[iso]=state.daily[iso]||{};state.daily[iso][t.dataset.daily]=dv;}save();if(t.dataset.daily==='waist'&&view==='progress'){var sy=scrollY;renderProgress();scrollTo(0,sy);}
   if(view==='today'&&t.closest('.weigh')){renderToday();toast('Saved ✓');}return;}
- if(t.dataset.meal){var iso2=todayISO();state.daily[iso2]=state.daily[iso2]||{};state.daily[iso2].meals=state.daily[iso2].meals||{};state.daily[iso2].meals[t.dataset.meal]=t.checked?1:0;save();renderToday();return;}
+ if(t.dataset.meal){var dl=t.closest('[data-day]'),iso2=dl?dl.dataset.day:todayISO();if(iso2!==todayISO())keepY=true;state.daily[iso2]=state.daily[iso2]||{};state.daily[iso2].meals=state.daily[iso2].meals||{};state.daily[iso2].meals[t.dataset.meal]=t.checked?1:0;save();renderToday();return;}
  if(t.dataset.p){var v=t.value;if(['age','height','weight','goal1','goal2','lattes'].indexOf(t.dataset.p)>=0)v=num(v);state.profile[t.dataset.p]=v;save();return;}
  if(t.dataset.prio){var list=(state.profile.priority||['shoulders','back']).slice();if(t.checked){if(list.length>=2){t.checked=false;toast('Two at most');return;}list.push(t.dataset.prio);}else list=list.filter(function(x){return x!==t.dataset.prio;});state.profile.priority=list;save();return;}
  if(t.dataset.day||t.dataset.time){var sched=Object.assign({},state.profile.sched||{1:'16:00',3:'16:00',5:'16:00'});
