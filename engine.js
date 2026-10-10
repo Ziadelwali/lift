@@ -244,6 +244,9 @@
   function hm(t) { var p = (t || '00:00').split(':'); return (+p[0]) * 60 + (+p[1]); }
   function fmtHM(m) { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
   function epley(kg, reps) { return reps >= 1 ? kg * (1 + reps / 30) : 0; }
+  /* Calendar-day arithmetic on 'YYYY-MM-DD' strings: safe across daylight-saving changes. */
+  function addDaysISO(iso, n) { var d = parseISO(iso); d.setDate(d.getDate() + n); return isoDate(d); }
+  function daysBetween(a, b) { return Math.round((parseISO(b) - parseISO(a)) / 864e5); }
 
   /* Training days: weekday (0 = Sun) -> 'HH:MM'. Mon/Wed/Fri 16:00 until the profile says otherwise. */
   function schedOf(profile) { return (profile && profile.sched) || { 1: '16:00', 3: '16:00', 5: '16:00' }; }
@@ -536,6 +539,7 @@
   function reminderEvents(profile, mac, fromIso, withMeals) {
     var sched = schedOf(profile), groups = {};
     function add(key, title, t, mins, wd, note) {
+      if (t >= 1440) { t -= 1440; wd = (wd + 1) % 7; } else if (t < 0) { t += 1440; wd = (wd + 6) % 7; }   // after midnight = the next weekday
       var k = key + '|' + t; if (!groups[k]) groups[k] = { key: key, title: title, time: fmtHM(t), mins: mins, days: [], note: note };
       if (groups[k].days.indexOf(wd) < 0) groups[k].days.push(wd);
     }
@@ -563,6 +567,7 @@
     var d = parseISO(iso), m = hm(hhmm) + (plusMin || 0); d.setMinutes(m);
     return d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + 'T' + pad(d.getHours()) + pad(d.getMinutes()) + '00';
   }
+  function icsText(s) { return String(s).replace(/[\\;,]/g, function (c) { return '\\' + c; }).replace(/\n/g, '\\n'); }
   function calendarICS(profile, mac, fromIso, withMeals) {
     var ev = reminderEvents(profile, mac, fromIso, withMeals), now = new Date();
     var stamp = now.getUTCFullYear() + pad(now.getUTCMonth() + 1) + pad(now.getUTCDate()) + 'T' + pad(now.getUTCHours()) + pad(now.getUTCMinutes()) + '00Z';
@@ -570,8 +575,8 @@
     ev.forEach(function (g) {
       L.push('BEGIN:VEVENT', 'UID:lift-' + g.key + '-' + g.time.replace(':', '') + '@lift', 'DTSTAMP:' + stamp,
         'DTSTART:' + icsStamp(g.firstDate, g.time), 'DTEND:' + icsStamp(g.firstDate, g.time, g.mins), 'RRULE:' + g.rrule,
-        'SUMMARY:' + g.title, 'DESCRIPTION:' + g.note,
-        'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + g.title, 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT');
+        'SUMMARY:' + icsText(g.title), 'DESCRIPTION:' + icsText(g.note),
+        'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + icsText(g.title), 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT');
     });
     L.push('END:VCALENDAR');
     return L.join('\r\n') + '\r\n';
@@ -580,6 +585,44 @@
     return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(g.title) +
       '&dates=' + icsStamp(g.firstDate, g.time) + '/' + icsStamp(g.firstDate, g.time, g.mins) +
       '&recur=' + encodeURIComponent('RRULE:' + g.rrule) + '&details=' + encodeURIComponent(g.note);
+  }
+
+  /* ---------- data hygiene ----------
+     Synced data comes from other devices (and older app versions): keep only well-formed values so
+     nothing odd reaches the screen. Mutates state; returns true if anything changed. */
+  var DATE_RE = /^\d{4}-\d{2}-\d{2}$/, HM_RE = /^\d{2}:\d{2}$/, ID_RE = /^[A-Za-z0-9_-]+$/;
+  function sanitize(state) {
+    var ch = false;
+    function n(v) { return v == null || v === '' ? null : (typeof v === 'number' && isFinite(v) ? v : (isFinite(+v) && String(v).trim() !== '' ? +v : NaN)); }
+    function numField(o, k) { if (!(k in o)) return; var v = n(o[k]); if (v !== o[k]) { if (v == null || isNaN(v)) delete o[k]; else o[k] = v; ch = true; } }
+    function timeField(o, k) { if (k in o && !(typeof o[k] === 'string' && HM_RE.test(o[k]))) { delete o[k]; ch = true; } }
+    function dateMap(m) { Object.keys(m || {}).forEach(function (k) { if (!DATE_RE.test(k)) { delete m[k]; ch = true; } }); }
+    var p = state.profile || {};
+    ['age', 'height', 'weight', 'goal1', 'goal2', 'lattes'].forEach(function (k) { numField(p, k); });
+    ['wake', 'lunch', 'bed'].forEach(function (k) { timeField(p, k); });
+    if (p.sched) Object.keys(p.sched).forEach(function (d) { if (!/^[0-6]$/.test(d)) { delete p.sched[d]; ch = true; } else timeField(p.sched, d); });
+    if (p.priority && !Array.isArray(p.priority)) { delete p.priority; ch = true; }
+    if (p.priority) { var pr = p.priority.filter(function (k) { return PRIORITY[k]; }); if (pr.length !== p.priority.length) { p.priority = pr; ch = true; } }
+    dateMap(state.weight);
+    Object.keys(state.weight || {}).forEach(function (k) { numField(state.weight, k); });
+    dateMap(state.daily);
+    Object.keys(state.daily || {}).forEach(function (k) { var d = state.daily[k]; if (!d || typeof d !== 'object') { delete state.daily[k]; ch = true; return; } ['waist', 'sleep', 'steps'].forEach(function (f) { numField(d, f); }); });
+    dateMap(state.sessions);
+    Object.keys(state.sessions || {}).forEach(function (k) {
+      var s = state.sessions[k];
+      if (!s || typeof s !== 'object' || !Array.isArray(s.ex)) { delete state.sessions[k]; ch = true; return; }
+      if (s.day !== 'A' && s.day !== 'B') { s.day = 'A'; ch = true; }
+      timeField(s, 'time');
+      ['week', 'started', 'finished'].forEach(function (f) { numField(s, f); });
+      s.ex = s.ex.filter(function (e) { var ok = e && typeof e.id === 'string' && ID_RE.test(e.id) && typeof e.base === 'string' && ID_RE.test(e.base) && Array.isArray(e.sets); if (!ok) ch = true; return ok; });
+      s.ex.forEach(function (e) {
+        if (e.feel != null && ['easy', 'right', 'hard'].indexOf(e.feel) < 0) { delete e.feel; ch = true; }
+        e.sets.forEach(function (x) { ['kg', 'reps', 'rir'].forEach(function (f) { numField(x, f); }); });
+      });
+    });
+    var sw = (state.settings || {}).swaps || {};
+    Object.keys(sw).forEach(function (k) { if (!ID_RE.test(k) || typeof sw[k] !== 'string' || !ID_RE.test(sw[k])) { delete sw[k]; ch = true; } });
+    return ch;
   }
 
   /* ---------- progress ---------- */
@@ -591,8 +634,8 @@
   function weightTrend(state) {
     var s = weightSeries(state);
     return s.map(function (pt, i) {
-      var from = parseISO(pt.date).getTime() - 6 * 864e5, vals = [];
-      for (var j = i; j >= 0 && parseISO(s[j].date).getTime() >= from; j--) vals.push(s[j].kg);
+      var from = addDaysISO(pt.date, -6), vals = [];
+      for (var j = i; j >= 0 && s[j].date >= from; j--) vals.push(s[j].kg);
       return { date: pt.date, kg: pt.kg, avg: vals.reduce(function (a, b) { return a + b; }, 0) / vals.length };
     });
   }
@@ -602,10 +645,10 @@
     if (t.length < 8) return { rate: null, text: 'Weigh in most mornings. After about 2 weeks the trend tells you whether to eat a bit more or a bit less.' };
     var last = t[t.length - 1], back = null;
     for (var i = t.length - 1; i >= 0; i--) {
-      if (parseISO(last.date).getTime() - parseISO(t[i].date).getTime() >= 7 * 864e5) { back = t[i]; break; }
+      if (daysBetween(t[i].date, last.date) >= 7) { back = t[i]; break; }
     }
     if (!back) return { rate: null, text: 'Keep weighing in — not enough spread of dates yet.' };
-    var days = (parseISO(last.date).getTime() - parseISO(back.date).getTime()) / 864e5;
+    var days = daysBetween(back.date, last.date);
     var rate = (last.avg - back.avg) / days * 7;
     var phase = (state.profile && state.profile.phase) || 'lean', band = RULES.trendTarget[phase];
     var text;
@@ -616,10 +659,9 @@
   }
 
   function weeklyVolume(state, exdb, weekEndISO) {
-    var end = weekEndISO ? parseISO(weekEndISO) : new Date(); end.setHours(23, 59, 59, 999);
-    var start = end.getTime() - 7 * 864e5, vol = {};
+    var end = weekEndISO || isoDate(new Date()), start = addDaysISO(end, -6), vol = {};
     completedSessions(state).forEach(function (k) {
-      var t = parseISO(k).getTime(); if (t < start || t > end.getTime()) return;
+      if (k < start || k > end) return;
       (state.sessions[k].ex || []).forEach(function (e) {
         var n = (e.sets || []).filter(function (s) { return s.done && s.reps > 0; }).length;
         var ex = exdb[e.id]; if (!ex) return;
@@ -683,6 +725,7 @@
   return {
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
     RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
+    sanitize: sanitize, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
