@@ -2,7 +2,7 @@
    index.html and by tools/test-engine.js (node). Everything here follows the
    evidence summarised in README.md: 10-20 hard sets per muscle per week,
    1-3 reps in reserve, double progression, periodic deloads, protein spread
-   over ~4 feeds, creatine daily. */
+   over 5 feeds (2 meals + 3 shakes), creatine daily. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.ENGINE = factory();
@@ -10,14 +10,13 @@
   'use strict';
 
   var RULES = {
-    rirTarget: [1, 3],          // reps in reserve on working sets
     calibrationSessions: 3,     // first week: 2 sets, find loads
     deloadEvery: 6,             // every 6th training week
     deloadLoad: 0.9, deloadSets: 0.5,
     stallDrop: 0.9,             // cut load 10 % after two failed sessions
     sessionMinutes: 65,
     warmupMinutes: 10,
-    proteinPerKg: { lean: 2.0, high: 2.0 }, // 2 g per kg body weight: the top of the useful range, for maximum muscle while losing fat
+    proteinPerKg: 2.0, // 2 g per kg body weight: the top of the useful range, for maximum muscle while losing fat
     fatShare: 0.25,
     phase: { lean: 0.90, maintain: 1.0, bulk: 1.10 },  // lean = −10 %: small enough that muscle gain is barely slowed
     activity: { desk: 1.35, feet: 1.5, active: 1.65 },
@@ -246,6 +245,11 @@
   function fmtHM(m) { m = ((m % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
   function epley(kg, reps) { return reps >= 1 ? kg * (1 + reps / 30) : 0; }
 
+  /* Training days: weekday (0 = Sun) -> 'HH:MM'. Mon/Wed/Fri 16:00 until the profile says otherwise. */
+  function schedOf(profile) { return (profile && profile.sched) || { 1: '16:00', 3: '16:00', 5: '16:00' }; }
+  function mondayOf(iso) { var d = parseISO(iso); d.setDate(d.getDate() - (d.getDay() + 6) % 7); return isoDate(d); }
+  function freshSets(sg) { var sets = []; for (var i = 0; i < sg.sets; i++) sets.push({ kg: sg.kg, reps: sg.reps, rir: null, done: false }); return sets; }
+
   function exercisesFor(day, profile) {
     var prio = (profile && profile.priority) || ['shoulders', 'back'];
     return PROGRAM[day].filter(function (e) { return !e.prio || prio.indexOf(e.prio) !== -1; });
@@ -338,7 +342,7 @@
   }
 
   /* Was the exercise stalled (dropped) in the recent sessions? */
-  function recentStalls(state, profile, lookback) {
+  function recentStalls(state, lookback) {
     var keys = completedSessions(state).slice(-(lookback || 3)), count = 0, seen = {};
     keys.forEach(function (k) {
       (state.sessions[k].ex || []).forEach(function (e) {
@@ -363,7 +367,7 @@
     var st = state.settings || {}, moves = Object.assign({}, st.moves || {}), auto = Object.assign({}, st.autoMoves || {});
     moves[fromISO] = toISO;
     if (!toISO) return { moves: moves, auto: auto };
-    var sched = (state.profile && state.profile.sched) || { 1: '16:00', 3: '16:00', 5: '16:00' };
+    var sched = schedOf(state.profile);
     function add(iso, n) { var d = parseISO(iso); d.setDate(d.getDate() + n); return isoDate(d); }
     function trains(iso) { if (iso in moves) return false; for (var k in moves) if (moves[k] === iso) return true; return sched[parseISO(iso).getDay()] != null; }
     var cur = toISO;
@@ -383,7 +387,7 @@
      undid it and wants Monday as normal. */
   function sundayShift(state, todayISO) {
     var st = state.settings || {}, mv = st.moves || {}, ss = state.sessions || {};
-    var sched = (state.profile && state.profile.sched) || { 1: '16:00', 3: '16:00', 5: '16:00' };
+    var sched = schedOf(state.profile);
     var t = parseISO(todayISO); t.setDate(t.getDate() + (8 - t.getDay()) % 7);   // today if Monday, else next Monday
     var mon = isoDate(t); t.setDate(t.getDate() - 1); var sun = isoDate(t); t.setDate(t.getDate() + 2); var tue = isoDate(t);
     if (sched[1] == null || mon in mv || movedFrom(state, mon) || (st.keepMon || {})[mon] || ss[mon]) return null;
@@ -400,7 +404,7 @@
   }
   function hasDoneSet(ses) { return (ses.ex || []).some(function (e) { return (e.sets || []).some(function (s) { return s.done; }); }); }
   function plan(dateISO, state, todayISO) {
-    var profile = state.profile || {}, sched = profile.sched || { 1: '16:00', 3: '16:00', 5: '16:00' };
+    var profile = state.profile || {}, sched = schedOf(profile);
     var d = parseISO(dateISO), wd = d.getDay();
     var existing = state.sessions && state.sessions[dateISO];
     // a session opened on a past day but never trained is ignored
@@ -432,9 +436,7 @@
       var id = swap || cfg.id;
       var useCfg = Object.assign({}, cfg, { id: id });
       var sg = suggest(useCfg, history(state, id), { calibration: p.calibration, deload: p.deload });
-      var sets = [];
-      for (var i = 0; i < sg.sets; i++) sets.push({ kg: sg.kg, reps: sg.reps, rir: null, done: false });
-      return { id: id, base: cfg.id, suggest: sg, sets: sets };
+      return { id: id, base: cfg.id, suggest: sg, sets: freshSets(sg) };
     });
     return { date: p.date, day: p.day, time: p.time, week: p.week, calibration: p.calibration, deload: p.deload,
       started: null, finished: null, done: false, warm: {}, ex: ex };
@@ -452,9 +454,8 @@
     var bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === 'f' ? -161 : 5);
     var tdee = bmr * (RULES.activity[p.activity] || 1.5);
     var phase = p.phase || 'lean';
-    var kcal = Math.round((tdee * RULES.phase[phase] + (p.kcalAdj || 0)) / 10) * 10;
-    var perKg = bmi(p) >= 30 ? RULES.proteinPerKg.high : RULES.proteinPerKg.lean;
-    var protein = Math.round(p.weight * perKg);
+    var kcal = Math.round(tdee * RULES.phase[phase] / 10) * 10;
+    var protein = Math.round(p.weight * RULES.proteinPerKg);
     var fat = Math.round(kcal * RULES.fatShare / 9);
     var carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
     return { bmr: Math.round(bmr), tdee: Math.round(tdee), kcal: kcal, protein: protein, fat: fat, carbs: carbs, phase: phase, bmi: bmi(p) };
@@ -493,7 +494,7 @@
     return { what: meal === 1 ? 'Lunch' : 'Dinner', detail: t + ' of protein, a fist of vegetables, a cupped hand of rice, potatoes or bread.' };
   }
 
-  /* Clock-time eating schedule for a date: 2 meals + 2 shakes (+ creatine). */
+  /* Clock-time eating schedule for a date: 2 meals + 3 shakes (+ creatine). */
   function timeline(profile, p, mac) {
     var wake = hm(profile.wake || '06:30'), bed = hm(profile.bed || '22:30');
     if (bed <= wake) bed += 1440;
@@ -533,7 +534,7 @@
      Same time on several weekdays = one event with BYDAY. Floating local times. */
   var BYDAY = ['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'];
   function reminderEvents(profile, mac, fromIso, withMeals) {
-    var sched = profile.sched || { 1: '16:00', 3: '16:00', 5: '16:00' }, groups = {};
+    var sched = schedOf(profile), groups = {};
     function add(key, title, t, mins, wd, note) {
       var k = key + '|' + t; if (!groups[k]) groups[k] = { key: key, title: title, time: fmtHM(t), mins: mins, days: [], note: note };
       if (groups[k].days.indexOf(wd) < 0) groups[k].days.push(wd);
@@ -607,11 +608,11 @@
     var days = (parseISO(last.date).getTime() - parseISO(back.date).getTime()) / 864e5;
     var rate = (last.avg - back.avg) / days * 7;
     var phase = (state.profile && state.profile.phase) || 'lean', band = RULES.trendTarget[phase];
-    var text, adj = 0;
-    if (rate < band[0]) { text = 'Losing faster than ' + Math.abs(band[0]) + ' kg a week — that risks muscle. Eat a bit more: a bigger handful of rice, potatoes or bread at lunch and dinner, or a banana with the shake.'; adj = 150; }
-    else if (rate > band[1]) { text = phase === 'bulk' ? 'Gaining faster than planned — a bit less rice, potatoes or bread.' : 'Weight is not coming down. Make the rice, potatoes or bread a bit smaller and skip snacks — keep the protein. Or walk 2,000 more steps a day.'; adj = -150; }
+    var text;
+    if (rate < band[0]) { text = 'Losing faster than ' + Math.abs(band[0]) + ' kg a week — that risks muscle. Eat a bit more: a bigger handful of rice, potatoes or bread at lunch and dinner, or a banana with the shake.'; }
+    else if (rate > band[1]) { text = phase === 'bulk' ? 'Gaining faster than planned — a bit less rice, potatoes or bread.' : 'Weight is not coming down. Make the rice, potatoes or bread a bit smaller and skip snacks — keep the protein. Or walk 2,000 more steps a day.'; }
     else text = 'On track (' + band[0] + ' to ' + band[1] + ' kg a week). Keep eating the way you do.';
-    return { rate: rate, text: text, adj: adj };
+    return { rate: rate, text: text };
   }
 
   function weeklyVolume(state, exdb, weekEndISO) {
@@ -683,6 +684,7 @@
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
     RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
+    schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
     macros: macros, timeline: timeline, weightSeries: weightSeries, weightTrend: weightTrend,

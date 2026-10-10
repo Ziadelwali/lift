@@ -107,7 +107,7 @@ var w = {}; for (var i = 0; i < 21; i++) { var d = new Date(2026, 8, 1 + i); w[E
 st.weight = w;
 var ta = E.trendAdvice(st);
 eq('trend rate ~-0.49', Math.round(ta.rate * 100) / 100, -0.49);
-eq('trend in band', ta.adj, 0);
+eq('trend in band', /^On track/.test(ta.text), true);
 
 
 // ---- REST codec ----
