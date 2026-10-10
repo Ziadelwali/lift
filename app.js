@@ -66,7 +66,7 @@ function adoptRemote(remote){
   var sec=parts[1],k=parts.slice(2).join('.').replace(/^`|`$/g,'').replace(/\\(.)/g,'$1');
   if(k in (state[sec]||{}))fresh[sec][k]=state[sec][k];else delete fresh[sec][k];
  });
- state=fresh;
+ state=fresh;migrate();
  try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}
  var a=document.activeElement;
  if(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))a.addEventListener('blur',function(){render();},{once:true});else render();
@@ -84,7 +84,7 @@ function pull(){
    if(!lastSynced){
     var local=snapshotState(),merged={};
     SYNC_SECTIONS.forEach(function(sec){merged[sec]=Object.assign({},local[sec]||{},remote[sec]||{});});
-    setBase(remote);state=merged;try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}render();
+    setBase(remote);state=merged;migrate();try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}render();
    }else if(doc.updateTime!==SYNC.updateTime){adoptRemote(remote);setBase(remote);}
    SYNC.updateTime=doc.updateTime;setSyncLine('Live sync on',true);
   });
@@ -259,7 +259,7 @@ function tickRest(){
  if(left<=0&&!el.classList.contains('over')){el.classList.add('over');beep();buzz();}
  if(left<-120)stopRest();
 }
-function stopRest(){clearInterval(rest.t);rest.end=0;$('#rest').classList.remove('on');rest.set=null;restRir();}
+function stopRest(){clearInterval(rest.t);rest.end=0;$('#rest').classList.remove('on');restRir();}
 /* "How was it?" once per exercise, after its last set. It stays on the bar (also after the
    rest timer ends) until answered, because it is easy to forget. */
 function restRir(){
@@ -298,30 +298,24 @@ function show(v){
  window.scrollTo(0,0);render();measureBars();
 }
 $$('nav.tabs button').forEach(function(b){b.addEventListener('click',function(){show(b.dataset.v);});});
-/* One-off (Sep 2026): the day-A swaps were made on a busy day; the user keeps the day-B ones. */
-function fixSwaps(){
- var st=state.settings;if(!st||st.swapFix1||!st.swaps)return;
- var bIds=E.PROGRAM.B.map(function(c){return c.id;});
- E.PROGRAM.A.forEach(function(c){if(bIds.indexOf(c.id)<0)delete st.swaps[c.id];});
- st.swapFix1=1;save();
-}
-/* Machines that turned out not to be at the gym (dip machine, Oct 2026): drop saved swaps to them
-   and put the plan exercise back if today's session hasn't used it yet. */
-var GONE=['Dip_Machine'];
-function fixGone(){
- var st=state.settings||{},ch=false,ses=activeSession();
- Object.keys(st.swaps||{}).forEach(function(k){if(GONE.indexOf(st.swaps[k])>=0){delete st.swaps[k];ch=true;}});
- if(ses)ses.ex.forEach(function(e){if(GONE.indexOf(e.id)>=0&&!e.sets.some(function(x){return x.done;})){
-  e.id=e.base;e.suggest=E.suggest(E.findCfg(e.base),E.history(state,e.base),{calibration:ses.calibration,deload:ses.deload});
-  e.sets=e.sets.map(function(){return {kg:e.suggest.kg,reps:e.suggest.reps,rir:null,done:false};});ch=true;}});
+/* Data upkeep, run at start and whenever another device's copy arrives.
+   settings.schema counts the one-off migrations already applied to this data. */
+var SCHEMA=1;
+function migrate(){
+ var st=state.settings,ch=false;
+ if((st.schema||0)<1){
+  // moves made before the week was pushed along automatically: push them now
+  var mv=st.moves||{},au=st.autoMoves||{},mon=E.mondayOf(todayISO());
+  Object.keys(mv).sort().forEach(function(k){if(k<mon||!mv[k]||au[k])return;var sh=E.shiftWeek(state,k,mv[k]);st.moves=sh.moves;st.autoMoves=sh.auto;au=sh.auto;});
+  delete st.swapFix1;st.schema=1;ch=true;
+ }
+ // exercises that left the program (e.g. the dip machine, Oct 2026): drop saved swaps to them and
+ // put the plan exercise back in an open session that hasn't used it yet
+ Object.keys(st.swaps||{}).forEach(function(k){if(!EX[st.swaps[k]]||!EX[k]){delete st.swaps[k];ch=true;}});
+ var ses=activeSession();
+ if(ses)ses.ex.forEach(function(e){if(!EX[e.id]&&EX[e.base]&&!e.sets.some(function(x){return x.done;})){
+  e.id=e.base;e.suggest=E.suggest(E.findCfg(e.base),E.history(state,e.base),{calibration:ses.calibration,deload:ses.deload});e.sets=E.freshSets(e.suggest);ch=true;}});
  if(ch)save();
-}
-/* Moves made before the week was pushed along automatically: push them now (idempotent). */
-function fixMoves(){
- var st=state.settings,mv=st&&st.moves;if(!mv)return;var au=st.autoMoves||{},mon=E.isoDate(mondayOf(todayISO())),changed=false;
- Object.keys(mv).sort().forEach(function(k){if(k<mon||!mv[k]||au[k])return;var sh=E.shiftWeek(state,k,mv[k]);
-  if(JSON.stringify(sh.moves)!==JSON.stringify(st.moves)){st.moves=sh.moves;st.autoMoves=sh.auto;au=sh.auto;changed=true;}});
- if(changed)save();
 }
 /* Trained on Sunday: Monday rests and the week moves along by itself (undo keeps Monday). */
 function fixSunday(){
@@ -329,7 +323,7 @@ function fixSunday(){
  var r=E.shiftWeek(state,sh.from,sh.to);st.moves=r.moves;st.autoMoves=r.auto;save();
 }
 function render(){
- fixSwaps();fixMoves();fixSunday();fixGone();
+ fixSunday();
  if(!profileReady()&&view!=='profile'){show('profile');return;}
  ({today:renderToday,train:renderTrain,eat:renderEat,progress:renderProgress,profile:renderProfile})[view]();
 }
@@ -388,7 +382,6 @@ setInterval(clockTick,60000);
 document.addEventListener('visibilitychange',function(){if(!document.hidden)clockTick(true);});
 /* Week view: 7 days at a glance (training days), tap a day for its plan. Up to 4 weeks ahead. */
 var wkv={off:0,sel:null};
-function mondayOf(iso){var d=E.parseISO(iso),x=(d.getDay()+6)%7;d.setDate(d.getDate()-x);return d;}
 function dayPlan(iso){
  var today=todayISO(),p=planFor(iso),ses=state.sessions[iso];
  if(iso>today&&p.training){   // which session (A/B) it will be: count scheduled sessions from today
@@ -400,8 +393,8 @@ function dayPlan(iso){
 }
 function weekCard(mac){
  if(!mac)return '';
- var today=todayISO(),m=mondayOf(today);m.setDate(m.getDate()+wkv.off*7);
- var days=[];for(var i=0;i<7;i++){var d=new Date(m);d.setDate(m.getDate()+i);days.push(E.isoDate(d));}
+ var today=todayISO(),m=addDays(E.mondayOf(today),wkv.off*7);
+ var days=[];for(var i=0;i<7;i++)days.push(addDays(m,i));
  var sel=wkv.sel&&days.indexOf(wkv.sel)>=0?wkv.sel:null;
  var DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
  var strip=days.map(function(di){var dp=dayPlan(di),d=E.parseISO(di);
@@ -678,14 +671,14 @@ function renderProgress(){
  h+='<div class="card"><h2>Hard sets per muscle, last 7 days</h2><p class="xs" style="margin:4px 0 8px">Target band 10–16 (priority muscles 14–20). Secondary muscles count half.</p>'+volumeChart()+'</div>';
  $('#v-progress').innerHTML=h;
 }
-function weekBests(){var m=E.isoDate(mondayOf(todayISO())),out=[];Object.keys(state.sessions).filter(function(k){return k>=m;}).sort().forEach(function(k){(state.sessions[k].ex||[]).forEach(function(e){e.sets.forEach(function(x){if(x.pr&&x.done)out.push({id:e.id,kg:x.kg,reps:x.reps,date:k});});});});return out;}
-function weekSessions(){var d=new Date(),day=(d.getDay()+6)%7,mon=new Date(d);mon.setDate(d.getDate()-day);var m=E.isoDate(mon);return E.completedSessions(state).filter(function(k){return k>=m;}).length;}
+function weekBests(){var m=E.mondayOf(todayISO()),out=[];Object.keys(state.sessions).filter(function(k){return k>=m;}).sort().forEach(function(k){(state.sessions[k].ex||[]).forEach(function(e){e.sets.forEach(function(x){if(x.pr&&x.done)out.push({id:e.id,kg:x.kg,reps:x.reps,date:k});});});});return out;}
+function weekSessions(){var m=E.mondayOf(todayISO());return E.completedSessions(state).filter(function(k){return k>=m;}).length;}
 function streakWeeks(){
  var done=E.completedSessions(state);if(!done.length)return 0;
- var weeks={};done.forEach(function(k){var d=E.parseISO(k),day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);weeks[E.isoDate(d)]=(weeks[E.isoDate(d)]||0)+1;});
- var d=new Date(),day=(d.getDay()+6)%7;d.setDate(d.getDate()-day);var n=0,cur=E.isoDate(d);
- if(!weeks[cur]){d.setDate(d.getDate()-7);cur=E.isoDate(d);}
- while(weeks[cur]>=2){n++;d.setDate(d.getDate()-7);cur=E.isoDate(d);}
+ var weeks={};done.forEach(function(k){var m=E.mondayOf(k);weeks[m]=(weeks[m]||0)+1;});
+ var n=0,cur=E.mondayOf(todayISO());
+ if(!weeks[cur])cur=addDays(cur,-7);
+ while(weeks[cur]>=2){n++;cur=addDays(cur,-7);}
  return n;
 }
 function lineChart(pts,opts){
@@ -754,7 +747,7 @@ function volumeChart(){
 
 /* ---- Profile ---- */
 function renderProfile(){
- var p=state.profile,sched=p.sched||{1:'16:00',3:'16:00',5:'16:00'},prio=p.priority||['shoulders','back'];
+ var p=state.profile,sched=E.schedOf(p),prio=p.priority||['shoulders','back'];
  function opt(list,cur){return list.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===cur?' selected':'')+'>'+o[1]+'</option>';}).join('');}
  var h=(profileReady()?'':'<div class="card" style="margin-top:14px;border-color:var(--acc)"><h2>Welcome</h2><p class="sm" style="margin-top:6px">Fill this in once. It sets your calories, protein, and the training calendar. Everything is private to your password.</p></div>');
  h+='<div class="card"><h2>You</h2><div class="grid2">'+
@@ -783,7 +776,7 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-gymph]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-gymph]');if(!b)return;
  if(b.dataset.gymph){b.classList.toggle('big');return;}
  if(b.dataset.wkday){wkv.sel=wkv.sel===b.dataset.wkday||b.dataset.wkday===todayISO()?null:b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
  if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
@@ -806,7 +799,6 @@ document.addEventListener('click',function(ev){
  if(b.dataset.swapto){var sw=b.dataset.swapto.split(':');doSwap(+sw[0],sw.slice(1).join(':'));return;}
  var ses=activeSession();
  if(b.dataset.feel){var fe=b.dataset.feel.split(':'),fx=ses.ex[+fe[0]];setFeel(fx,fe[1]);save();refreshCard(+fe[0]);if(rest.ask===+fe[0])rest.ask=null;restRir();return;}
- if(b.dataset.rirset){var rr=b.dataset.rirset.split(':');ses.ex[+rr[0]].sets[+rr[1]].rir=+rr[2];save();refreshCard(+rr[0]);restRir();return;}
  if(b.dataset.step){var a=b.dataset.step.split(':'),e=ses.ex[+a[1]],si=+a[2],s=e.sets[si],inc=+a[3];var cur=+s[a[0]]||0;s[a[0]]=Math.max(0,Math.round((cur+inc)*100)/100);
   var inp=$('[data-val="'+a[0]+':'+a[1]+':'+si+'"]');if(inp)inp.value=s[a[0]];
   if(a[0]==='kg'&&!s.done)e.sets.forEach(function(x,i){if(i>si&&!x.done&&(x.kg==null||x.kg===cur)){x.kg=s.kg;var q=$('[data-val="kg:'+a[1]+':'+i+'"]');if(q)q.value=x.kg;}});
@@ -817,14 +809,13 @@ document.addEventListener('click',function(ev){
    var beat=ex.sets.some(function(x){return x!==st&&x.pr;});
    if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+st.kg+' kg × '+st.reps+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
    var cfg=E.findCfg(ex.base)||E.findCfg(ex.id);var lastSet=exDone(ex);// last set: no timer over the next exercise (walking to the next machine is the rest), only the question
-   if(lastSet){clearInterval(rest.t);rest.end=0;rest.set=null;if(!ex.feel)rest.ask=+t[0];}else{startRest(cfg.rest);rest.set=[+t[0],+t[1]];}restRir();
+   if(lastSet){clearInterval(rest.t);rest.end=0;if(!ex.feel)rest.ask=+t[0];}else startRest(cfg.rest);restRir();
    var ei=+t[0];if(lastSet)delete openCards[ei];save();refreshCard(ei);
    if(lastSet){var nx=nextUndone(ses,ei+1);if(nx>=0)setTimeout(function(){ses.warmShut=true;trainFocus=nx;renderTrain();scrollTo(0,0);toast('Next: '+nm(ses.ex[nx].id));},700);}
    return;}
   else{st.done=false;delete st.pr;}
   save();refreshCard(+t[0]);return;}
- if(b.dataset.delset){var dei=+b.dataset.delset,dex=ses.ex[dei],dl=dex.sets.length-1;if(dl<1||dex.sets[dl].done)return;dex.sets.pop();
-  if(rest.set&&rest.set[0]===dei&&rest.set[1]===dl)rest.set=null;save();refreshCard(dei);return;}
+ if(b.dataset.delset){var dei=+b.dataset.delset,dex=ses.ex[dei],dl=dex.sets.length-1;if(dl<1||dex.sets[dl].done)return;dex.sets.pop();save();refreshCard(dei);return;}
  if(b.dataset.addset){var exx=ses.ex[+b.dataset.addset],lastS=exx.sets[exx.sets.length-1];exx.sets.push({kg:lastS?lastS.kg:null,reps:lastS?lastS.reps:null,rir:null,done:false});save();refreshCard(+b.dataset.addset);return;}
  var act=b.dataset.act;
  if(act==='start'){trainFocus=null;var iso=todayISO();if(!state.sessions[iso]){var p=planFor(iso);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
@@ -832,25 +823,26 @@ document.addEventListener('click',function(ev){
   if(!confirm('Finish session with '+n+' sets logged?'))return;
   var again=!!ses.reopened;delete ses.reopened;
   ses.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});});ses.done=true;if(!again||!ses.finished)ses.finished=Date.now();
-  if(!again&&E.recentStalls(state,state.profile,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;toast('Two lifts stalled — next 3 sessions are a deload');}
+  if(!again&&E.recentStalls(state,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;toast('Two lifts stalled — next 3 sessions are a deload');}
   save();stopRest();keepAwake(false);show('today');return;}
  if(act==='reopen'){var rs=state.sessions[todayISO()];if(!rs||!rs.done)return;rs.done=false;rs.reopened=true;trainFocus=0;save();show('train');toast('Change what was wrong, then Finish again');return;}
  if(act==='abandon'){if(!ses||ses.reopened)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[todayISO()];save();stopRest();keepAwake(false);renderTrain();return;}
- if(act==='ics'){var ics=E.calendarICS(state.profile,E.macros(state.profile),todayISO(),b.dataset.meals==='1'),blob=new Blob([ics],{type:'text/calendar'}),u2=URL.createObjectURL(blob),a3=document.createElement('a');a3.href=u2;a3.download='lift-reminders.ics';document.body.appendChild(a3);a3.click();a3.remove();setTimeout(function(){URL.revokeObjectURL(u2);},5000);toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
+ if(act==='ics'){downloadBlob(E.calendarICS(state.profile,E.macros(state.profile),todayISO(),b.dataset.meals==='1'),'text/calendar','lift-reminders.ics');toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
  if(act==='install'){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(c){if(c&&c.outcome==='accepted')installEvt=null;render();});}return;}
  if(act==='wskip'){try{localStorage.setItem('lift.wskip',todayISO());}catch(e){}renderToday();return;}
  if(act==='installlater'){try{localStorage.setItem('lift.installLater',todayISO().slice(0,7));}catch(e){}renderToday();return;}
  if(act==='update'){if(!('serviceWorker' in navigator)){location.reload();return;}toast('Checking…');navigator.serviceWorker.getRegistration().then(function(r){return r?r.update():null;}).then(function(){setTimeout(function(){location.reload();},1500);});return;}
  if(act==='forget'){try{localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}
- if(act==='export'){var blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'}),u=URL.createObjectURL(blob),a2=document.createElement('a');a2.href=u;a2.download='lift-'+todayISO()+'.json';document.body.appendChild(a2);a2.click();a2.remove();return;}
+ if(act==='export'){downloadBlob(JSON.stringify(state,null,1),'application/json','lift-'+todayISO()+'.json');return;}
  if(act==='wipe'){if(!confirm('Remove all data from this device? The synced copy stays in the cloud.'))return;try{localStorage.removeItem(LS);localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}
 });
+function downloadBlob(text,type,name){var u=URL.createObjectURL(new Blob([text],{type:type})),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},5000);}
 /* A swap is for this session only unless 'From now on' is chosen. */
 var swapKeep='today';
 function doSwap(ei,id){
  var ses=activeSession();if(!ses)return;var e=ses.ex[ei],cfg=Object.assign({},E.findCfg(e.base),{id:id});
  e.id=id;e.suggest=E.suggest(cfg,E.history(state,id),{calibration:ses.calibration,deload:ses.deload});
- e.sets=e.sets.map(function(x){return x.done?x:{kg:e.suggest.kg,reps:e.suggest.reps,rir:null,done:false};});
+ var fresh=E.freshSets(e.suggest);e.sets=e.sets.map(function(x,i){return x.done?x:fresh[i]||fresh[0];});
  if(swapKeep==='always'){state.settings.swaps=state.settings.swaps||{};if(id===e.base)delete state.settings.swaps[e.base];else state.settings.swaps[e.base]=id;}
  save();renderTrain();toast((id===e.base?'Back to ':'Swapped to ')+nm(id)+(swapKeep==='always'?' from now on':' for today'));
 }
@@ -860,7 +852,6 @@ document.addEventListener('change',function(ev){
  if(t.dataset.val){var a=t.dataset.val.split(':'),ex0=ses.ex[+a[1]],s=ex0.sets[+a[2]],old=s[a[0]],nv=num(t.value);s[a[0]]=nv;
   if(a[0]==='kg'&&nv!=null)ex0.sets.forEach(function(x,i){if(i>+a[2]&&!x.done&&(x.kg==null||x.kg===old)){x.kg=nv;var inp=$('[data-val="kg:'+a[1]+':'+i+'"]');if(inp)inp.value=nv;}});
   save();return;}
- if(t.dataset.rir){var r=t.dataset.rir.split(':');ses.ex[+r[0]].sets[+r[1]].rir=t.value===''?null:+t.value;save();return;}
  if(t.dataset.warm){ses.warm=ses.warm||{};ses.warm[t.dataset.warm]=t.checked?1:0;
   var wall=['gen'].concat(E.WARMUP[ses.day].map(function(w){return w.id;})).every(function(k){return ses.warm[k];});
   if(wall){ses.warmShut=true;var wd=$('#warmup');if(wd)wd.open=false;}save();return;}
@@ -870,10 +861,7 @@ document.addEventListener('change',function(ev){
  if(t.dataset.meal){var dl=t.closest('[data-day]'),iso2=dl?dl.dataset.day:todayISO();if(iso2!==todayISO())keepY=true;state.daily[iso2]=state.daily[iso2]||{};state.daily[iso2].meals=state.daily[iso2].meals||{};state.daily[iso2].meals[t.dataset.meal]=t.checked?1:0;save();renderToday();return;}
  if(t.dataset.p){var v=t.value;if(['age','height','weight','goal1','goal2','lattes'].indexOf(t.dataset.p)>=0)v=num(v);state.profile[t.dataset.p]=v;save();return;}
  if(t.dataset.prio){var list=(state.profile.priority||['shoulders','back']).slice();if(t.checked){if(list.length>=2){t.checked=false;toast('Two at most');return;}list.push(t.dataset.prio);}else list=list.filter(function(x){return x!==t.dataset.prio;});state.profile.priority=list;save();return;}
- if(t.dataset.day||t.dataset.time){var sched=Object.assign({},state.profile.sched||{1:'16:00',3:'16:00',5:'16:00'});
-  if(t.dataset.day){if(t.checked)sched[t.dataset.day]='16:00';else delete sched[t.dataset.day];}
-  else if(t.dataset.time==='all'){if(!t.value)return;Object.keys(sched).forEach(function(d){sched[d]=t.value;});}
-  else sched[t.dataset.time]=t.value;
+ if(t.dataset.time==='all'){if(!t.value)return;var sched=Object.assign({},E.schedOf(state.profile));Object.keys(sched).forEach(function(d){sched[d]=t.value;});
   state.profile.sched=sched;save();renderProfile();return;}
  if(t.dataset.act==='pick'){renderProgress.sel=t.value;renderProgress();return;}
 });
@@ -883,6 +871,7 @@ function boot(){
  var pass=null;try{pass=localStorage.getItem(PK);}catch(e){}
  if(!pass){$('#gate').classList.remove('hidden');try{$('#gatep').focus();}catch(e){}return;}
  $('#app').classList.remove('hidden');
+ migrate();
  startSync();
  var ses=activeSession();
  show(ses?'train':(profileReady()?'today':'profile'));
