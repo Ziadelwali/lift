@@ -596,13 +596,13 @@ var MUSCLE_WORDS={abdominals:'belly',abductors:'outer hip',adductors:'inner thig
 var EQUIP_WORDS={machine:'machine',dumbbell:'dumbbells',cable:'cable pulley',barbell:'bar','e-z curl bar':'curl bar','body only':'no equipment',kettlebells:'one dumbbell',bands:'band'};
 function mw(m){return MUSCLE_WORDS[m]||m;}
 function nm(id){return E.LABEL[id]||(EX[id]?EX[id].name:id);}
-var GYM_EQUIP={'Wide-Grip_Lat_Pulldown':'machine','Close-Grip_Front_Lat_Pulldown':'machine',Seated_Cable_Rows:'machine',Hyperextensions_Back_Extensions:'machine'}; // cable in the photo, Nautilus machine at the gym
+var GYM_EQUIP={'Wide-Grip_Lat_Pulldown':'machine','Close-Grip_Front_Lat_Pulldown':'machine',Seated_Cable_Rows:'machine'}; // cable in the photo, Nautilus machine at the gym
 /* Your own gym: one cropped photo per machine (B1973 Fitness, Oct 2026), shown under Where. */
 var GYM_PHOTO=(function(){var m={'leg-extension':['Leg_Extensions'],'leg-press':['Leg_Press','Calf_Press_On_The_Leg_Press_Machine'],'leg-curl':['Seated_Leg_Curl'],
  smith:['Smith_Machine_Squat','Smith_Machine_Bench_Press','Smith_Machine_Incline_Bench_Press','Smith_Machine_Overhead_Shoulder_Press','Smith_Machine_Calf_Raise','Smith_Machine_Stiff-Legged_Deadlift'],
  preacher:['Preacher_Curl'],bench:['Dumbbell_Bench_Press','Incline_Dumbbell_Press','Dumbbell_Incline_Row','Incline_Dumbbell_Curl'],'cable-row':['Seated_Cable_Rows'],
  cables:['Triceps_Pushdown','Triceps_Pushdown_-_Rope_Attachment','Straight-Arm_Pulldown','Rope_Straight-Arm_Pulldown','Face_Pull','Cable_Crunch','Cable_Seated_Lateral_Raise','Cable_Rear_Delt_Fly','Standing_Biceps_Cable_Curl','Cable_Rope_Overhead_Triceps_Extension'],
- 'ab-crunch':['Ab_Crunch_Machine'],'shoulder-press':['Leverage_Shoulder_Press'],'chest-press':['Machine_Bench_Press'],rower:['Rowing_Stationary'],bike:['Bicycling_Stationary']},o={};
+ 'ab-crunch':['Ab_Crunch_Machine'],'back-extension':['Hyperextensions_Back_Extensions'],'shoulder-press':['Leverage_Shoulder_Press'],'chest-press':['Machine_Bench_Press'],rower:['Rowing_Stationary'],bike:['Bicycling_Stationary']},o={};
  Object.keys(m).forEach(function(f){m[f].forEach(function(id){o[id]='img/gym/'+f+'.jpg';});});return o;})();
 function equipWord(id){var x=EX[id];if(GYM_EQUIP[id])return GYM_EQUIP[id];return x&&x.equipment?(EQUIP_WORDS[x.equipment]||x.equipment):'no equipment';}
 function thumb(id){var x=EX[id];return x?'<img class="th" src="'+x.images[0]+'" alt="" loading="lazy">':'';}

@@ -17,3 +17,6 @@
 !README.md
 !publish.cmd
 !.claude/
+.claude/*
+!.claude/launch.json
+!.claude/serve.js

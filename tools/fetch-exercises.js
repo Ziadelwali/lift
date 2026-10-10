@@ -50,7 +50,7 @@ function get(url) {
     out[id] = {
       name: e.name, equipment: e.equipment, level: e.level, mechanic: e.mechanic,
       primary: e.primaryMuscles, secondary: e.secondaryMuscles,
-      instructions: e.instructions, images: imgs
+      images: imgs
     };
     process.stdout.write('.');
   }
