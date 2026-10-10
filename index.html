@@ -756,7 +756,8 @@ function renderToday(){
    (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>'+FIXLINK:'<button class="btn wide" data-act="start" style="margin-top:14px">'+(ses?'Continue session':'Start session')+'</button>')+
    '</div>';
  }else{
-  sesCard='<div class="card t-train"><div class="hero"><span class="restico">'+ICON_MOON+'</span><div class="cap"><b>Rest day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+restNote(iso,p)+nextSessionLine(iso)+'</div>';
+  sesCard='<div class="card t-train"><div class="hero"><span class="restico">'+ICON_MOON+'</span><div class="cap"><b>Rest day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+restNote(iso,p)+nextSessionLine(iso)+
+   (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>':ses?'<button class="btn wide" data-act="start" style="margin-top:14px">Continue session</button>':/data-move=/.test(restNote(iso,p))?'':ANYWAY)+'</div>';
  }
  // what comes first: the session when it is close (or running), otherwise the next food
  var soon=p.training&&!(ses&&ses.done)&&(ses||nowMin()>=E.hm(p.time||'16:00')-90);
@@ -840,6 +841,7 @@ function nextSessionLine(iso){
  var d=E.parseISO(iso);for(var i=1;i<=7;i++){d.setDate(d.getDate()+1);var n=E.isoDate(d),pp=planFor(n);if(pp.training)return '<p class="xs" style="margin-top:8px">Next: session '+pp.day+' · '+niceDate(n)+' '+pp.time+'</p>';}
  return '';
 }
+var ANYWAY='<p class="xs" style="margin-top:10px">Want to train anyway? <button class="linkbtn" data-act="start">Start a session</button></p>';
 var FIXLINK='<p class="xs" style="margin-top:6px">Wrong number or a forgotten set? <button class="linkbtn" data-act="reopen">Fix a mistake</button></p>';
 function sessionSummary(s){
  var sets=0,vol=0,up=0,pr=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=(x.kg||0)*(x.reps||0);}if(x.pr)pr++;});if(e.suggest&&e.suggest.state==='up')up++;});
@@ -898,7 +900,7 @@ function renderTrain(){
   var done=state.sessions[iso]&&state.sessions[iso].done;
   h='<div class="card" style="margin-top:14px"><h2>'+(done?'Session '+state.sessions[iso].day+' done':p.training?'Session '+p.day+' today':'Rest day')+'</h2>'+
    '<p class="sm" style="margin-top:6px">'+(done?sessionSummary(state.sessions[iso]):p.training?'Warm-up, then '+p.exercises.length+' exercises. Phone stays awake while you train.':'No session planned. You can still train if life moved a day — it becomes the next session in the rotation.')+'</p>'+
-   (done?FIXLINK:'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+(p.training?p.day:(p.n%2===0?'A':'B'))+'</button>')+'</div>'+programCard();
+   (done?FIXLINK:p.training?'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+p.day+'</button>':ANYWAY)+'</div>'+programCard();
   $('#v-train').innerHTML=h;return;
  }
  h+=trackBar(ses);
@@ -906,7 +908,7 @@ function renderTrain(){
  var wl=E.WARMUP,firstRamp=null;
  for(var i=0;i<ses.ex.length;i++){var c=E.findCfg(ses.ex[i].base);if(c&&c.ramp&&ses.ex[i].sets[0].kg){firstRamp=ses.ex[i];break;}}
  var wdone=ses.warm||{},anySet=ses.ex.some(function(e){return e.sets.some(function(x){return x.done;});});
- h+='<details class="card fold"'+(anySet?'':' open')+'><summary><h2>Warm-up</h2><span class="xs">≤ '+E.RULES.warmupMinutes+' min</span></summary>'+
+ h+='<details class="card fold" id="warmup"'+(anySet||ses.warmShut?'':' open')+'><summary><h2>Warm-up</h2><span class="xs">≤ '+E.RULES.warmupMinutes+' min</span></summary>'+
   '<p class="xs" style="margin-top:2px">Tap a move to see how it\'s done. Tick the box when you\'ve done it.</p>'+
   warmItem('gen',wl.general,wl.general.amount,wdone)+
   wl[ses.day].map(function(w){return warmItem(w.id,w,w.reps,wdone);}).join('')+
@@ -916,9 +918,10 @@ function renderTrain(){
  var f=focusOf(ses),others=ses.ex.map(function(e,i){return i;}).filter(function(i){return i!==f&&!exDone(ses.ex[i]);});
  openCards={};openCards[f]=true;
  h+=exerciseCard(ses.ex[f],f,ses);
- h+='<div class="row between exnav"><button class="btn small ghost" data-jump="'+(f-1)+'"'+(f>0?'':' disabled')+'>‹ Back</button>'+
+ var pv=stepUndone(ses,f,-1),nx=stepUndone(ses,f,1);
+ h+='<div class="row between exnav"><button class="btn small ghost" data-jump="'+pv+'"'+(pv>=0?'':' disabled')+'>‹ Back</button>'+
   (others.length?'<button class="btn small ghost" data-pickother="1">⇆ Busy? Pick another</button>':'')+
-  '<button class="btn small ghost" data-jump="'+(f+1)+'"'+(f<ses.ex.length-1?'':' disabled')+'>Next ›</button></div>'+
+  '<button class="btn small ghost" data-jump="'+nx+'"'+(nx>=0?'':' disabled')+'>Next ›</button></div>'+
   (others.length?'<div class="card" id="others" hidden><h2>What is free?</h2><p class="xs" style="margin:2px 0 8px">Order barely matters for growth — do whichever machine is free.</p><div class="swaps">'+others.map(function(i){var a=ses.ex[i].id;
    return '<button class="tile" data-jump="'+i+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+esc(equipWord(a))+(ses.ex[i].sets.some(function(x){return x.done;})?' · started':'')+'</small></button>';}).join('')+'</div></div>':'');
  h+='<div class="card"><button class="btn wide" data-act="finish">Finish session</button>'+(ses.reopened?'':'<button class="btn wide ghost" data-act="abandon" style="margin-top:8px">Discard session</button>')+'</div>';
@@ -929,7 +932,7 @@ function renderTrain(){
 (function(){var x0=null,y0=null;
  document.addEventListener('touchstart',function(e){var c=e.target.closest('#v-train .card.ex');if(!c||e.target.closest('input,button,.media'))return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;},{passive:true});
  document.addEventListener('touchend',function(e){if(x0==null)return;var dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;x0=null;var ses=activeSession();
-  if(!ses||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx))return;var f=focusOf(ses)+(dx<0?1:-1);if(f>=0&&f<ses.ex.length){trainFocus=f;renderTrain();scrollTo(0,0);}},{passive:true});})();
+  if(!ses||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx))return;var f=stepUndone(ses,focusOf(ses),dx<0?1:-1);if(f>=0){ses.warmShut=true;trainFocus=f;renderTrain();scrollTo(0,0);}},{passive:true});})();
 /* Warm-up move: tick box + tap-to-open picture and plain steps. */
 var openWarm={};
 function warmItem(key,w,amount,wdone){
@@ -944,6 +947,8 @@ var SMOOTH=!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').m
 var trainFocus=null;
 function focusOf(ses){if(trainFocus==null||trainFocus<0||trainFocus>=ses.ex.length){var n=nextUndone(ses,0);trainFocus=n<0?ses.ex.length-1:n;}return trainFocus;}
 function nextUndone(ses,from){for(var k=0;k<ses.ex.length;k++){var i=(from+k)%ses.ex.length;if(!exDone(ses.ex[i]))return i;}return -1;}
+/* Next/Back (and swipe) step through unfinished exercises only, wrapping round; -1 if none. Done ones: tap their picture up top. */
+function stepUndone(ses,f,dir){var n=ses.ex.length;for(var k=1;k<n;k++){var i=((f+dir*k)%n+n)%n;if(!exDone(ses.ex[i]))return i;}return -1;}
 function exDone(e){return e.sets.length>0&&e.sets.every(function(s){return s.done;});}
 function trackBar(ses){
  var n=ses.ex.filter(exDone).length,cur=-1;
@@ -996,7 +1001,7 @@ function exBody(e,ei,ses){
     '';
   }).join('')+
   (exDone(e)?'<div class="rirrow feel"><span>How was it?</span>'+feelButtons(ei,e)+'</div>':'')+
-  '<div class="row between" style="margin-top:10px;flex-wrap:wrap;gap:8px"><button class="btn small ghost" data-addset="'+ei+'">+ set</button>'+(alts.length?'<button class="btn small ghost" data-swapopen="'+ei+'">⇄ Other options ('+alts.length+')</button>':'')+'</div>'+
+  '<div class="row between" style="margin-top:10px;flex-wrap:wrap;gap:8px"><span class="row" style="gap:8px">'+(e.sets.length>1&&!e.sets[e.sets.length-1].done?'<button class="btn small ghost" data-delset="'+ei+'">− set</button>':'')+'<button class="btn small ghost" data-addset="'+ei+'">+ set</button></span>'+(alts.length?'<button class="btn small ghost" data-swapopen="'+ei+'">⇄ Other options ('+alts.length+')</button>':'')+'</div>'+
   (alts.length?'<div id="swaps-'+ei+'" hidden><div class="seg" style="margin-top:10px">'+[['today','Just today'],['always','From now on']].map(function(o){return '<button data-swapkeep="'+o[0]+'"'+(swapKeep===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div><p class="xs" style="margin-top:6px">'+(swapKeep==='always'?'Replaces it in every session.':'Only today. Good when a machine is busy.')+'</p><div class="swaps">'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div></div>':'');
 }
 /* Update one exercise card without redrawing the screen (keeps the photo running). */
@@ -1184,7 +1189,7 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-gymph]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-rirset],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-gymph]');if(!b)return;
  if(b.dataset.gymph){b.classList.toggle('big');return;}
  if(b.dataset.wkday){wkv.sel=wkv.sel===b.dataset.wkday||b.dataset.wkday===todayISO()?null:b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
  if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
@@ -1192,7 +1197,7 @@ document.addEventListener('click',function(ev){
  if(b.dataset.wuopen){var wk=b.dataset.wuopen;openWarm[wk]=!openWarm[wk];var wses=activeSession();if(!wses)return;var ww=wk==='gen'?E.WARMUP.general:E.WARMUP[wses.day].filter(function(x){return x.id===wk;})[0];var wel=$('#wu-'+wk);if(ww&&wel)wel.outerHTML=warmItem(wk,ww,wk==='gen'?ww.amount:ww.reps,wses.warm||{});return;}
  if(b.dataset.mealrow){if(ev.target.tagName==='INPUT')return;var mi=b.querySelector('input');if(mi&&!mi.disabled){mi.checked=!mi.checked;mi.dispatchEvent(new Event('change',{bubbles:true}));}return;}
  if(b.dataset.rest){rest.end+=(+b.dataset.rest)*1000;rest.total=Math.max(1,rest.total+(+b.dataset.rest));if(rest.end>Date.now())$('#rest').classList.remove('over');tickRest();return;}
- if(b.dataset.jump){trainFocus=+b.dataset.jump;renderTrain();scrollTo(0,0);return;}
+ if(b.dataset.jump){var jses=activeSession();if(jses&&!jses.warmShut){jses.warmShut=true;save();}trainFocus=+b.dataset.jump;renderTrain();scrollTo(0,0);return;}
  if(b.dataset.pickother){var ob=$('#others');if(ob){ob.hidden=!ob.hidden;if(!ob.hidden)ob.scrollIntoView({behavior:SMOOTH,block:'start'});}return;}
  if(b.dataset.toggle){var tg=+b.dataset.toggle;openCards[tg]=!openCards[tg];refreshCard(tg);return;}
  if(b.dataset.move!=null){var mv=b.dataset.move.split('|'),moves=Object.assign({},state.settings.moves||{}),old=addDays(todayISO(),-21);
@@ -1220,10 +1225,12 @@ document.addEventListener('click',function(ev){
    var cfg=E.findCfg(ex.base)||E.findCfg(ex.id);var lastSet=exDone(ex);// last set: no timer over the next exercise (walking to the next machine is the rest), only the question
    if(lastSet){clearInterval(rest.t);rest.end=0;rest.set=null;if(!ex.feel)rest.ask=+t[0];}else{startRest(cfg.rest);rest.set=[+t[0],+t[1]];}restRir();
    var ei=+t[0];if(lastSet)delete openCards[ei];save();refreshCard(ei);
-   if(lastSet){var nx=nextUndone(ses,ei+1);if(nx>=0)setTimeout(function(){trainFocus=nx;renderTrain();scrollTo(0,0);toast('Next: '+nm(ses.ex[nx].id));},700);}
+   if(lastSet){var nx=nextUndone(ses,ei+1);if(nx>=0)setTimeout(function(){ses.warmShut=true;trainFocus=nx;renderTrain();scrollTo(0,0);toast('Next: '+nm(ses.ex[nx].id));},700);}
    return;}
   else{st.done=false;delete st.pr;}
   save();refreshCard(+t[0]);return;}
+ if(b.dataset.delset){var dei=+b.dataset.delset,dex=ses.ex[dei],dl=dex.sets.length-1;if(dl<1||dex.sets[dl].done)return;dex.sets.pop();
+  if(rest.set&&rest.set[0]===dei&&rest.set[1]===dl)rest.set=null;save();refreshCard(dei);return;}
  if(b.dataset.addset){var exx=ses.ex[+b.dataset.addset],lastS=exx.sets[exx.sets.length-1];exx.sets.push({kg:lastS?lastS.kg:null,reps:lastS?lastS.reps:null,rir:null,done:false});save();refreshCard(+b.dataset.addset);return;}
  var act=b.dataset.act;
  if(act==='start'){trainFocus=null;var iso=todayISO();if(!state.sessions[iso]){var p=planFor(iso);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
@@ -1260,7 +1267,9 @@ document.addEventListener('change',function(ev){
   if(a[0]==='kg'&&nv!=null)ex0.sets.forEach(function(x,i){if(i>+a[2]&&!x.done&&(x.kg==null||x.kg===old)){x.kg=nv;var inp=$('[data-val="kg:'+a[1]+':'+i+'"]');if(inp)inp.value=nv;}});
   save();return;}
  if(t.dataset.rir){var r=t.dataset.rir.split(':');ses.ex[+r[0]].sets[+r[1]].rir=t.value===''?null:+t.value;save();return;}
- if(t.dataset.warm){ses.warm=ses.warm||{};ses.warm[t.dataset.warm]=t.checked?1:0;save();return;}
+ if(t.dataset.warm){ses.warm=ses.warm||{};ses.warm[t.dataset.warm]=t.checked?1:0;
+  var wall=['gen'].concat(E.WARMUP[ses.day].map(function(w){return w.id;})).every(function(k){return ses.warm[k];});
+  if(wall){ses.warmShut=true;var wd=$('#warmup');if(wd)wd.open=false;}save();return;}
  if(t.dataset.daily){var iso=todayISO();var dv=num(t.value);if(t.dataset.daily==='weight'){if(dv!=null){state.weight[iso]=dv;state.profile.weight=dv;}else delete state.weight[iso];}
   else{state.daily[iso]=state.daily[iso]||{};state.daily[iso][t.dataset.daily]=dv;}save();if(t.dataset.daily==='waist'&&view==='progress'){var sy=scrollY;renderProgress();scrollTo(0,sy);}
   if(view==='today'&&t.closest('.weigh')){renderToday();toast('Saved ✓');}return;}
