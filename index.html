@@ -756,7 +756,8 @@ function renderToday(){
    (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>'+FIXLINK:'<button class="btn wide" data-act="start" style="margin-top:14px">'+(ses?'Continue session':'Start session')+'</button>')+
    '</div>';
  }else{
-  sesCard='<div class="card t-train"><div class="hero"><span class="restico">'+ICON_MOON+'</span><div class="cap"><b>Rest day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+restNote(iso,p)+nextSessionLine(iso)+'</div>';
+  sesCard='<div class="card t-train"><div class="hero"><span class="restico">'+ICON_MOON+'</span><div class="cap"><b>Rest day</b><span>Muscle grows today</span></div></div><div class="sunline"></div><p class="sm" style="margin-top:10px">Muscle is built between sessions. Walk 8–10k steps, sleep 7–9 h, hit the protein. Nothing heroic.</p>'+restNote(iso,p)+nextSessionLine(iso)+
+   (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>':ses?'<button class="btn wide" data-act="start" style="margin-top:14px">Continue session</button>':/data-move=/.test(restNote(iso,p))?'':ANYWAY)+'</div>';
  }
  // what comes first: the session when it is close (or running), otherwise the next food
  var soon=p.training&&!(ses&&ses.done)&&(ses||nowMin()>=E.hm(p.time||'16:00')-90);
@@ -840,6 +841,7 @@ function nextSessionLine(iso){
  var d=E.parseISO(iso);for(var i=1;i<=7;i++){d.setDate(d.getDate()+1);var n=E.isoDate(d),pp=planFor(n);if(pp.training)return '<p class="xs" style="margin-top:8px">Next: session '+pp.day+' · '+niceDate(n)+' '+pp.time+'</p>';}
  return '';
 }
+var ANYWAY='<p class="xs" style="margin-top:10px">Want to train anyway? <button class="linkbtn" data-act="start">Start a session</button></p>';
 var FIXLINK='<p class="xs" style="margin-top:6px">Wrong number or a forgotten set? <button class="linkbtn" data-act="reopen">Fix a mistake</button></p>';
 function sessionSummary(s){
  var sets=0,vol=0,up=0,pr=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=(x.kg||0)*(x.reps||0);}if(x.pr)pr++;});if(e.suggest&&e.suggest.state==='up')up++;});
@@ -898,7 +900,7 @@ function renderTrain(){
   var done=state.sessions[iso]&&state.sessions[iso].done;
   h='<div class="card" style="margin-top:14px"><h2>'+(done?'Session '+state.sessions[iso].day+' done':p.training?'Session '+p.day+' today':'Rest day')+'</h2>'+
    '<p class="sm" style="margin-top:6px">'+(done?sessionSummary(state.sessions[iso]):p.training?'Warm-up, then '+p.exercises.length+' exercises. Phone stays awake while you train.':'No session planned. You can still train if life moved a day — it becomes the next session in the rotation.')+'</p>'+
-   (done?FIXLINK:'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+(p.training?p.day:(p.n%2===0?'A':'B'))+'</button>')+'</div>'+programCard();
+   (done?FIXLINK:p.training?'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+p.day+'</button>':ANYWAY)+'</div>'+programCard();
   $('#v-train').innerHTML=h;return;
  }
  h+=trackBar(ses);
