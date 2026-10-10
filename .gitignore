@@ -6,6 +6,9 @@
 !exercises.js
 !fbconfig.js
 !engine.js
+!app.js
+!styles.css
+!theme.js
 !sw.js
 !manifest.webmanifest
 !robots.txt
