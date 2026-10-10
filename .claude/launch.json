@@ -1,6 +1,6 @@
 {
   "version": "0.0.1",
   "configurations": [
-    { "name": "lift", "runtimeExecutable": "node", "runtimeArgs": [".claude/serve.js"], "port": 4322 }
+    { "name": "lift", "runtimeExecutable": "node", "runtimeArgs": [".claude/serve.js"], "port": 4322, "autoPort": true }
   ]
 }
