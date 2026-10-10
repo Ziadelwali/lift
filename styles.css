@@ -61,7 +61,7 @@ nav.tabs button.on svg{background:var(--acc2)}
 .row.between{justify-content:space-between}
 .stack>*+*{margin-top:8px}
 .chip{display:inline-block;font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:999px;background:var(--card2);color:var(--ink2);margin:2px 4px 2px 0}
-.chip.acc{background:var(--acc2);color:var(--acc-ink)}.chip.prio{background:var(--prio-bg);color:var(--prio)}.chip.warn{background:var(--warn-bg);color:var(--warn)}
+.chip.acc{background:var(--acc2);color:var(--acc-ink)}.chip.prio{background:var(--prio-bg);color:var(--prio)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 18px;border-radius:12px;background:var(--acc);color:var(--on-acc);font-weight:600;font-size:15px}
 .btn.wide{width:100%}.btn.ghost{background:var(--card2);color:var(--ink)}.btn.small{min-height:36px;font-size:13px;padding:0 12px;border-radius:9px}
 .btn.danger{background:var(--bad-bg);color:var(--bad)}.btn:disabled{opacity:.5}
@@ -128,11 +128,6 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .ex.collapsed .head{cursor:pointer;padding-bottom:14px}
 .ex .head[data-toggle]{cursor:pointer}
 .exsum{margin-top:6px;font-family:var(--mono);font-size:12.5px;color:var(--ink2)}
-.sets{width:100%;border-collapse:collapse;margin-top:10px}
-.sets th{font-family:var(--mono);font-size:10.5px;color:var(--ink3);font-weight:500;text-transform:uppercase;letter-spacing:.08em;text-align:center;padding:0 0 6px}
-.sets td{padding:3px 1px;text-align:center}
-.sets tr.done td{opacity:.55}
-.sets tr.done td.ok{opacity:1}
 .step{display:flex;align-items:center;background:var(--card2);border-radius:12px;overflow:hidden;min-width:0}
 .step button{flex:none;width:38px;height:48px;font-size:22px;color:var(--ink2)}
 .step button:active{background:var(--acc2)}
@@ -208,7 +203,6 @@ svg.bm .m.p{fill:var(--acc)}svg.bm .m.s{fill:var(--acc);opacity:.45}
 
 /* ---------- eat next ---------- */
 .eatnext{border-color:var(--acc);box-shadow:var(--shadow),inset 0 0 0 1px var(--acc2)}
-.eatnext h2.what{font-size:21px;line-height:1.25;margin-top:6px}
 
 /* ---------- your plate (hand portions) ---------- */
 .plate{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -262,9 +256,8 @@ ul.shop li{margin-bottom:4px}
 .wuhow ol li{margin-bottom:4px}
 @media (prefers-reduced-motion:reduce){.wumedia img{animation:none}.wumedia img.f1{opacity:0}}
 
-/* ---------- hero (big thin numeral, Nimbus style) ---------- */
+/* ---------- hero (round icon + caption) ---------- */
 .hero{display:flex;align-items:flex-end;gap:14px;margin:4px 0 8px}
-.hero .num{font-size:clamp(60px,19vw,92px);font-weight:200;line-height:.85;letter-spacing:-.04em;color:var(--ink)}
 .hero .cap{padding-bottom:6px}
 .hero .cap b{display:block;font-size:20px;font-weight:500;letter-spacing:-.01em}
 .hero .cap span{font-size:13px;color:var(--ink2)}
@@ -278,9 +271,6 @@ ul.shop li{margin-bottom:4px}
 
 #rest .rirq button{min-width:44px;height:36px;border-radius:999px;background:var(--card2);font-family:var(--mono);font-size:14px;color:var(--ink)}
 #rest .rirq button.on{background:var(--acc);color:var(--on-acc);font-weight:600}
-.pickrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.pk{min-height:36px;padding:0 12px;border-radius:999px;background:var(--card2);font-size:13px;color:var(--ink2)}
-.pk.on{background:var(--acc);color:var(--on-acc);font-weight:600}
 .seg{display:flex;background:var(--card2);border-radius:999px;padding:3px;gap:2px}
 .seg button{flex:1;min-height:38px;border-radius:999px;font-size:14px;color:var(--ink2)}
 .seg button.on{background:var(--acc);color:var(--on-acc);font-weight:600}
@@ -306,7 +296,7 @@ ul.shop li{margin-bottom:4px}
 .muscles{font-size:13px}.official{font-size:12px}
 .chip{font-size:12px}
 .chip.acc{background:var(--sel);color:var(--ink)}
-.pk.on,.seg button.on,.rirrow button.on,#rest .rirq button.on{background:var(--sel);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink2)}
+.seg button.on,.rirrow button.on,#rest .rirq button.on{background:var(--sel);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink2)}
 .rirrow.feel{margin:10px 0 0}.rirrow.feel button,#rest .rirq button{flex:1 0 auto;height:auto;min-height:40px;padding:0 12px;white-space:nowrap;font-family:inherit;font-size:14px}.rirrow.feel span,#rest .rirq span{flex-basis:100%}
 .wkday.on{background:var(--sel);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--ink2)}
 .wkday.on .tg.train{background:var(--train-bg);color:var(--train)}
