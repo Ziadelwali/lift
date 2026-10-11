@@ -45,7 +45,7 @@ header.top{position:sticky;top:0;z-index:5;background:var(--bar-bg);-webkit-back
 header.top h1{font-size:19px}
 #syncdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ink3);margin-right:6px;vertical-align:middle}
 #syncdot.live{background:var(--ok)}#syncdot.off{background:var(--warn)}
-#stage{flex:1;padding:0 14px calc(var(--sab) + 96px)}
+#stage{flex:1;padding:0 14px calc(var(--sab) + 96px + var(--rh,0px))}
 .view{display:none}.view.on{display:block}
 nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:6;background:var(--bar-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border-top:1px solid var(--line);padding:6px 0 calc(var(--sab) + 6px);display:flex;justify-content:space-around;max-width:520px;margin:0 auto}
 nav.tabs button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--ink3);padding:4px 0}
