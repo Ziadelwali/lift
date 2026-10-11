@@ -13,35 +13,26 @@ function toast(t){var el=$('#toast');el.textContent=t;el.classList.add('on');cle
 function fmtSec(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60);}
 
 /* ---------------- persistent state ----------------
-   Local first: every change lands in localStorage immediately, then the
-   changed fields are PATCHed into one shared Firestore document (plain REST -
-   the SDK's realtime channel is rejected for this project). The document id
-   is derived from the passphrase. Offline, the diff simply waits in
-   localStorage and is sent when the network is back; other devices' changes
-   are picked up by polling while the app is open. */
-var LS='lift.v1', PK='lift.pp', LSB='lift.base';
+   Local first: every change lands in localStorage at once. With a password, sync.js keeps one
+   encrypted Firestore document per password in step with it (plain REST - the SDK's realtime
+   channel is rejected for this project). Offline, changes wait and go out when the network is back;
+   other devices' changes are picked up by polling while the app is open. */
+var LS='lift.v1', PK='lift.pp';
 var SYNC_SECTIONS=['profile','sessions','weight','daily','settings'];
 var state={profile:{},sessions:{},weight:{},daily:{},settings:{}};
-var saveT=null,lastSynced=null;   /* lastSynced = the state as the server last saw it from this device */
-var SYNC={url:null,ready:false,busy:false,updateTime:null,again:false,started:false,log:[]};
+var saveT=null,lsErr=null,SYNC={log:[],eng:null,on:false};
 function slog(t){var d=new Date();SYNC.log.push(d.toTimeString().slice(0,8)+' '+t);if(SYNC.log.length>8)SYNC.log.shift();var el=$('#synclog');if(el)el.textContent=SYNC.log.join(String.fromCharCode(10));}
-/* localBroken: this device's copy is missing or unreadable while it has synced before. Until the
-   server copy has been taken in, nothing may be pushed that would delete records. */
-var localBroken=false,lsErr=null;
+// an unreadable copy is kept aside for a look; the synced copy fills this device in again
 try{var raw=localStorage.getItem(LS);if(raw){var parsed=JSON.parse(raw);SYNC_SECTIONS.forEach(function(s){if(parsed[s])state[s]=parsed[s];});}}
-catch(e){localBroken=true;try{localStorage.setItem(LS+'.bad',raw);}catch(e2){}}
-try{var rawb=localStorage.getItem(LSB);if(rawb)lastSynced=JSON.parse(rawb);}catch(e){}
-if(!raw&&lastSynced&&SYNC_SECTIONS.some(function(s){return Object.keys(lastSynced[s]||{}).length;}))localBroken=true;
-function snapshotState(){return JSON.parse(JSON.stringify(state));}
+catch(e){try{localStorage.setItem(LS+'.bad',raw);}catch(e2){}}
 /* every localStorage write goes through here, so a full or blocked storage shows in the sync line */
 function writeLS(k,v){
  try{localStorage.setItem(k,v);if(lsErr){lsErr=null;setSyncLine($('#syncline').textContent.replace(/^Not saved on this device.*? · /,''),null);}return true;}
  catch(e){lsErr=(e&&e.name)||'error';slog('localStorage: '+lsErr);setSyncLine($('#syncline').textContent,false);return false;}
 }
-function setBase(b){lastSynced=b;writeLS(LSB,JSON.stringify(b));}
 function save(){
  writeLS(LS,JSON.stringify(state));
- clearTimeout(saveT);saveT=setTimeout(flush,600);
+ clearTimeout(saveT);saveT=setTimeout(function(){if(SYNC.eng)SYNC.eng.kick();},600);
 }
 function setSyncLine(txt,live){
  txt=txt.replace(/^Not saved on this device.*? · /,'');
@@ -49,103 +40,80 @@ function setSyncLine(txt,live){
  slog(txt);$('#syncline').textContent=txt;var d=$('#syncdot');d.className=live===true?'live':live===false?'off':'';
  var si=$('#syncinfo');if(si)si.textContent=txt;
 }
-/* records the patch would delete, per section */
-function patchDeletes(cur,base){var n={total:0};SYNC_SECTIONS.forEach(function(s){var c=cur[s]||{},k=Object.keys(base[s]||{}).filter(function(x){return !(x in c);}).length;n[s]=k;n.total+=k;});return n;}
-function fsFetch(method,qs,body){
- var ac=('AbortController' in window)?new AbortController():null,t=ac&&setTimeout(function(){ac.abort();},12000);
- return fetch(SYNC.url+qs,{method:method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,signal:ac?ac.signal:undefined})
-  .then(function(r){clearTimeout(t);return r;},function(e){clearTimeout(t);throw e;});
-}
-/* push the local diff */
-function flush(){
- if(!SYNC.ready||!navigator.onLine)return;
- if(SYNC.busy){SYNC.again=true;return;}
- var patch=E.restPatch(state,lastSynced||{},SYNC_SECTIONS);
- if(!patch){setSyncLine('Live sync on',true);return;}
- // stopgap until sync v2: never let one push wipe out a lot of records
- var del=patchDeletes(state,lastSynced||{});
- if(del.total&&(localBroken||del.sessions>3||del.total>10)){
-  slog('push skipped: would delete '+del.total+' records ('+del.sessions+' sessions)'+(localBroken?', local copy was unreadable':''));
-  setSyncLine('Sync paused — saved here',false);return;
+/* what the sync engine keeps in localStorage - nothing secret; the keys live in IndexedDB */
+var SYNC_LS={base2:'lift.base2',ut:'lift.ut',mig:'lift.mig',v1base:'lift.base'};
+var syncStore={get:function(k){try{var v=localStorage.getItem(SYNC_LS[k]);return v==null?null:JSON.parse(v);}catch(e){return null;}},
+ set:function(k,v){writeLS(SYNC_LS[k],JSON.stringify(v));},del:function(k){try{localStorage.removeItem(SYNC_LS[k]);}catch(e){}}};
+/* IndexedDB 'lift'/'kv' holds the keys (CryptoKeys that can't be read back out). Without IndexedDB
+   they live in memory only, so the password is asked on every launch. */
+var kv=(function(){var dbp=null,mem={};
+ function db(){if(!dbp)dbp=new Promise(function(res,rej){if(!window.indexedDB)return rej(new Error('no IndexedDB'));var r=indexedDB.open('lift',1);
+  r.onupgradeneeded=function(){r.result.createObjectStore('kv');};r.onsuccess=function(){res(r.result);};r.onerror=function(){rej(r.error);};});return dbp;}
+ function tx(mode,fn){return db().then(function(d){return new Promise(function(res,rej){var t=d.transaction('kv',mode),q=fn(t.objectStore('kv'));
+  t.oncomplete=function(){res(q&&q.result);};t.onerror=t.onabort=function(){rej(t.error);};});});}
+ return {get:function(k){return tx('readonly',function(s){return s.get(k);}).then(function(v){return v==null?(mem[k]||null):v;},function(){return mem[k]||null;});},
+  set:function(k,v){mem[k]=v;return tx('readwrite',function(s){s.put(v,k);}).catch(function(e){slog('IndexedDB: '+(e&&e.message));});},
+  del:function(k){delete mem[k];return tx('readwrite',function(s){s.delete(k);}).catch(function(){});},
+  clear:function(){mem={};return tx('readwrite',function(s){s.clear();}).catch(function(){});}};})();
+function restTransport(cfg){
+ var base='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(cfg.projectId)+'/databases/(default)/documents/lift/',key='?key='+encodeURIComponent(cfg.apiKey);
+ function call(method,id,qs,body){
+  if(!navigator.onLine)return Promise.reject(new Error('offline'));
+  var ac=('AbortController' in window)?new AbortController():null,t=ac&&setTimeout(function(){ac.abort();},12000);
+  return fetch(base+id+key+qs,{method:method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,signal:ac?ac.signal:undefined})
+   .then(function(r){clearTimeout(t);slog(method+(/mask/.test(qs)?' check ':' ')+r.status);return r.text().then(function(x){var j=null;try{j=JSON.parse(x);}catch(e){}return {status:r.status,doc:j};});},
+    function(e){clearTimeout(t);throw e;});
  }
- var snap=snapshotState();SYNC.busy=true;slog('PATCH '+patch.mask.length+' fields…');
- var qs='?key='+encodeURIComponent(SYNC.key)+patch.mask.map(function(m){return '&updateMask.fieldPaths='+encodeURIComponent(m);}).join('');
- fsFetch('PATCH',qs,{fields:patch.fields}).then(function(r){slog('PATCH '+r.status);
-  if(r.ok)return r.json().then(function(doc){setBase(snap);SYNC.updateTime=doc.updateTime;setSyncLine('Live sync on',true);});
-  return r.text().then(function(t){setSyncLine('Sync rejected ('+r.status+') — saved here',false);console.warn('sync patch',r.status,t.slice(0,300));});
- }).catch(function(e){slog('PATCH failed: '+(e&&e.name)+' '+(e&&e.message));setSyncLine('Offline — syncs later',false);})
- .then(function(){SYNC.busy=false;if(SYNC.again){SYNC.again=false;flush();}});
+ return {get:function(id,o){return call('GET',id,o&&o.mask?'&mask.fieldPaths=v':'');},
+  write:function(id,fields,pre){
+   var qs=pre&&pre.exists===false?'&currentDocument.exists=false':pre&&pre.updateTime?'&currentDocument.updateTime='+encodeURIComponent(pre.updateTime):'';
+   return call('PATCH',id,qs,{fields:fields}).then(function(r){var st=r.doc&&r.doc.error&&r.doc.error.status;
+    // someone wrote in between (or the doc went away): pull, merge, try again
+    if(r.status===409||r.status===412||st==='FAILED_PRECONDITION'||st==='ALREADY_EXISTS'||(r.status===404&&pre&&pre.updateTime))r.conflict=true;return r;});}};
 }
-/* take the server copy, keeping local changes that have not been pushed yet */
-function adoptRemote(remote){
- var pending=E.restPatch(state,lastSynced||{},SYNC_SECTIONS);
- var fresh={profile:{},sessions:{},weight:{},daily:{},settings:{}};
- SYNC_SECTIONS.forEach(function(sec){if(remote[sec])fresh[sec]=JSON.parse(JSON.stringify(remote[sec]));});
- if(pending)pending.mask.forEach(function(m){
-  var parts=m.split('.');if(parts[0]!=='data')return;
-  var sec=parts[1],k=parts.slice(2).join('.').replace(/^`|`$/g,'').replace(/\\(.)/g,'$1');
-  if(k in (state[sec]||{}))fresh[sec][k]=state[sec][k];else delete fresh[sec][k];
+/* The Firebase config is committed only as ciphertext (tools/seal-config.js); the password opens it.
+   The device may hold an old fbconfig.js (offline cache), so the live one is fetched once if needed. */
+function sealedNow(fresh){
+ if(!fresh&&window.FB_SEALED2)return Promise.resolve(window.FB_SEALED2);
+ return fetch('./fbconfig.js?fresh='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():Promise.reject(new Error(r.status));})
+ .then(function(t){var m=t.match(/FB_SEALED2=(\{.*\});/);if(!m)throw new Error('no sealed config');window.FB_SEALED2=JSON.parse(m[1]);return window.FB_SEALED2;});
+}
+function unlock(pass){
+ return SYNC2.deriveKeys(pass).then(function(k){
+  function tryOpen(fresh){return sealedNow(fresh).then(function(s){return SYNC2.openConfig(s,k.cfgKey);});}
+  return tryOpen(false).catch(function(){slog('config did not open — fetching the live copy');return tryOpen(true);})
+  .then(function(cfg){return {docId:k.docId,dataKey:k.dataKey,cfg:cfg,v1Id:k.v1Id};});
  });
- state=fresh;migrate();
- writeLS(LS,JSON.stringify(state));
+}
+function devName(){var d=null;try{d=localStorage.getItem('lift.dev');if(!d){d=Math.random().toString(36).slice(2,8);localStorage.setItem('lift.dev',d);}}catch(e){}return d||'';}
+/* another device's copy (merged with ours) arrives */
+function adopt(s){
+ state=SYNC2.shape(s);migrate();writeLS(LS,JSON.stringify(state));
  var a=document.activeElement;
  if(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))a.addEventListener('blur',function(){render();},{once:true});else render();
 }
-/* fetch the server copy; first time on a device the two are merged (server wins per field) */
-function pull(){
- if(!SYNC.ready||SYNC.busy)return;
- if(!navigator.onLine){setSyncLine('Offline — syncs later',false);return;}
- SYNC.busy=true;slog('GET…');
- fsFetch('GET','?key='+encodeURIComponent(SYNC.key)).then(function(r){slog('GET '+r.status);
-  // no document (new, or removed on the server): push everything, never a diff against the old base
-  if(r.status===404){if(!lastSynced||Object.keys(lastSynced).length)setBase({});localBroken=false;SYNC.updateTime=null;return;}
-  if(!r.ok)return r.text().then(function(t){setSyncLine('Sync rejected ('+r.status+') — saved here',false);console.warn('sync get',r.status,t.slice(0,300));});
-  return r.json().then(function(doc){
-   var remote=(doc.fields&&doc.fields.data)?E.fromFs(doc.fields.data)||{}:{};
-   if(!lastSynced||localBroken){
-    var local=snapshotState(),merged={};
-    SYNC_SECTIONS.forEach(function(sec){merged[sec]=Object.assign({},local[sec]||{},remote[sec]||{});});
-    setBase(remote);state=merged;localBroken=false;migrate();writeLS(LS,JSON.stringify(state));render();
-   }else if(doc.updateTime!==SYNC.updateTime){adoptRemote(remote);setBase(remote);}
-   SYNC.updateTime=doc.updateTime;setSyncLine('Live sync on',true);
-  });
- }).catch(function(e){slog('GET failed: '+(e&&e.name)+' '+(e&&e.message));setSyncLine('Offline — syncs later',false);})
- .then(function(){SYNC.busy=false;flush();});
+function engine(){
+ if(SYNC.eng)return SYNC.eng;
+ SYNC.eng=SYNC2.createSync({transport:restTransport,kv:kv,store:syncStore,dev:devName(),
+  getLocal:function(){return state;},setLocal:adopt,log:slog,status:setSyncLine,notice:toast,loadSealed:sealedNow,
+  every:function(ms,fn){setInterval(function(){if(!document.hidden)fn();},ms);
+   document.addEventListener('visibilitychange',function(){if(!document.hidden)fn();});
+   addEventListener('online',fn);addEventListener('offline',function(){setSyncLine('Offline — syncs later',false);});},
+  onMoved:function(){kv.del('keys');syncStore.del('ut');SYNC.eng=null;SYNC.on=false;showGate('Password changed on another device.');}});
+ return SYNC.eng;
 }
-function sha256hex(txt){return crypto.subtle.digest('SHA-256',new TextEncoder().encode(txt)).then(function(buf){return Array.prototype.map.call(new Uint8Array(buf),function(b){return('0'+b.toString(16)).slice(-2);}).join('');});}
-function norm(s){return String(s||'').toLowerCase().replace(/[^a-z]+/g,' ').trim();}
-function b2a(s){var r=atob(s),u=new Uint8Array(r.length);for(var i=0;i<r.length;i++)u[i]=r.charCodeAt(i);return u;}
-/* The Firebase config is committed only as ciphertext (tools/seal-config.js);
-   the sync passphrase decrypts it. Wrong passphrase = no project at all. */
-function unseal(pass){
- var S=window.FB_SEALED;if(!S)return Promise.reject(new Error('no sealed config'));
- return crypto.subtle.importKey('raw',new TextEncoder().encode(pass),'PBKDF2',false,['deriveKey'])
- .then(function(k){return crypto.subtle.deriveKey({name:'PBKDF2',salt:b2a(S.salt),iterations:S.iter,hash:'SHA-256'},k,{name:'AES-GCM',length:256},false,['decrypt']);})
- .then(function(k){return crypto.subtle.decrypt({name:'AES-GCM',iv:b2a(S.iv)},k,b2a(S.data));})
- .then(function(buf){return JSON.parse(new TextDecoder().decode(buf));});
-}
-/* If the passphrase does not open the config, the device may hold an old copy of
-   fbconfig.js (offline cache). Fetch the live one once and try again. */
-function freshSealed(){
- return fetch('./fbconfig.js?fresh='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.text():Promise.reject(new Error(r.status));})
- .then(function(t){var s=JSON.parse(t.slice(t.indexOf('{'),t.lastIndexOf('}')+1));window.FB_SEALED=s;return s;});
-}
-function unsealFresh(pass){return unseal(pass).catch(function(){slog('config did not open — fetching the live copy');return freshSealed().then(function(){return unseal(pass);});});}
-function startSync(){
- if(SYNC.started)return;SYNC.started=true;   // once per page load: a second call would double the polling
- var pass=null;try{pass=localStorage.getItem(PK);}catch(e){}
- if(!pass||pass==='-'||!(window.crypto&&crypto.subtle)){setSyncLine('Saved on this device only',null);return;}
- setSyncLine('Connecting…',null);slog('unsealing config…');
- Promise.all([unsealFresh(pass),sha256hex('lift-sync:'+pass)]).then(function(r){
-  var cfg=r[0];slog('config ok, project '+cfg.projectId);
-  SYNC.url='https://firestore.googleapis.com/v1/projects/'+encodeURIComponent(cfg.projectId)+'/databases/(default)/documents/lift/'+r[1];
-  SYNC.key=cfg.apiKey;SYNC.ready=true;
-  pull();
-  setInterval(function(){if(!document.hidden)pull();},45000);
-  document.addEventListener('visibilitychange',function(){if(!document.hidden)pull();});
-  addEventListener('online',function(){pull();});
-  addEventListener('offline',function(){setSyncLine('Offline — syncs later',false);});
- }).catch(function(e){slog('start failed: '+(e&&e.name)+' '+(e&&e.message));setSyncLine('Password not accepted — saved on this device',false);});
+/* rec: keys from IndexedDB; pp: a password the old app version kept in localStorage */
+function startSync(rec,pp){
+ if(SYNC.on)return;SYNC.on=true;   // once: a second call would double the polling
+ if(pp==='-'||!(window.crypto&&crypto.subtle&&window.SYNC2)){setSyncLine('Saved on this device only',null);return;}
+ setSyncLine('Connecting…',null);
+ var got=rec?Promise.resolve(rec):
+  // first start after the update: derive the keys, store them, read them back, then forget the password
+  unlock(pp).then(function(r){return kv.set('keys',r).then(function(){return kv.get('keys');}).then(function(back){
+   if(back&&back.docId===r.docId){try{localStorage.removeItem(PK);}catch(e){}}
+   if(!syncStore.get('mig'))syncStore.set('mig','M2');return r;});});
+ got.then(function(r){return engine().start(r);})
+ .catch(function(e){slog('start failed: '+(e&&e.message));if(!rec)setSyncLine('Password not accepted — saved on this device',false);});
 }
 
 /* ---------------- service worker ---------------- */
@@ -375,6 +343,8 @@ function migrate(){
   if(k>=todayISO()||k===act||s.done||!s.ex.some(function(e){return e.sets.some(function(x){return x.done;});}))return;
   var last=0;s.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});e.sets.forEach(function(x){if(x.at>last)last=x.at;});});
   s.done=true;delete s.reopened;if(!s.finished)s.finished=last||s.started||null;saved.push(k);ch=true;});
+ // coaching notes only matter while training: finished sessions don't carry (or sync) them
+ Object.keys(state.sessions).forEach(function(k){var s=state.sessions[k];if(s.done)s.ex.forEach(function(e){if(e.suggest&&e.suggest.note!=null){delete e.suggest.note;ch=true;}});});
  if(saved.length)setTimeout(function(){toast(saved.length>1?saved.length+' unfinished sessions saved':DAYNAME[E.parseISO(saved[0]).getDay()]+'’s session saved');},300);
  if(ch)save();
 }
@@ -531,6 +501,16 @@ document.addEventListener('submit',function(ev){var f=ev.target;if(!f.dataset||!
  if(kg!=null&&!saveWeight(iso,kg))return;
  if(cm!=null&&!saveWaist(iso,cm))return;
  weighEdit=false;save();if(document.activeElement)document.activeElement.blur();renderToday();toast('Saved ✓');});
+/* Change password: the data moves to the new password's document; other devices then ask for it */
+document.addEventListener('submit',function(ev){var f=ev.target;if(f.id!=='pwform')return;ev.preventDefault();
+ var msg=$('#pwmsg'),btn=f.querySelector('button'),cur=f.elements.cur.value,nw=f.elements.nw.value;
+ if(!SYNC2.norm(nw)){msg.textContent='Type the new password.';return;}
+ if(SYNC2.norm(nw)!==SYNC2.norm(f.elements.nw2.value)){msg.textContent='The new passwords don’t match.';return;}
+ if(!SYNC.eng){msg.textContent='Sync is not on.';return;}
+ btn.disabled=true;btn.textContent='Changing…';msg.textContent='';
+ SYNC.eng.changePassword(cur,nw).then(function(){f.reset();f.hidden=true;toast('Password changed');renderProfile();},function(e){
+  msg.textContent=e&&e.code==='wrong'?'Wrong password.':e&&e.code==='seal'?'This password isn’t set up yet: run seal-config --add, publish, then try again.':'Not changed (offline?). Try again.';})
+ .then(function(){btn.disabled=false;btn.textContent='Change password';});});
 function dailyCard(iso,mac){
  var d=state.daily[iso]||{},w=state.weight[iso];
  return '<details class="card fold"><summary><h2>Check-in</h2><span class="xs">'+(w?w+' kg':'')+(d.sleep?' · '+d.sleep+' h sleep':'')+(d.steps?' · '+d.steps+' steps':'')+'</span></summary><div class="grid2" style="margin-top:10px">'+
@@ -854,7 +834,10 @@ function renderProfile(){
  var tm=themeMode();
  h+='<div class="card"><h2>Appearance</h2><p class="xs" style="margin:4px 0 10px">Auto follows your phone\'s light/dark setting.</p><div class="seg">'+[['auto','Auto'],['light','Light'],['dark','Dark']].map(function(o){return '<button data-themeset="'+o[0]+'"'+(tm===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div></div>';
  h+=installCard('profile')+remindersCard();
- h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+esc($('#syncline').textContent)+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+'</p><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button><button class="btn small ghost" data-act="forget">Change password</button><button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div></div>';
+ h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+esc($('#syncline').textContent)+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+(SYNC.eng?' · v2'+(syncStore.get('mig')==='done'?' · migrated':' · moving from v1'):'')+'</p><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button>'+(SYNC.eng?'<button class="btn small ghost" data-act="pwopen">Change password</button>':'<button class="btn small ghost" data-act="forget">Sync with a password</button>')+'<button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div>'+
+  '<form id="pwform" hidden style="margin-top:12px"><label class="field"><span class="l">Current password</span><input type="password" name="cur" autocomplete="current-password"></label>'+
+  '<label class="field"><span class="l">New password</span><input type="password" name="nw" autocomplete="new-password"></label><label class="field"><span class="l">New password again</span><input type="password" name="nw2" autocomplete="new-password"></label>'+
+  '<button class="btn wide" type="submit">Change password</button><p class="sm" id="pwmsg" style="min-height:18px;margin-top:8px;color:var(--bad)"></p></form></div>';
  h+='<p class="xs" style="padding:0 4px 10px">Exercise photos and descriptions: free-exercise-db (public domain). Training and nutrition rules: Pelland 2025, Robinson 2024, Schoenfeld, ISSN position stands. This is a tool, not medical advice.</p>';
  $('#v-profile').innerHTML=h;
 }
@@ -918,9 +901,12 @@ document.addEventListener('click',function(ev){
  if(act==='wskip'){try{localStorage.setItem('lift.wskip',todayISO());}catch(e){}renderToday();return;}
  if(act==='installlater'){try{localStorage.setItem('lift.installLater',todayISO().slice(0,7));}catch(e){}renderToday();return;}
  if(act==='update'){if(!('serviceWorker' in navigator)){location.reload();return;}toast('Checking…');navigator.serviceWorker.getRegistration().then(function(r){return r?r.update():null;}).then(function(){setTimeout(function(){location.reload();},1500);});return;}
- if(act==='forget'){try{localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}
+ if(act==='forget'){try{localStorage.removeItem(PK);}catch(e){}location.reload();return;}
+ if(act==='pwopen'){var pf=$('#pwform');if(pf){pf.hidden=!pf.hidden;if(!pf.hidden)pf.elements.cur.focus();}return;}
  if(act==='export'){downloadBlob(JSON.stringify(state,null,1),'application/json','lift-'+todayISO()+'.json');return;}
- if(act==='wipe'){if(!confirm('Remove all data from this device? The synced copy stays in the cloud.'))return;try{localStorage.removeItem(LS);localStorage.removeItem(PK);localStorage.removeItem(LSB);}catch(e){}location.reload();return;}
+ if(act==='wipe'){if(!confirm('Remove all data from this device? The synced copy stays in the cloud.'))return;if(SYNC.eng)SYNC.eng.stop();clearTimeout(saveT);   // never pushes
+  try{[LS,PK,LS+'.bad','lift.dev'].concat(Object.keys(SYNC_LS).map(function(k){return SYNC_LS[k];})).forEach(function(k){localStorage.removeItem(k);});}catch(e){}
+  kv.clear().then(function(){location.reload();});return;}
 });
 function downloadBlob(text,type,name){var u=URL.createObjectURL(new Blob([text],{type:type})),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u);},5000);}
 /* A swap is for this session only unless 'From now on' is chosen. */
@@ -957,24 +943,29 @@ document.addEventListener('change',function(ev){
 
 /* ---------------- boot ---------------- */
 function boot(){
- var pass=null;try{pass=localStorage.getItem(PK);}catch(e){}
- if(!pass){$('#gate').classList.remove('hidden');try{$('#gatep').focus();}catch(e){}return;}
- $('#app').classList.remove('hidden');
- migrate();
- startSync();
- var ses=activeSession();
- show(ses?'train':(profileReady()?'today':'profile'));
- restoreRest();
+ var pp=null;try{pp=localStorage.getItem(PK);}catch(e){}
+ kv.get('keys').then(function(rec){
+  if(!rec&&!pp){showGate('');return;}
+  $('#gate').classList.add('hidden');$('#app').classList.remove('hidden');
+  migrate();
+  startSync(rec,pp);
+  var ses=activeSession();
+  show(ses?'train':(profileReady()?'today':'profile'));
+  restoreRest();
+ });
 }
-$('#gateform').addEventListener('submit',function(e){e.preventDefault();var v=norm($('#gatep').value);if(!v){toast('Type your password');return;}
+function showGate(msg){$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');$('#gatemsg').textContent=msg||'';try{$('#gatep').focus();}catch(e){}}
+$('#gateform').addEventListener('submit',function(e){e.preventDefault();var v=$('#gatep').value;if(!SYNC2.norm(v)){toast('Type your password');return;}
+ if(!(window.crypto&&crypto.subtle)){$('#gatemsg').textContent='This browser can’t sync. Use this device only.';return;}
  var btn=$('#gateform button'),msg=$('#gatemsg');btn.disabled=true;btn.textContent='Checking…';msg.textContent='';
- var ok=window.crypto&&crypto.subtle?unsealFresh(v).then(function(){return true;},function(){return false;}):Promise.resolve(true);
- ok.then(function(good){
+ unlock(v).then(function(rec){return kv.set('keys',rec).then(function(){return rec;});},function(){return null;}).then(function(rec){
   btn.disabled=false;btn.textContent='Continue';
-  if(!good){msg.textContent='Wrong password.';return;}
-  try{localStorage.setItem(PK,v);}catch(e2){}
+  if(!rec){msg.textContent='Wrong password.';return;}
+  // never synced with v2 on this device: take in the old v1 copy too; otherwise a normal sync against the last agreed copy
+  if(!syncStore.get('mig'))syncStore.set('mig','M2');syncStore.del('ut');
+  try{localStorage.removeItem(PK);}catch(e2){}
   try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});}catch(e3){}
-  $('#gate').classList.add('hidden');boot();});});
-$('#gateskip').addEventListener('click',function(){try{localStorage.setItem(PK,'-');}catch(e){}$('#gate').classList.add('hidden');boot();});
+  $('#gatep').value='';boot();});});
+$('#gateskip').addEventListener('click',function(){try{localStorage.setItem(PK,'-');}catch(e){}boot();});
 boot();
 })();
