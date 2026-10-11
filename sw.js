@@ -1,6 +1,6 @@
 /* Offline cache for Lift. App shell is precached; exercise photos are cached
    on first view. Stamped with a new VERSION on every publish. */
-const VERSION = 'v-bde7dadfe2';
+const VERSION = 'v-abf3c25041';
 /* Other pages share this github.io origin (and its caches), so Lift's caches carry a lift- prefix
    and only those are ever cleaned up. */
 const CACHE = 'lift-' + VERSION;
