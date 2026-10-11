@@ -149,6 +149,12 @@ eq('timeline lunch at 11:30', tl.indexOf('11:30 Meal 1 (lunch)') >= 0, true);
 eq('only the bedtime shake after 19:30 (bed 22:30)', E.timeline(prof, E.plan('2026-09-21', st), m).concat(E.timeline(prof, E.plan('2026-09-22', st), m)).filter(function (x) { return x.t > E.hm('19:30'); }).map(function (x) { return x.key; }), ['sh3', 'sh3']);
 eq('timeline shake at 17:10', tl.indexOf('17:10 Protein shake') >= 0, true);
 eq('timeline meal 2 at 18:45', tl.indexOf('18:45 Meal 2 (dinner)') >= 0, true);
+function tlAt(time) { return E.timeline(prof, { date: '2026-09-21', training: true, time: time, day: 'A' }, m).map(function (s) { return s.time + ' ' + s.label; }); }
+eq('17:00 session: shake and dinner after it', tlAt('17:00').filter(function (x) { return /Protein shake|Meal 2/.test(x); }), ['18:10 Protein shake', '19:30 Meal 2 (dinner)']);
+eq('18:00 session: light dinner after it, bedtime shake stays', tlAt('18:00').filter(function (x) { return /Protein shake|Meal 2|Bedtime/.test(x); }), ['19:10 Protein shake', '19:50 Meal 2 (light)', '21:45 Bedtime shake']);
+eq('19:00 session: nothing before it ends, no shake right after the light dinner', tlAt('19:00').filter(function (x) { return x > '19:00'; }), ['19:00 Train', '20:10 Protein shake', '20:50 Meal 2 (light)']);
+eq('lunch 4.5 h before training says 2–5 h', /2–5 h/.test(E.timeline(prof, E.plan('2026-09-21', st), m).filter(function (s) { return s.key === 'm1'; })[0].why), true);
+eq('creatine amount from RULES', tl.indexOf('15:45 Creatine ' + E.RULES.creatineG + ' g + water') >= 0, true);
 eq('timeline 2 meals + 3 shakes', tl.filter(function (x) { return /Meal \d|shake|Morning protein/i.test(x); }).length, 5);
 eq('bedtime shake 45 min before bed', tl.indexOf('21:45 Bedtime shake') >= 0, true);
 

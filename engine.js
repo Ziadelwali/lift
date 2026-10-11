@@ -620,23 +620,26 @@
       slots.push(Object.assign({ t: t, time: fmtHM(t), key: key, label: label, why: why, protein: P, kcal: kcal ? Math.round(kcal / 10) * 10 : 0, foods: foods ? [foods] : null }, extra || {}));
     }
     var m1 = mealText(profile, iso, 1, tgt), m2 = mealText(profile, iso, 2, tgt), mo = morningFor(iso);
-    var lunch = hm(profile.lunch || '11:30'), last = bed - 180;   // meals end 3 h before bed; only the bedtime shake comes later
+    var lunch = hm(profile.lunch || '11:30'), last = bed - 180, lateDin = null;   // meals end 3 h before bed; only the bedtime shake comes later
     if (p.training && p.time) {
       var T = hm(p.time); if (T < wake) T += 1440;
       var end = T + RULES.sessionMinutes;
       slot(wake + 60, 'sh2', SHAKES.morning.label, 'Protein feed 1 — starts the day without cooking.', mo.P, mo.kcal, mo.short, { what: 'Shake · ' + mo.P + ' g protein', detail: 'Whey 30 g in 300 ml milk. Or instead: ' + mo.swap + ' — same protein.' });
-      slot(lunch, 'm1', 'Meal 1 (lunch)', T - lunch >= 60 ? 'Carbs + protein — also the fuel for the afternoon session.' : 'Recovery meal after the morning session.', tgt.P, tgt.kcal, null, { what: m1.what, detail: m1.detail });
-      slot(T - 15, 'cr', 'Creatine 5 g + water', 'Every day. Timing barely matters — consistency does. A banana now helps if lunch feels long ago.', 0, 0, null, { what: 'Creatine', detail: '5 g in water. A banana too, if lunch feels long ago.' });
+      var gap = T - lunch, cr = RULES.creatineG + ' g';
+      slot(lunch, 'm1', 'Meal 1 (lunch)', gap < 60 ? 'Recovery meal after the morning session.' : gap < 120 ? 'Training in under 2 h: a smaller plate, carbs + protein.' : gap <= 300 ? 'Eat 2–5 h before training: carbs + protein fuel the session.' : 'Carbs + protein. Training is over 5 h away — have a banana an hour before.', tgt.P, tgt.kcal, null, { what: m1.what, detail: m1.detail });
+      slot(T - 15, 'cr', 'Creatine ' + cr + ' + water', 'Every day. Timing barely matters — consistency does. A banana now helps if lunch feels long ago.', 0, 0, null, { what: 'Creatine', detail: cr + ' in water. A banana too, if lunch feels long ago.' });
       slot(T, 'train', 'Train', 'Session ' + p.day + ' · ~' + RULES.sessionMinutes + ' min incl. warm-up.', 0, 0, null, { what: 'Train', detail: '~' + RULES.sessionMinutes + ' min incl. warm-up.' });
-      slot(Math.min(end + 5, last), 'sh1', SHAKES.post.label, 'Straight after training: fast protein while you head home.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how, { what: 'Shake · ' + SHAKES.post.P + ' g protein', detail: 'Whey 40 g + 500 ml milk + a banana. Or instead: skyr 400 g + a banana.' });
-      slot(Math.min(end + 100, last), 'm2', 'Meal 2 (dinner)', 'The big meal: protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, null, { what: m2.what, detail: m2.detail });
+      // the shake and dinner always come after the session; a late session gets a light dinner
+      slot(end + 5, 'sh1', SHAKES.post.label, 'Straight after training: fast protein while you head home.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how, { what: 'Shake · ' + SHAKES.post.P + ' g protein', detail: 'Whey 40 g + 500 ml milk + a banana. Or instead: skyr 400 g + a banana.' });
+      if (end + 45 <= last) slot(Math.max(end + 45, Math.min(end + 100, last)), 'm2', 'Meal 2 (dinner)', 'The big meal: protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, null, { what: m2.what, detail: m2.detail });
+      else { lateDin = end + 45; slot(lateDin, 'm2', 'Meal 2 (light)', 'Late session, bed soon: a light meal instead of a big plate, so you sleep well.', tgt.P, tgt.kcal, null, { what: 'Light dinner', detail: 'Skyr 400 g + fruit, or a shake. Protein matters, the size does not.' }); }
     } else {
-      slot(wake + 60, 'sh2', SHAKES.morning.label + ' + creatine', 'Protein feed 1. Creatine every day, training or not.', mo.P, mo.kcal, mo.short, { what: 'Shake · ' + mo.P + ' g protein + creatine', detail: 'Whey 30 g in 300 ml milk, creatine 5 g. Or instead: ' + mo.swap + ' — same protein.' });
+      slot(wake + 60, 'sh2', SHAKES.morning.label + ' + creatine', 'Protein feed 1. Creatine every day, training or not.', mo.P, mo.kcal, mo.short, { what: 'Shake · ' + mo.P + ' g protein + creatine', detail: 'Whey 30 g in 300 ml milk, creatine ' + RULES.creatineG + ' g. Or instead: ' + mo.swap + ' — same protein.' });
       slot(lunch, 'm1', 'Meal 1 (lunch)', 'Protein + carbs + veg.', tgt.P, tgt.kcal, null, { what: m1.what, detail: m1.detail });
       slot(Math.min(lunch + 240, last - 180), 'sh1', SHAKES.post.label, 'Mid-afternoon on rest days — keeps protein coming.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how, { what: 'Shake · ' + SHAKES.post.P + ' g protein', detail: 'Whey 40 g + 500 ml milk + a banana. Or instead: skyr 400 g + a banana.' });
       slot(Math.min(wake + 720, last), 'm2', 'Meal 2 (dinner)', 'Protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, null, { what: m2.what, detail: m2.detail });
     }
-    slot(bed - 45, 'sh3', SHAKES.bed.label, 'Protein for the night: muscle keeps building while you sleep. A drink, not a meal.', SHAKES.bed.P, SHAKES.bed.kcal, SHAKES.bed.how, { what: 'Shake · ' + SHAKES.bed.P + ' g protein', detail: 'Whey 30 g + 300 ml milk. Or instead: skyr 400 g.' });
+    if (lateDin == null || bed - 45 >= lateDin + 60) slot(bed - 45, 'sh3', SHAKES.bed.label, 'Protein for the night: muscle keeps building while you sleep. A drink, not a meal.', SHAKES.bed.P, SHAKES.bed.kcal, SHAKES.bed.how, { what: 'Shake · ' + SHAKES.bed.P + ' g protein', detail: 'Whey 30 g + 300 ml milk. Or instead: skyr 400 g.' });
     var wd = parseISO(iso).getDay(), nl = lattes(profile);
     if (wd >= 1 && wd <= 5) for (var li = 0; li < nl; li++) {
       var lt = li === 0 ? wake + 150 : li === 1 ? Math.min(lunch + 120, hm('14:45')) : Math.min(lunch + 60, hm('14:45'));

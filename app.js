@@ -705,7 +705,7 @@ function renderEat(){
  h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">What a training day looks like: morning shake, lunch, a shake after training, dinner, and a shake before bed. Meals end 3 hours before bed; the bedtime shake is just a drink. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
  h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">What a rest day looks like: same protein, the after-training shake moves to the afternoon, creatine still. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
  h+='<details class="card fold"><summary><h2>Supplements — what earns its place</h2></summary><div class="stack sm" style="margin-top:8px">'+
-  '<p><b>Creatine monohydrate, 5 g every day.</b> The best-evidenced supplement there is: more reps per set, faster gains. No loading phase needed; any time of day; mix into anything. Cheapest own-brand is identical to expensive ones.</p>'+
+  '<p><b>Creatine monohydrate, '+E.RULES.creatineG+' g every day.</b> The best-evidenced supplement there is: more reps per set, faster gains. No loading phase needed; any time of day; mix into anything. Cheapest own-brand is identical to expensive ones.</p>'+
   '<p><b>Whey protein.</b> Just convenient milk protein — your three shakes are your no-cook protein. Any plain whey works; price and taste decide. Skyr, Greek yoghurt or eggs are the alternatives.</p>'+
   '<p><b>A shake before bed.</b> About 35–40 g milk protein before sleep keeps muscle building through the night. It is a drink, not an extra meal, and it does not make you fat.</p>'+
   '<p><b>Caffeine 1–3 mg/kg, 30–60 min pre-session</b> if you want it. A coffee. Not after 15:00 if sleep suffers — sleep beats caffeine.</p>'+
@@ -713,7 +713,7 @@ function renderEat(){
   '<p class="xs">Skip: BCAAs (pointless with enough protein), fat burners, test boosters, pre-workouts beyond caffeine.</p></div></details>';
  h+='<details class="card fold"><summary><h2>The rules behind it</h2></summary><div class="stack sm" style="margin-top:8px">'+
   '<p>• Protein: about 2.2 g per kg of your goal weight. Muscle gain levels off near 1.6 g/kg; while losing fat, a bit more keeps muscle. Total per day matters most; 2 meals + 3 shakes spreads it over 5 feeds.</p>'+
-  '<p>• Pre-workout meal 1–3 h before: carbs + protein. Post-workout meal within ~2 h. The "anabolic window" is hours wide, not minutes.</p>'+
+  '<p>• Last meal 2–5 h before training: carbs + protein. Post-workout meal within ~2 h. The "anabolic window" is hours wide, not minutes.</p>'+
   '<p>• Weigh most mornings; the trend line decides, not one morning. Portions change only when two weekly checks in a row are off — a bit more or a bit less rice, potatoes or bread. Aim: '+E.RULES.trendTarget.lean.map(Math.abs).reverse().join('–')+' kg a week down, slow enough to keep building muscle.</p>'+
   '<p>• Sleep 7–9 h. Under 6 h measurably cuts muscle gain and raises fat gain — it is a training variable.</p></div></details>';
  $('#v-eat').innerHTML=h;
