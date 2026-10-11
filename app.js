@@ -479,14 +479,37 @@ function sessionSummary(s){
 }
 /* Morning weigh-in (and the weekly waist) first thing on Today, until it is filled in. */
 function waistDue(iso){var ks=Object.keys(state.daily).filter(function(k){return state.daily[k]&&state.daily[k].waist>0&&k<iso;}).sort(),l=ks[ks.length-1];return !(state.daily[iso]||{}).waist&&(!l||l<=addDays(iso,-7));}
+/* Saved with the Save button (or Enter) only; leaving the field empty never removes anything.
+   Once saved it folds to one line, so the screen doesn't jump. */
+var weighEdit=false;
 function weighCard(iso){
  var w=state.weight[iso],due=waistDue(iso),skip=false;try{skip=localStorage.getItem('lift.wskip')===iso;}catch(e){}
- if((w&&!due)||skip)return '';
- return '<div class="card weigh"><div class="row between"><h2>'+(w?'Waist this week':'Good morning — weigh in')+'</h2><button class="linkbtn xs" data-act="wskip">not today</button></div>'+
-  '<div class="grid2" style="margin-top:10px">'+(w?'':'<label class="field" style="margin:0"><span class="l">Weight kg</span><input type="text" inputmode="decimal" autocomplete="off" data-daily="weight" placeholder="'+(state.profile.weight||'')+'"></label>')+
-  (due?'<label class="field" style="margin:0"><span class="l">Waist cm (weekly)</span><input type="text" inputmode="decimal" autocomplete="off" data-daily="waist" placeholder="e.g. 108"></label>':'')+'</div>'+
-  '<p class="xs" style="margin-top:8px">'+(w?'':'After the toilet, before breakfast. ')+(due?'Waist: tape at the belly button, relaxed, once a week. ':'')+'Single days mean nothing; the 7-day trend decides calories.</p></div>';
+ if(w&&(!due||skip)&&!weighEdit)return '<div class="card weigh done"><div class="row between"><span><b class="mono">'+esc(w)+' kg</b> <span style="color:var(--ok)">✓</span></span><button class="linkbtn xs" data-act="wedit">edit</button></div></div>';
+ if(skip&&!weighEdit)return '';
+ var askW=!w||weighEdit,morning=new Date().getHours()<12;
+ return '<form class="card weigh" data-weigh="1"><div class="row between"><h2>'+(askW?(morning?'Good morning — weigh in':'Weigh in'):'Waist this week')+'</h2>'+(weighEdit?'':'<button type="button" class="linkbtn xs" data-act="wskip">not today</button>')+'</div>'+
+  '<div class="grid2" style="margin-top:10px">'+(askW?'<label class="field" style="margin:0"><span class="l">Weight kg</span><input type="text" inputmode="decimal" autocomplete="off" name="kg" value="'+esc(w||'')+'" placeholder="'+esc(state.profile.weight||'')+'"></label>':'')+
+  (due?'<label class="field" style="margin:0"><span class="l">Waist cm (weekly)</span><input type="text" inputmode="decimal" autocomplete="off" name="waist" placeholder="e.g. 108"></label>':'')+'</div>'+
+  '<button class="btn wide" type="submit" style="margin-top:10px">Save</button>'+
+  '<p class="xs" style="margin-top:8px">'+(askW?'After the toilet, before breakfast. ':'')+(due?'Waist: tape at the belly button, relaxed, once a week. ':'')+'Single days mean nothing; the 7-day trend decides.</p></form>';
 }
+/* 40–250 kg; far from the recent trend (> 8 %) asks first. Returns true when saved. */
+function saveWeight(iso,kg){
+ if(!(kg>=40&&kg<=250)){toast('Weight between 40 and 250 kg');return false;}
+ var t=E.weightTrend(state).filter(function(x){return x.date<iso;}),ref=t.length?t[t.length-1].avg:null;
+ if(ref&&Math.abs(kg-ref)/ref>0.08&&!confirm(kg+' kg is far from your usual ~'+ref.toFixed(1)+' kg. Save it anyway?'))return false;
+ state.weight[iso]=kg;state.profile.weight=kg;return true;
+}
+function saveWaist(iso,cm){
+ if(!(cm>=50&&cm<=200)){toast('Waist between 50 and 200 cm');return false;}
+ state.daily[iso]=state.daily[iso]||{};state.daily[iso].waist=cm;return true;
+}
+document.addEventListener('submit',function(ev){var f=ev.target;if(!f.dataset||!f.dataset.weigh)return;ev.preventDefault();
+ var iso=todayISO(),kgIn=f.elements.kg,wIn=f.elements.waist,kg=kgIn&&num(kgIn.value),cm=wIn&&num(wIn.value);
+ if(kg==null&&cm==null){toast(kgIn?'Type your weight first':'Type your waist first');return;}
+ if(kg!=null&&!saveWeight(iso,kg))return;
+ if(cm!=null&&!saveWaist(iso,cm))return;
+ weighEdit=false;save();if(document.activeElement)document.activeElement.blur();renderToday();toast('Saved ✓');});
 function dailyCard(iso,mac){
  var d=state.daily[iso]||{},w=state.weight[iso];
  return '<details class="card fold"><summary><h2>Check-in</h2><span class="xs">'+(w?w+' kg':'')+(d.sleep?' · '+d.sleep+' h sleep':'')+(d.steps?' · '+d.steps+' steps':'')+'</span></summary><div class="grid2" style="margin-top:10px">'+
@@ -870,6 +893,7 @@ document.addEventListener('click',function(ev){
  if(act==='abandon'){if(!ses||ses.reopened)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[activeKey()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='ics'){downloadBlob(E.calendarICS(state.profile,E.macros(state.profile),todayISO(),b.dataset.meals==='1'),'text/calendar','lift-reminders.ics');toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
  if(act==='install'){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(c){if(c&&c.outcome==='accepted')installEvt=null;render();});}return;}
+ if(act==='wedit'){weighEdit=true;renderToday();var wi=$('.weigh input');if(wi)wi.focus();return;}
  if(act==='wskip'){try{localStorage.setItem('lift.wskip',todayISO());}catch(e){}renderToday();return;}
  if(act==='installlater'){try{localStorage.setItem('lift.installLater',todayISO().slice(0,7));}catch(e){}renderToday();return;}
  if(act==='update'){if(!('serviceWorker' in navigator)){location.reload();return;}toast('Checking…');navigator.serviceWorker.getRegistration().then(function(r){return r?r.update():null;}).then(function(){setTimeout(function(){location.reload();},1500);});return;}
@@ -896,9 +920,12 @@ document.addEventListener('change',function(ev){
  if(t.dataset.warm){ses.warm=ses.warm||{};ses.warm[t.dataset.warm]=t.checked?1:0;
   var wall=['gen'].concat(E.WARMUP[ses.day].map(function(w){return w.id;})).every(function(k){return ses.warm[k];});
   if(wall){ses.warmShut=true;var wd=$('#warmup');if(wd)wd.open=false;}save();return;}
- if(t.dataset.daily){var iso=todayISO();var dv=num(t.value);if(t.dataset.daily==='weight'){if(dv!=null){state.weight[iso]=dv;state.profile.weight=dv;}else delete state.weight[iso];}
-  else{state.daily[iso]=state.daily[iso]||{};state.daily[iso][t.dataset.daily]=dv;}save();if(t.dataset.daily==='waist'&&view==='progress'){var sy=scrollY;renderProgress();scrollTo(0,sy);}
-  if(view==='today'&&t.closest('.weigh')){renderToday();toast('Saved ✓');}return;}
+ if(t.dataset.daily){var iso=todayISO(),dv=num(t.value),k=t.dataset.daily,d0=state.daily[iso]||{};
+  // an empty or impossible value puts the saved one back instead of deleting it
+  var ok=k==='weight'?dv!=null&&saveWeight(iso,dv):k==='waist'?dv!=null&&saveWaist(iso,dv):(dv==null||dv>=0);
+  if(!ok){t.value=k==='weight'?(state.weight[iso]||''):(d0[k]==null?'':d0[k]);return;}
+  if(k!=='weight'&&k!=='waist'){state.daily[iso]=d0;if(dv==null)delete d0[k];else d0[k]=dv;}
+  save();return;}
  if(t.dataset.meal){var dl=t.closest('[data-day]'),iso2=dl?dl.dataset.day:todayISO();if(iso2!==todayISO())keepY=true;state.daily[iso2]=state.daily[iso2]||{};state.daily[iso2].meals=state.daily[iso2].meals||{};state.daily[iso2].meals[t.dataset.meal]=t.checked?1:0;save();renderToday();return;}
  if(t.dataset.p){var v=t.value;if(['age','height','weight','goal1','goal2','lattes'].indexOf(t.dataset.p)>=0)v=num(v);state.profile[t.dataset.p]=v;save();return;}
  if(t.dataset.prio){var list=(state.profile.priority||['shoulders','back']).slice();if(t.checked){if(list.length>=2){t.checked=false;toast('Two at most');return;}list.push(t.dataset.prio);}else list=list.filter(function(x){return x!==t.dataset.prio;});state.profile.priority=list;save();return;}
@@ -916,7 +943,6 @@ function boot(){
  startSync();
  var ses=activeSession();
  show(ses?'train':(profileReady()?'today':'profile'));
- setInterval(function(){if(view==='today'&&!document.hidden)renderToday();},60000);
 }
 $('#gateform').addEventListener('submit',function(e){e.preventDefault();var v=norm($('#gatep').value);if(!v){toast('Type your password');return;}
  var btn=$('#gateform button'),msg=$('#gatemsg');btn.disabled=true;btn.textContent='Checking…';msg.textContent='';
