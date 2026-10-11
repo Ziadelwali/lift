@@ -628,6 +628,7 @@ function measureBars(){
 }
 addEventListener('resize',measureBars);
 var openCards={};   /* finished exercises the user re-opened */
+var justDone=null;  /* exercise whose last set was just ticked: moves on after "How was it?" */
 function exerciseCard(e,ei,ses){
  var collapsed=exDone(e)&&!openCards[ei];
  return '<div class="card ex'+(collapsed?' collapsed':'')+'" id="ex-'+ei+'" data-ei="'+ei+'">'+exInner(e,ei,ses,collapsed)+'</div>';
@@ -658,7 +659,7 @@ function zoom(kind,ei){
  z.addEventListener('click',function(){z.remove();});document.body.appendChild(z);
 }
 /* One question per exercise instead of reps-in-reserve per set: easy = 3+ left, about right = 2,
-   hard = 0. The answer (e.feel) sets next time's weight and reps; it is also stored as rir on the sets. */
+   hard = 0. The answer (e.feel) sets the weight for next time and reps; it is also stored as rir on the sets. */
 var FEEL=[['easy','Easy',3],['right','About right',2],['hard','Hard',0]];
 function feelButtons(ei,e){return FEEL.map(function(o){return '<button data-feel="'+ei+':'+o[0]+'"'+(e.feel===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('');}
 function setFeel(e,k){var o=FEEL.filter(function(x){return x[0]===k;})[0],done=e.sets.filter(function(x){return x.done;});if(!o||!done.length)return;
@@ -674,7 +675,7 @@ function exBody(e,ei,ses){
    return '<div class="setrow'+(s.done?' done':'')+'"><span class="sn mono">'+(si+1)+'</span>'+stepper('kg',ei,si,s.kg,cfg.inc||1)+stepper('reps',ei,si,s.reps,1)+
     '<button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'" aria-label="Set done">'+(s.pr?'★':'✓')+'</button></div>';
   }).join('')+
-  (exDone(e)?'<div class="rirrow feel"><span>How was it?</span>'+feelButtons(ei,e)+'</div>':'')+
+  (exDone(e)?'<div class="rirrow feel'+(e.feel?'':' ask')+'"><span>How was it?</span>'+feelButtons(ei,e)+'</div>'+(e.feel?'':'<p class="xs" style="margin-top:6px">Your answer sets the weight for next time. Ticked by mistake? <button class="linkbtn" data-undo="'+ei+'">Undo last set</button></p>'):'')+
   '<div class="row between" style="margin-top:10px;flex-wrap:wrap;gap:8px"><span class="row" style="gap:8px">'+(e.sets.length>1&&!e.sets[e.sets.length-1].done?'<button class="btn small ghost" data-delset="'+ei+'">− set</button>':'')+'<button class="btn small ghost" data-addset="'+ei+'">+ set</button></span>'+(alts.length?'<button class="btn small ghost" data-swapopen="'+ei+'">⇄ Other options ('+alts.length+')</button>':'')+'</div>'+
   (alts.length?'<div id="swaps-'+ei+'" hidden><div class="seg" style="margin-top:10px">'+[['today','Just today'],['always','From now on']].map(function(o){return '<button data-swapkeep="'+o[0]+'"'+(swapKeep===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div><p class="xs" style="margin-top:6px">'+(swapKeep==='always'?'Replaces it in every session.':'Only today. Good when a machine is busy.')+'</p><div class="swaps">'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div></div>':'')+
   '<details class="how" data-how="'+esc(e.id)+'"'+(openHow[e.id]?' open':'')+'><summary><b>How to do it</b>'+(lt?'<span class="xs">Last: '+esc(lt.txt)+'</span>':'')+'</summary>'+
@@ -872,7 +873,7 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-zoom]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-zoom],[data-undo]');if(!b)return;
  if(b.dataset.zoom){var zz=b.dataset.zoom.split(':');zoom(zz[0],+zz[1]);return;}
  if(b.dataset.wkday){wkv.sel=wkv.sel===b.dataset.wkday||b.dataset.wkday===todayISO()?null:b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
  if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
@@ -894,7 +895,13 @@ document.addEventListener('click',function(ev){
  if(b.dataset.swapopen){var box=$('#swaps-'+b.dataset.swapopen);if(box)box.hidden=!box.hidden;return;}
  if(b.dataset.swapto){var sw=b.dataset.swapto.split(':');doSwap(+sw[0],sw.slice(1).join(':'));return;}
  var ses=activeSession();
- if(b.dataset.feel){var fe=b.dataset.feel.split(':'),fx=ses.ex[+fe[0]];setFeel(fx,fe[1]);save();refreshCard(+fe[0]);if(rest.ask===+fe[0])rest.ask=null;restRir();return;}
+ if(b.dataset.feel){var fe=b.dataset.feel.split(':'),fi=+fe[0],fx=ses.ex[fi];setFeel(fx,fe[1]);save();refreshCard(fi);if(rest.ask===fi)rest.ask=null;restRir();
+  if(justDone===fi){justDone=null;var nx=nextUndone(ses,fi+1);
+   if(nx>=0)setTimeout(function(){goEx(ses,nx);toast('Next: '+nm(ses.ex[nx].id));},400);
+   else{var fb=$('[data-act="finish"]');if(fb)fb.scrollIntoView({behavior:SMOOTH,block:'center'});toast('All exercises done — tap Finish session');}}
+  return;}
+ if(b.dataset.undo){var ui=+b.dataset.undo,ux=ses.ex[ui],us=ux.sets.filter(function(x){return x.done;}).pop();if(!us)return;
+  us.done=false;delete us.pr;delete us.at;delete ux.feel;justDone=null;if(rest.ask===ui)rest.ask=null;openCards[ui]=true;save();refreshCard(ui);restRir();return;}
  if(b.dataset.step){var a=b.dataset.step.split(':'),e=ses.ex[+a[1]],si=+a[2],s=e.sets[si],inc=+a[3];var cur=+s[a[0]]||0;s[a[0]]=Math.max(0,Math.round((cur+inc)*100)/100);
   var inp=$('[data-val="'+a[0]+':'+a[1]+':'+si+'"]');if(inp)inp.value=s[a[0]];
   if(a[0]==='kg'&&!s.done)e.sets.forEach(function(x,i){if(i>si&&!x.done&&(x.kg==null||x.kg===cur)){x.kg=s.kg;var q=$('[data-val="kg:'+a[1]+':'+i+'"]');if(q)q.value=x.kg;}});
@@ -906,8 +913,9 @@ document.addEventListener('click',function(ev){
    if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+E.setText(ex.id,st.kg,st.reps)+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
    var cfg=cfgOf(ex);var lastSet=exDone(ex);// last set: no timer over the next exercise (walking to the next machine is the rest), only the question
    if(lastSet){clearInterval(rest.t);rest.end=0;keepRest();if(!ex.feel)rest.ask=+t[0];}else startRest(cfg.rest);restRir();
-   var ei=+t[0];if(lastSet)delete openCards[ei];save();refreshCard(ei);
-   if(lastSet){var nx=nextUndone(ses,ei+1);if(nx>=0)setTimeout(function(){ses.warmShut=true;trainFocus=nx;renderTrain();scrollTo(0,0);toast('Next: '+nm(ses.ex[nx].id));},700);}
+   var ei=+t[0];if(lastSet)openCards[ei]=true;save();refreshCard(ei);
+   if(lastSet){var fr=$('#ex-'+ei+' .feel');if(fr&&fr.getBoundingClientRect().bottom>innerHeight-150)fr.scrollIntoView({behavior:SMOOTH,block:'center'});}
+   if(lastSet)justDone=ei;   // no auto-jump: "How was it?" (or Undo) first, then on to the next one
    return;}
   else{st.done=false;delete st.pr;delete st.at;}
   save();refreshCard(+t[0]);return;}

@@ -328,7 +328,7 @@ svg.bm .m.p{fill:var(--train)}svg.bm .m.s{fill:var(--train);opacity:.45}
 .strip{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:0 16px}
 .strip.two{grid-template-columns:2fr 1fr}
 .sp{position:relative;aspect-ratio:850/567;overflow:hidden;background:#000;padding:0;border:0;border-radius:var(--r-s);cursor:zoom-in}
-.strip.two .sp.map{aspect-ratio:auto}
+.strip .sp{aspect-ratio:auto;height:84px}
 .sp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .sp.pic img,.zpic img{animation:frameA 2.4s steps(1) infinite}.sp.pic img.f1,.zpic img.f1{animation-name:frameB}
 .sp.map{background:var(--map-bg);display:flex;align-items:center;justify-content:center}.sp.map svg{height:100%;width:auto;max-width:100%}
@@ -345,3 +345,4 @@ details.how[open]>summary{margin-bottom:6px}
 .zmap{width:min(80vw,320px);background:var(--map-bg);border-radius:var(--r-m);padding:8px}.zmap svg{width:100%;height:auto}
 .zgym{max-width:100%;max-height:80vh;border-radius:var(--r-m)}
 @media (prefers-reduced-motion: reduce){.sp.pic img,.zpic img{animation:none}.sp.pic img.f1,.zpic img.f1{opacity:0}}
+.rirrow.feel.ask{background:var(--acc2);border-radius:var(--r-m);padding:8px}
