@@ -332,12 +332,30 @@
   }
 
   /* ---------- sessions ---------- */
+  /* Per-render cache: while withMemo(fn) runs nothing changes the data, so the list of finished
+     sessions and each exercise's history are worked out once instead of for every day and card. */
+  var memo = null;
+  function withMemo(fn) {
+    if (memo) return fn();
+    memo = {};
+    try { return fn(); } finally { memo = null; }
+  }
+  function cached(state, key, make) {
+    if (!memo) return make();
+    if (memo.state !== state) { memo = { state: state }; }
+    return key in memo ? memo[key] : (memo[key] = make());
+  }
   function completedSessions(state) {
-    var s = state.sessions || {};
-    return Object.keys(s).filter(function (k) { return s[k] && s[k].done; }).sort();
+    return cached(state, 'done', function () {
+      var s = state.sessions || {};
+      return Object.keys(s).filter(function (k) { return s[k] && s[k].done; }).sort();
+    }).slice();
   }
   /* history of one exercise: array (oldest → newest) of arrays of logged sets */
   function history(state, exId) {
+    return cached(state, 'h:' + exId, function () { return historyOf(state, exId); }).slice();
+  }
+  function historyOf(state, exId) {
     var keys = completedSessions(state), out = [], bw = BODYWEIGHT.indexOf(exId) !== -1;
     keys.forEach(function (k) {
       var ses = state.sessions[k];
@@ -894,7 +912,7 @@
     sanitize: sanitize, readBackup: readBackup, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, roundHalf: roundHalf, lighter: lighter, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
-    exercisesFor: exercisesFor, idFor: idFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
+    exercisesFor: exercisesFor, idFor: idFor, findCfg: findCfg, completedSessions: completedSessions, history: history, withMemo: withMemo,
     suggest: suggest, suggestIn: suggestIn, feelOf: feelOf, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
     macros: macros, timeline: timeline, proteinDone: proteinDone, weightSeries: weightSeries, weightTrend: weightTrend,
     trendAdvice: trendAdvice, trendWeight: trendWeight, weightRate: weightRate, macrosFor: macrosFor, weeklyVolume: weeklyVolume, bestSets: bestSets, liftPoints: liftPoints, editSets: editSets

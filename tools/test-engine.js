@@ -327,6 +327,14 @@ eq('backup: some other JSON file', E.readBackup('{"name":"x","items":[]}'), null
 eq('backup: a section of the wrong kind', E.readBackup('{"sessions":[],"weight":{"2026-10-01":112}}'), null);
 eq('backup: nothing in it', E.readBackup('{"profile":{},"sessions":{},"weight":{}}'), null);
 
+// per-render cache: same answers, and it is gone (fresh data) once the render is over
+var ms = { sessions: { '2026-10-01': lp('', [[100, 8]]) } };
+eq('memo: same history inside and outside', E.withMemo(function () { var a = E.history(ms, 'Leg_Press'); a.pop(); return E.history(ms, 'Leg_Press').length; }), 1);
+E.withMemo(function () { E.completedSessions(ms); });
+ms.sessions['2026-10-03'] = lp('', [[100, 9]]);
+eq('memo: data changed after the render is seen', [E.completedSessions(ms).length, E.history(ms, 'Leg_Press').length], [2, 2]);
+eq('memo: another state object is not mixed up', E.withMemo(function () { E.history(ms, 'Leg_Press'); return E.history({ sessions: {} }, 'Leg_Press').length; }), 0);
+
 eq('number style', [E.fmtNum(13125), E.fmtNum(112.45), E.fmtNum(112.04), E.fmtNum(165.8, 0), E.fmtNum(-0.25, 2), E.fmtNum(999), E.fmtNum(1234567.89), E.fmtNum(null), E.fmtNum(-0.01)],
   ['13 125', '112.5', '112', '166', '−0.25', '999', '1 234 567.9', '–', '0']);
 

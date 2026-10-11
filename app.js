@@ -34,8 +34,14 @@ function writeLS(k,v){
  try{localStorage.setItem(k,v);if(lsErr){lsErr=null;setSyncLine($('#syncline').textContent.replace(/^Not saved on this device.*? · /,''),null);}return true;}
  catch(e){lsErr=(e&&e.name)||'error';slog('localStorage: '+lsErr);setSyncLine($('#syncline').textContent,false);return false;}
 }
+/* Taps come fast during training: the copy in localStorage is written 300 ms after the last change,
+   and at once when the app is hidden or closed. A wipe stops it for good. */
+var lsT=null,lsOff=false;
+function flushLS(){clearTimeout(lsT);lsT=null;if(!lsOff)writeLS(LS,JSON.stringify(state));}
+addEventListener('pagehide',function(){if(lsT)flushLS();});
+document.addEventListener('visibilitychange',function(){if(document.hidden&&lsT)flushLS();});
 function save(){
- writeLS(LS,JSON.stringify(state));
+ clearTimeout(lsT);lsT=setTimeout(flushLS,300);
  clearTimeout(saveT);saveT=setTimeout(function(){if(SYNC.eng)SYNC.eng.kick();},600);
 }
 function setSyncLine(txt,live){
@@ -370,6 +376,9 @@ function fixSunday(){
  var st=state.settings;if(!st)return;var sh=E.sundayShift(state,todayISO());if(!sh)return;
  var r=E.shiftWeek(state,sh.from,sh.to);st.moves=r.moves;st.autoMoves=r.auto;save();
 }
+/* every screen draws with the per-render cache (E.withMemo) */
+function memoView(f){return function(){var a=arguments;return E.withMemo(function(){return f.apply(null,a);});};}
+renderToday=memoView(renderToday);renderTrain=memoView(renderTrain);renderEat=memoView(renderEat);renderProgress=memoView(renderProgress);renderProfile=memoView(renderProfile);
 function render(){
  fixSunday();keepAwake(!!activeSession());
  if(!profileReady()&&view!=='profile'){show('profile');return;}
@@ -1052,7 +1061,7 @@ document.addEventListener('click',function(ev){
  if(act==='wipe'){openSheet('<h2>Wipe this device?</h2><p class="sm" style="margin-top:6px">All Lift data on this phone is removed. '+(SYNC.eng?'The synced copy stays.':'Nothing is synced: without a backup it is gone.')+'</p>'+
   '<label class="field"><span class="l">Type WIPE to confirm</span><input id="wipeword" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>'+
   '<button class="btn wide danger" data-act="wipeyes" id="wipeyes" disabled>Wipe this device</button><button class="btn wide ghost" data-act="sheetclose" style="margin-top:8px">Cancel</button>');return;}
- if(act==='wipeyes'){var ww2=$('#wipeword');if(!ww2||ww2.value.trim().toUpperCase()!=='WIPE')return;closeSheet();if(SYNC.eng)SYNC.eng.stop();clearTimeout(saveT);   // never pushes
+ if(act==='wipeyes'){var ww2=$('#wipeword');if(!ww2||ww2.value.trim().toUpperCase()!=='WIPE')return;closeSheet();if(SYNC.eng)SYNC.eng.stop();clearTimeout(saveT);lsOff=true;clearTimeout(lsT);   // never pushes, and nothing is written back
   try{[LS,PK,LS+'.bad','lift.dev'].concat(Object.keys(SYNC_LS).map(function(k){return SYNC_LS[k];})).forEach(function(k){localStorage.removeItem(k);});}catch(e){}
   kv.clear().then(function(){location.reload();});return;}
 });
