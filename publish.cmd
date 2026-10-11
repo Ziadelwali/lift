@@ -15,6 +15,6 @@ if errorlevel 1 echo (nothing to commit)
 git push
 echo.
 echo Done. Live in a minute or two:  https://ziadelwali.github.io/lift/
-echo On the phone: open it once online; a new version installs in the background and shows on the NEXT open.
+echo On the phone: open Lift once online. When "New version ready" shows at the top, tap it.
 :end
 pause

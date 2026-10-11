@@ -1,6 +1,7 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow,noarchive">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; connect-src 'self' https://firestore.googleapis.com; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; manifest-src 'self'; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
 <title>Lift</title>
 <meta name="build" content="8498a776f4">
 <link rel="manifest" href="./manifest.webmanifest">
@@ -10,11 +11,10 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Lift">
-<meta name="theme-color" content="#0A1322">
+<meta name="theme-color" content="#4F9FE0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0A1322" media="(prefers-color-scheme: dark)">
 <script src="./theme.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@200;300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<link rel="preload" href="./fonts/dm-sans.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="./styles.css">
 </head><body>
 
@@ -27,7 +27,7 @@
    <input id="gatep" class="mono" style="width:100%;min-height:48px;background:var(--card2);border:1px solid transparent;border-radius:10px;padding:0 12px;font-size:16px" type="password" inputmode="text" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Password" aria-label="Password">
    <button class="btn wide" type="submit" style="margin-top:10px">Continue</button>
   </form>
-  <p class="sm" id="gatemsg" style="min-height:18px;margin-top:8px;color:var(--bad)"></p>
+  <p class="sm" id="gatemsg" role="alert" aria-live="assertive" style="min-height:18px;margin-top:8px;color:var(--bad)"></p>
   <p class="xs" style="margin-top:6px"><button id="gateskip" style="color:var(--acc)">Use this device only, no sync</button></p>
  </div>
 </div>
@@ -41,7 +41,7 @@
   <section class="view" id="v-progress"></section>
   <section class="view" id="v-profile"></section>
  </main>
- <div id="rest"><div class="in"><span class="t">2:30</span><span class="bar"><i></i></span><button class="btn small ghost" data-rest="-30">−30</button><button class="btn small ghost" data-rest="30">+30</button><button class="btn small ghost" id="restskip">Skip</button></div><div class="in rirq" id="restrir" hidden></div></div>
+ <div id="rest" role="region" aria-label="Rest timer"><div class="in"><span class="t" role="timer" aria-live="off">2:30</span><span class="sr" id="restsay" aria-live="assertive"></span><span class="bar"><i></i></span><button class="btn small ghost" data-rest="-30" aria-label="30 seconds less rest">−30</button><button class="btn small ghost" data-rest="30" aria-label="30 seconds more rest">+30</button><button class="btn small ghost" id="restskip">Skip</button></div><div class="in rirq" id="restrir" hidden aria-live="polite"></div></div>
  <nav class="tabs">
   <button data-v="today" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="3"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>Today</button>
   <button data-v="train"><svg viewBox="0 0 24 24"><path d="M2 12h3M19 12h3M6 8v8M18 8v8M9 6v12M15 6v12M9 12h6"/></svg>Train</button>
@@ -51,6 +51,7 @@
  </nav>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<button id="updpill" hidden aria-live="polite">New version ready · tap to reload</button>
 
 <script src="./fbconfig.js"></script>
 <script src="./exercises.js"></script>

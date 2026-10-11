@@ -7,17 +7,21 @@ function chunk(type,data){const len=Buffer.alloc(4);len.writeUInt32BE(data.lengt
 function png(w,h,px){const raw=Buffer.alloc((w*3+1)*h);for(let y=0;y<h;y++){raw[y*(w*3+1)]=0;for(let x=0;x<w;x++){const i=(y*w+x)*3,o=y*(w*3+1)+1+x*3;raw[o]=px[i];raw[o+1]=px[i+1];raw[o+2]=px[i+2];}}
  const ihdr=Buffer.alloc(13);ihdr.writeUInt32BE(w,0);ihdr.writeUInt32BE(h,4);ihdr[8]=8;ihdr[9]=2;ihdr[10]=0;ihdr[11]=0;ihdr[12]=0;
  return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',ihdr),chunk('IDAT',zlib.deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]);}
-function draw(S){const px=new Uint8Array(S*S*3);const bg=[11,15,20],bar=[232,237,241],acc=[79,181,210];
+/* mask: the maskable icon - full-bleed tile (the phone cuts its own shape) and the barbell shrunk
+   into the middle 80 % safe zone */
+function draw(S,mask){const px=new Uint8Array(S*S*3);const bg=[11,15,20],bar=[232,237,241],acc=[79,181,210];
  const rr=S*0.22; // rounded tile
- function inTile(x,y){const cx=Math.max(rr,Math.min(S-rr,x)),cy=Math.max(rr,Math.min(S-rr,y));return (x-cx)**2+(y-cy)**2<=rr*rr;}
- const cy=S/2, barH=S*0.06, barL=S*0.14, barR=S*0.86;
+ function inTile(x,y){if(mask)return true;const cx=Math.max(rr,Math.min(S-rr,x)),cy=Math.max(rr,Math.min(S-rr,y));return (x-cx)**2+(y-cy)**2<=rr*rr;}
+ const k=mask?0.72:1; function sx(v){return S/2+(v-0.5)*k*S;}
+ const cy=S/2, barH=S*0.06*k, barL=sx(0.14), barR=sx(0.86);
  const plates=[[0.24,0.30,0.36],[0.32,0.36,0.24],[0.64,0.68,0.24],[0.70,0.76,0.36]]; // x0,x1,halfheight
  for(let y=0;y<S;y++)for(let x=0;x<S;x++){let c=inTile(x+.5,y+.5)?bg:[0,0,0];
   if(inTile(x+.5,y+.5)){
    if(x>=barL&&x<=barR&&Math.abs(y-cy)<=barH/2)c=bar;
-   for(const [x0,x1,hh] of plates){if(x>=x0*S&&x<=x1*S&&Math.abs(y-cy)<=hh*S){c=(hh>0.3)?acc:bar;}}
+   for(const [x0,x1,hh] of plates){if(x>=sx(x0)&&x<=sx(x1)&&Math.abs(y-cy)<=hh*k*S){c=(hh>0.3)?acc:bar;}}
   }
   const i=(y*S+x)*3;px[i]=c[0];px[i+1]=c[1];px[i+2]=c[2];}
  return px;}
 for(const S of [180,192,512]) fs.writeFileSync(p.join(root,'icon-'+S+'.png'),png(S,S,draw(S)));
+fs.writeFileSync(p.join(root,'icon-maskable-512.png'),png(512,512,draw(512,true)));
 console.log('icons written');

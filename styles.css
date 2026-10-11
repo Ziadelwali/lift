@@ -1,10 +1,14 @@
+/* fonts are served from here (fonts/, OFL): no call to Google, nothing blocks the first paint */
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:400 700;font-display:swap;src:url(fonts/dm-sans.woff2) format("woff2")}
+@font-face{font-family:"DM Mono";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/dm-mono-400.woff2) format("woff2")}
+@font-face{font-family:"DM Mono";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/dm-mono-500.woff2) format("woff2")}
 :root{--bg:#0A1322;--card:rgba(20,31,48,.66);--card2:rgba(255,255,255,.06);--ink:#E8EDF1;--ink2:#B3BFC8;--ink3:#8D9BA8;
  --train:#8E9CFF;--train-bg:rgba(142,156,255,.16);--food:#5FCB93;--food-bg:rgba(95,203,147,.15);--sel:rgba(255,255,255,.14);
  --r-s:8px;--r-m:12px;--r-l:18px;--line:rgba(255,255,255,.08);
  --acc:#4FB5D2;--acc2:rgba(79,181,210,.18);--on-acc:#04202A;--acc-ink:#BDEBF7;--ok:#5CC98A;--on-ok:#052A12;--warn:#F0A05A;--bad:#F07A6A;--prio:#F08DB8;
- --sun:#F2B25C;--glass-edge:rgba(255,255,255,.07);--shadow:0 10px 30px rgba(0,0,0,.35);--blur:blur(18px) saturate(130%);
+ --sun:#F2B25C;--glass-edge:rgba(255,255,255,.07);--shadow:0 10px 30px rgba(0,0,0,.35);--blur:blur(12px);
  --prio-bg:rgba(240,141,184,.16);--warn-bg:rgba(240,160,90,.16);--ok-bg:rgba(92,201,138,.16);--bad-bg:rgba(240,122,106,.16);
- --bar-bg:rgba(10,16,26,.62);--map-bg:rgba(10,16,26,.8);--bm-o:#2A3542;--bm-m:#3A4859;--chart:var(--acc);
+ --bar-bg:rgba(10,16,26,.62);--bar-solid:rgba(12,19,31,.95);--map-bg:rgba(10,16,26,.8);--bm-o:#2A3542;--bm-m:#3A4859;--chart:var(--acc);
  --sky:radial-gradient(60vmax 40vmax at 85% -5%,rgba(150,180,235,.16),transparent 60%),
   radial-gradient(1.2px 1.2px at 12% 18%,rgba(255,255,255,.7),transparent),radial-gradient(1px 1px at 32% 8%,rgba(255,255,255,.5),transparent),
   radial-gradient(1.4px 1.4px at 58% 22%,rgba(255,255,255,.6),transparent),radial-gradient(1px 1px at 76% 12%,rgba(255,255,255,.45),transparent),
@@ -14,10 +18,10 @@
  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px);color-scheme:dark}
 :root[data-theme=light]{--bg:#9CCBF0;--card:rgba(255,255,255,.56);--card2:rgba(255,255,255,.66);--ink:#15263A;--ink2:#34485E;--ink3:#566B81;
  --train:#4A55C9;--train-bg:rgba(74,85,201,.12);--food:#1D8751;--food-bg:rgba(29,135,81,.12);--sel:rgba(21,38,58,.12);--line:rgba(30,80,130,.13);
- --acc:#1C78BC;--acc2:rgba(28,120,188,.13);--on-acc:#FFFFFF;--acc-ink:#135C93;--ok:#23915A;--on-ok:#FFFFFF;--warn:#D9782A;--bad:#CC4436;--prio:#B8336E;
+ --acc:#1C78BC;--acc2:rgba(28,120,188,.13);--on-acc:#FFFFFF;--acc-ink:#135C93;--ok:#23915A;--on-ok:#FFFFFF;--warn:#94490B;--bad:#CC4436;--prio:#B8336E;
  --sun:#F09A2E;--glass-edge:rgba(255,255,255,.75);--shadow:0 10px 30px rgba(40,90,140,.14);
  --prio-bg:rgba(184,51,110,.11);--warn-bg:rgba(217,120,42,.14);--ok-bg:rgba(35,145,90,.13);--bad-bg:rgba(204,68,54,.12);
- --bar-bg:rgba(255,255,255,.62);--map-bg:rgba(255,255,255,.85);--bm-o:#C9D8E6;--bm-m:#AFC3D6;--chart:var(--sun);
+ --bar-bg:rgba(255,255,255,.62);--bar-solid:rgba(246,250,253,.96);--map-bg:rgba(255,255,255,.85);--bm-o:#C9D8E6;--bm-m:#AFC3D6;--chart:var(--sun);
  --sky:radial-gradient(38vmax 38vmax at 18% 4%,rgba(255,252,230,.95),rgba(255,244,200,.35) 30%,transparent 62%),
   radial-gradient(70vmax 22vmax at 80% 62%,rgba(255,255,255,.55),transparent 70%),
   radial-gradient(60vmax 20vmax at 10% 88%,rgba(255,255,255,.6),transparent 70%),
@@ -115,6 +119,7 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .dot{position:relative;flex:none;border-radius:8px;overflow:hidden;outline:2px solid transparent;outline-offset:-2px}
 .dot .th{display:block;width:44px;height:30px;border-radius:0}
 .dot.cur{outline-color:var(--acc)}
+.dot:focus-visible{outline:3px solid var(--ink);outline-offset:1px}
 .dot.done::after{content:"✓";position:absolute;inset:0;display:grid;place-items:center;background:rgba(35,145,90,.72);color:#fff;font-weight:700;font-size:15px}
 .card.ex{scroll-margin-top:calc(var(--hh,56px) + var(--th,96px) + 8px)}
 .ex.collapsed .head{cursor:pointer;padding-bottom:14px}
@@ -151,7 +156,7 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 /* ---------- rest bar ---------- */
 #rest{position:fixed;left:0;right:0;bottom:calc(var(--sab) + 66px);z-index:7;max-width:520px;margin:0 auto;padding:0 14px;display:none}
 #rest.on{display:block}
-#rest .in{background:var(--bar-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);border:1px solid var(--glass-edge);border-radius:16px;padding:10px 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
+#rest .in{background:var(--bar-solid);border:1px solid var(--glass-edge);border-radius:16px;padding:10px 14px;display:flex;align-items:center;gap:12px;box-shadow:var(--shadow)}
 #rest .t{font-family:var(--mono);font-size:26px;font-weight:500;min-width:68px}
 #rest .in{gap:8px}#rest .btn.small{padding:0 10px;min-height:44px}
 #rest .bar{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
@@ -177,7 +182,7 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .tl .macro{font-family:var(--mono);font-size:12px;color:var(--ink3);margin-top:3px}
 .tl .cd{font-family:var(--mono);font-size:12px;color:var(--acc)}
 .tl input{width:28px;height:28px;accent-color:var(--ok);margin:0;justify-self:end}
-.tl li[data-mealrow]{cursor:pointer}
+.tlrow{display:contents;cursor:pointer}
 .tl li.next>div:last-child{grid-column:2/-1}
 .tl li.train .l{color:var(--acc)}
 
@@ -338,7 +343,7 @@ svg.bm .m.p{fill:var(--train)}svg.bm .m.s{fill:var(--train);opacity:.45}
 /* ---------- gate ---------- */
 #gate{min-height:100dvh;display:grid;place-items:center;padding:24px}
 #gate .card{width:100%;max-width:380px}
-.toast{position:fixed;bottom:calc(var(--sab) + 74px + var(--rh,0px));max-width:calc(100% - 32px);text-align:center;left:50%;transform:translateX(-50%);background:var(--bar-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--shadow);border:1px solid var(--glass-edge);padding:8px 14px;border-radius:10px;font-size:13px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast{position:fixed;bottom:calc(var(--sab) + 74px + var(--rh,0px));max-width:calc(100% - 32px);text-align:center;left:50%;transform:translateX(-50%);background:var(--bar-solid);box-shadow:var(--shadow);border:1px solid var(--glass-edge);padding:8px 14px;border-radius:10px;font-size:13px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 .card.notice{display:flex;align-items:center;gap:12px;border-left:3px solid var(--warn)}.card.notice p{flex:1}
 /* exercise card: compact picture strip, set rows on the first screen, "How to do it" fold */
@@ -389,3 +394,9 @@ ul.hist .hd{flex:1;min-width:0}ul.hist .chev{transform:rotate(-45deg);margin:0 6
 .hxrow.gone label{opacity:.35;text-decoration:line-through}.hxrow.gone .hxdel{background:var(--bad-bg);color:var(--bad)}
 /* the A/B session letter: small print */
 small.ab{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--ink3);letter-spacing:.04em;text-transform:none;margin-left:4px}
+/* "New version ready" pill: under the header, until tapped */
+#updpill{position:fixed;top:calc(var(--sat) + 60px);left:50%;transform:translateX(-50%);z-index:9;min-height:44px;padding:0 18px;border-radius:999px;background:var(--acc);color:var(--on-acc);font-weight:600;font-size:14px;box-shadow:var(--shadow);white-space:nowrap}
+#updpill[hidden]{display:none}
+/* keyboard focus is always visible; text only for screen readers */
+button:focus-visible,a:focus-visible,summary:focus-visible,input[type=checkbox]:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
