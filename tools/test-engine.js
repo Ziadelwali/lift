@@ -1,5 +1,6 @@
 /* node tools/test-engine.js - scripted histories through the suggestion engine */
 'use strict';
+process.env.TZ = 'Europe/Copenhagen';   // the DST tests need a zone with daylight-saving changes
 var E = require('../engine.js');
 var fails = 0;
 function eq(name, got, want) {
@@ -155,6 +156,49 @@ eq('training reminder Mon/Wed/Fri 16:00', rev.filter(function (g) { return g.key
 eq('training-only file has just the training event', (E.calendarICS(prof, m, '2026-09-24', false).match(/BEGIN:VEVENT/g) || []).length, 1);
 eq('first training date is a training day (Fri 25 Sep)', rev.filter(function (g) { return g.key === 'train'; })[0].firstDate, '2026-09-25');
 eq('ics lines end in CRLF', E.calendarICS(prof, m, '2026-09-24', true).slice(-2), '\r\n');
+
+// after midnight: the next weekday
+eq('23:30 + 70 min on Friday is 00:40 Saturday', E.wrapDay(1440 + 40, 5), { t: 40, wd: 6 });
+eq('00:40 on Saturday wraps to Sunday', E.wrapDay(1440 + 40, 6), { t: 40, wd: 0 });
+eq('before midnight goes back a day', E.wrapDay(-30, 0), { t: 1410, wd: 6 });
+eq('same day stays', E.wrapDay(600, 3), { t: 600, wd: 3 });
+var late = Object.assign({}, prof, { bed: '01:30' });
+eq('bedtime shake after midnight is still every day', E.reminderEvents(late, E.macros(late), '2026-09-24', true).filter(function (g) { return g.key === 'bedshake'; }).map(function (g) { return g.time + ' ' + g.days.length; }), ['00:45 7']);
+eq('calendar text escaped', E.icsText('a,b;c\\d\ne'), 'a\\,b\\;c\\\\d\\ne');
+
+// DST: day windows count calendar days (Europe: clocks back 25 Oct 2026, forward 29 Mar 2026)
+var dw = {}; for (var di = 0; di < 14; di++) dw[E.addDaysISO('2026-10-20', di)] = 100 + di;
+eq('addDaysISO over the autumn change', E.addDaysISO('2026-10-24', 2), '2026-10-26');
+eq('addDaysISO over the spring change', E.addDaysISO('2026-03-28', 2), '2026-03-30');
+eq('daysBetween over both changes', [E.daysBetween('2026-10-24', '2026-10-27'), E.daysBetween('2026-03-28', '2026-03-31')], [3, 3]);
+var dt = E.weightTrend({ weight: dw });
+eq('7-day mean over the autumn change has 7 days', dt.filter(function (x) { return x.date === '2026-10-28'; })[0].avg, 105);
+var sw7 = {}; for (var dj = 0; dj < 10; dj++) sw7[E.addDaysISO('2026-03-25', dj)] = 100 + dj;
+eq('7-day mean over the spring change has 7 days', E.weightTrend({ weight: sw7 }).filter(function (x) { return x.date === '2026-04-01'; })[0].avg, 104);
+var vst = { sessions: { '2026-10-20': { done: true, ex: [{ id: 'Leg_Press', sets: [{ kg: 1, reps: 1, done: true }] }] }, '2026-10-26': { done: true, ex: [{ id: 'Leg_Press', sets: [{ kg: 1, reps: 1, done: true }] }] } } };
+var vdb = { Leg_Press: { primary: ['quadriceps'], secondary: [] } };
+eq('weekly volume: 7 calendar days back over the change', [E.weeklyVolume(vst, vdb, '2026-10-26').quadriceps, E.weeklyVolume(vst, vdb, '2026-10-27').quadriceps], [2, 1]);
+
+// sanitize: odd synced values are cleaned, good ones kept
+var dirty = {
+  profile: { age: '38', height: 'tall', wake: '<b>', bed: '22:30', sched: { 1: '16:00', 3: 'x', 9: '10:00' }, priority: ['arms', 'nope'] },
+  weight: { '2026-10-01': '112.4', 'bad': 1, '2026-10-02': 'heavy' },
+  daily: { '2026-10-01': { waist: '108', sleep: 'lots' }, '2026-10-02': 'x' },
+  sessions: {
+    '2026-10-01': { day: 'C', time: '16:00', ex: [{ id: 'Leg_Press', base: 'Leg_Press', feel: 'meh', sets: [{ kg: '40', reps: 10, done: true }] }, { id: '<img onerror=x>', base: 'Leg_Press', sets: [] }] },
+    '2026-10-02': { ex: 'nope' }, '<x>': { ex: [] }
+  },
+  settings: { swaps: { Leg_Press: 'Smith_Machine_Squat', 'a b': 'x', Ok: 5 } }
+};
+eq('sanitize reports a change', E.sanitize(dirty), true);
+eq('sanitize profile', dirty.profile, { age: 38, bed: '22:30', sched: { 1: '16:00' }, priority: ['arms'] });
+eq('sanitize weight', dirty.weight, { '2026-10-01': 112.4 });
+eq('sanitize daily', dirty.daily, { '2026-10-01': { waist: 108 } });
+eq('sanitize sessions', Object.keys(dirty.sessions), ['2026-10-01']);
+var ds = dirty.sessions['2026-10-01'];
+eq('sanitize session', [ds.day, ds.ex.length, ds.ex[0].feel, ds.ex[0].sets[0].kg], ['A', 1, undefined, 40]);
+eq('sanitize swaps', dirty.settings.swaps, { Leg_Press: 'Smith_Machine_Squat' });
+eq('sanitize leaves clean data alone', E.sanitize(dirty), false);
 
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);

@@ -539,7 +539,7 @@
   function reminderEvents(profile, mac, fromIso, withMeals) {
     var sched = schedOf(profile), groups = {};
     function add(key, title, t, mins, wd, note) {
-      if (t >= 1440) { t -= 1440; wd = (wd + 1) % 7; } else if (t < 0) { t += 1440; wd = (wd + 6) % 7; }   // after midnight = the next weekday
+      var w = wrapDay(t, wd); t = w.t; wd = w.wd;
       var k = key + '|' + t; if (!groups[k]) groups[k] = { key: key, title: title, time: fmtHM(t), mins: mins, days: [], note: note };
       if (groups[k].days.indexOf(wd) < 0) groups[k].days.push(wd);
     }
@@ -562,6 +562,12 @@
       g.days.sort(); g.firstDate = isoDate(first); g.rrule = 'FREQ=WEEKLY;BYDAY=' + g.days.map(function (x) { return BYDAY[x]; }).join(',');
       return g;
     }).sort(function (a, b) { return a.time < b.time ? -1 : 1; });
+  }
+  /* a slot past midnight (or before it) belongs to the next (previous) weekday */
+  function wrapDay(t, wd) {
+    if (t >= 1440) return { t: t - 1440, wd: (wd + 1) % 7 };
+    if (t < 0) return { t: t + 1440, wd: (wd + 6) % 7 };
+    return { t: t, wd: wd };
   }
   function icsStamp(iso, hhmm, plusMin) {
     var d = parseISO(iso), m = hm(hhmm) + (plusMin || 0); d.setMinutes(m);
@@ -725,7 +731,7 @@
   return {
     toFs: toFs, fromFs: fromFs, fsSeg: fsSeg, restPatch: restPatch,
     RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
-    sanitize: sanitize, addDaysISO: addDaysISO, daysBetween: daysBetween,
+    sanitize: sanitize, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
