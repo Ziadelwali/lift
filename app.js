@@ -565,7 +565,7 @@ function renderTrain(){
   '<p class="xs" style="margin-top:2px">Tap a move to see how it\'s done. Tick the box when you\'ve done it.</p>'+
   warmItem('gen',wl.general,wl.general.amount,wdone)+
   wl[ses.day].map(function(w){return warmItem(w.id,w,w.reps,wdone);}).join('')+
-  (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(nm(firstRamp.id))+': '+E.rampSets(firstRamp.sets[0].kg).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
+  (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(nm(firstRamp.id))+': '+E.rampSets(firstRamp.sets[0].kg,firstRamp.id).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
   '</details>';
  /* one exercise at a time; the others are a tap away */
  var f=focusOf(ses),others=ses.ex.map(function(e,i){return i;}).filter(function(i){return i!==f&&!exDone(ses.ex[i]);});
@@ -648,7 +648,7 @@ function exBody(e,ei,ses){
   '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?sg.kg+' kg × '+sg.reps:'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
   '<div class="sethead"><span></span><span>kg</span><span>reps</span><span></span></div>'+
   e.sets.map(function(s,si){
-   return '<div class="setrow'+(s.done?' done':'')+'"><span class="sn mono">'+(si+1)+'</span>'+stepper('kg',ei,si,s.kg,1)+stepper('reps',ei,si,s.reps,1)+
+   return '<div class="setrow'+(s.done?' done':'')+'"><span class="sn mono">'+(si+1)+'</span>'+stepper('kg',ei,si,s.kg,cfg.inc||1)+stepper('reps',ei,si,s.reps,1)+
     '<button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'" aria-label="Set done">'+(s.pr?'★':'✓')+'</button></div>'+
     '';
   }).join('')+
@@ -872,7 +872,7 @@ document.addEventListener('click',function(ev){
   if(a[0]==='kg'&&!s.done)e.sets.forEach(function(x,i){if(i>si&&!x.done&&(x.kg==null||x.kg===cur)){x.kg=s.kg;var q=$('[data-val="kg:'+a[1]+':'+i+'"]');if(q)q.value=x.kg;}});
   save();return;}
  if(b.dataset.tick){unlockAudio();var t=b.dataset.tick.split(':'),ex=ses.ex[+t[0]],st=ex.sets[+t[1]];
-  if(!st.done){if(!(st.kg>0)||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;st.at=Date.now();
+  if(!st.done){if(!(st.kg>0||(st.kg===0&&E.BODYWEIGHT.indexOf(ex.id)>=0))||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;st.at=Date.now();
    var prev=E.bestSets(state,ex.id).reduce(function(m,x){return Math.max(m,x.e1rm);},0),mine=E.epley(st.kg,st.reps);
    var beat=ex.sets.some(function(x){return x!==st&&x.pr;});
    if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+st.kg+' kg × '+st.reps+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});

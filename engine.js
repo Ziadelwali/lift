@@ -15,7 +15,7 @@
     deloadLoad: 0.9, deloadSets: 0.5,
     stallDrop: 0.9,             // cut load 10 % after two failed sessions
     sessionMinutes: 65,
-    warmupMinutes: 10,
+    warmupMinutes: 10,          // 6–8 min uphill walk + ~2 min of moves
     proteinPerKg: 2.0, // 2 g per kg body weight: the top of the useful range, for maximum muscle while losing fat
     fatShare: 0.25,
     phase: { lean: 0.90, maintain: 1.0, bulk: 1.10 },  // lean = −10 %: small enough that muscle gain is barely slowed
@@ -201,6 +201,9 @@
     'Seated_Side_Lateral_Raise', 'Stiff-Legged_Dumbbell_Deadlift', 'One-Arm_Dumbbell_Row', 'Dumbbell_Incline_Row',
     'Dumbbell_Bicep_Curl', 'Hammer_Curls', 'Incline_Dumbbell_Curl', 'Standing_Dumbbell_Triceps_Extension', 'Goblet_Squat', 'Reverse_Flyes', 'Standing_Dumbbell_Calf_Raise'];
 
+  /* Exercises done with body weight only: ticked with kg = 0, progressed by reps. */
+  var BODYWEIGHT = ['Plank'];
+
   /* Muscles each priority tag covers (free-exercise-db names). */
   var PRIORITY = {
     shoulders: { label: 'Shoulders (side delts)', muscles: ['shoulders'] },
@@ -238,6 +241,13 @@
 
   /* ---------- helpers ---------- */
   function roundTo(kg, inc) { return Math.round(kg / inc) * inc; }
+  function roundHalf(kg) { return Math.round(kg * 2) / 2; }
+  /* About a fraction f of kg, in whole steps of inc down from kg (at least one step; never 0). */
+  function lighter(kg, f, inc) {
+    if (!kg) return kg;
+    var v = roundHalf(kg - Math.max(1, Math.round(kg * (1 - f) / inc)) * inc);
+    return v > 0 ? v : kg;
+  }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   function isoDate(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
   function parseISO(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
@@ -270,12 +280,12 @@
   }
   /* history of one exercise: array (oldest → newest) of arrays of logged sets */
   function history(state, exId) {
-    var keys = completedSessions(state), out = [];
+    var keys = completedSessions(state), out = [], bw = BODYWEIGHT.indexOf(exId) !== -1;
     keys.forEach(function (k) {
       var ses = state.sessions[k];
       (ses.ex || []).forEach(function (e) {
         if (e.id !== exId) return;
-        var sets = (e.sets || []).filter(function (s) { return s.done && s.kg > 0 && s.reps > 0; });
+        var sets = (e.sets || []).filter(function (s) { return s.done && s.reps > 0 && (s.kg > 0 || (bw && s.kg === 0)); });
         if (sets.length) out.push({ date: k, sets: sets, calib: !!ses.calibration });
       });
     });
@@ -300,7 +310,7 @@
     var anyBelow = atKg.some(function (s) { return s.reps < lo; });
 
     if (opts.deload) {
-      return { kg: roundTo(kg * RULES.deloadLoad, cfg.inc), reps: lo, sets: Math.max(1, Math.round(sets * RULES.deloadSets)),
+      return { kg: lighter(kg, RULES.deloadLoad, cfg.inc), reps: lo, sets: Math.max(1, Math.round(sets * RULES.deloadSets)),
         state: 'deload', note: 'Deload week: lighter, fewer sets, 3–4 reps to spare.' };
     }
     var cap = DUMBBELL.indexOf(cfg.id) !== -1 ? RULES.dumbbellMaxKg : null;
@@ -326,14 +336,15 @@
         note: cap + ' kg is the top dumbbell: go for ' + more + ' reps, lower in 3 s.' + swapTo };
     }
     if (allTop) {
-      return { kg: roundTo(kg + cfg.inc, cfg.inc), reps: lo, sets: sets, state: 'up',
+      // the next weight is one step up from what you lifted: 25 + 2 = 27, not 28
+      return { kg: roundHalf(kg + cfg.inc), reps: lo, sets: sets, state: 'up',
         note: 'Up ' + cfg.inc + ' kg. Aim for ' + lo + '+ reps.' };
     }
     if (anyBelow) {
       var prev = hist.length > 1 ? hist[hist.length - 2].sets : null;
       var prevBelow = prev && prev.some(function (s) { return s.kg >= kg && s.reps < lo; });
       if (prevBelow) {
-        return { kg: roundTo(kg * RULES.stallDrop, cfg.inc), reps: lo, sets: sets, state: 'drop',
+        return { kg: lighter(kg, RULES.stallDrop, cfg.inc), reps: lo, sets: sets, state: 'drop',
           note: 'Two sessions under ' + lo + ' reps: 10 % lighter and rebuild. Normal.' };
       }
       return { kg: kg, reps: lo, sets: sets, state: 'hold',
@@ -445,9 +456,11 @@
       started: null, finished: null, done: false, warm: {}, ex: ex };
   }
 
-  function rampSets(kg) {
+  /* Warm-up sets before the first big lift, in weights that exist: dumbbells go in 2 kg steps. */
+  function rampSets(kg, id) {
     if (!kg) return [];
-    return WARMUP.ramp.map(function (r) { return { kg: Math.max(0, roundTo(kg * r[0], 2.5)), reps: r[1] }; });
+    var step = DUMBBELL.indexOf(id) !== -1 ? 2 : 2.5;
+    return WARMUP.ramp.map(function (r) { return { kg: Math.max(step, roundTo(kg * r[0], step)), reps: r[1] }; });
   }
 
   /* ---------- nutrition ---------- */
@@ -687,9 +700,9 @@
 
 
   return {
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
     sanitize: sanitize, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
-    roundTo: roundTo, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
+    roundTo: roundTo, roundHalf: roundHalf, lighter: lighter, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
     exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,

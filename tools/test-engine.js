@@ -20,6 +20,11 @@ eq('hold', E.suggest(cfg, [h([[42.5, 8, 1], [42.5, 7, 0], [42.5, 6, 0]])]).state
 eq('drop', E.suggest(cfg, [h([[42.5, 7, 0], [42.5, 7, 0]]), h([[42.5, 8, 1], [42.5, 7, 0]])]).kg, 37.5);
 eq('deload', E.suggest(cfg, [h([[40, 10, 2]])], { deload: true }), { kg: 35, reps: 8, sets: 2, state: 'deload', note: 'Deload week: lighter, fewer sets, 3–4 reps to spare.' });
 eq('ramp', E.rampSets(80), [{ kg: 40, reps: 8 }, { kg: 55, reps: 5 }, { kg: 67.5, reps: 2 }]);
+eq('ramp on dumbbells uses real dumbbells (2 kg steps)', E.rampSets(27, 'Dumbbell_Bench_Press').map(function (r) { return r.kg; }), [14, 18, 22]);
+// weight steps: one step up from what was lifted, only rounded to 0.5 kg
+eq('25 + 2 = 27, not 28', E.suggest({ id: 'Incline_Dumbbell_Press', sets: 3, reps: [8, 12], inc: 2 }, [h([[25, 12, 2], [25, 12, 2], [25, 12, 2]])]).kg, 27);
+eq('lighter: whole steps down', [E.lighter(42.5, 0.9, 2.5), E.lighter(25, 0.9, 2), E.lighter(2, 0.9, 2), E.lighter(0, 0.9, 2)], [37.5, 23, 2, 0]);
+eq('bodyweight sets count with kg 0', E.history({ sessions: { '2026-10-01': { done: true, ex: [{ id: 'Plank', sets: [{ kg: 0, reps: 30, done: true }] }, { id: 'Leg_Press', sets: [{ kg: 0, reps: 10, done: true }] }] } } }, 'Plank').length, 1);
 
 var prof = { sex: 'm', age: 38, height: 186, weight: 112, activity: 'feet', phase: 'lean', priority: ['shoulders', 'back'], sched: { 1: '16:00', 3: '16:00', 5: '16:00' }, wake: '06:30', bed: '22:30' };
 var m = E.macros(prof);
