@@ -27,7 +27,10 @@
     fatShare: 0.25,
     phase: { lean: 0.90, maintain: 1.0, bulk: 1.10 },  // lean = −10 %: small enough that muscle gain is barely slowed
     activity: { desk: 1.35, feet: 1.5, active: 1.65 },
-    trendTarget: { lean: [-0.5, -0.2], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] }, // kg/week
+    // kg/week. Lean −0.2 to −0.5 ≈ a 300–550 kcal/day deficit, where lean mass can still grow (Murphy & Koehler 2022).
+    trendTarget: { lean: [-0.5, -0.2], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] },
+    trendHalfLife: 7,           // days: the trend line moves halfway to a new weigh-in after a week, gaps or not
+    rateDays: 21, rateMinDays: 14, rateMinCount: 10, // rate = slope of the last 3 weeks; needs 10 weigh-ins over 2+ weeks
     creatineG: 5,
     volumeBand: { normal: [9, 15], priority: [12, 20] },   // hard sets a week (Pelland 2025: more still helps, less each time)
     dumbbellMaxKg: 30 // heaviest dumbbell at B1973 Fitness (per hand)
@@ -569,6 +572,12 @@
     return { bmr: Math.round(bmr), tdee: Math.round(tdee), kcal: kcal, protein: protein, fat: fat, carbs: carbs, phase: phase, bmi: bmi(p) };
   }
 
+  /* Food targets from the trend weight, not one morning's number (a salty dinner moves the scale a kilo). */
+  function macrosFor(state) {
+    var p = state && state.profile, tw = trendWeight(state || {});
+    return macros(p && tw ? Object.assign({}, p, { weight: tw }) : p);
+  }
+
   /* ---------- simple eating: 2 meals + 3 shakes, nothing to cook or weigh ----------
      Total daily protein matters most. The shakes are the measured part (a scoop);
      the two meals are whatever you eat, built with the hand as the portion guide. */
@@ -742,32 +751,45 @@
     var w = state.weight || {};
     return Object.keys(w).sort().map(function (k) { return { date: k, kg: +w[k] }; }).filter(function (x) { return x.kg > 0; });
   }
-  /* 7-day trailing average per point */
+  /* Trend weight: a time-aware moving average. Each weigh-in pulls the line toward it by an amount
+     that grows with the days since the last one (half-life RULES.trendHalfLife), so gaps are fine. */
   function weightTrend(state) {
-    var s = weightSeries(state);
-    return s.map(function (pt, i) {
-      var from = addDaysISO(pt.date, -6), vals = [];
-      for (var j = i; j >= 0 && s[j].date >= from; j--) vals.push(s[j].kg);
-      return { date: pt.date, kg: pt.kg, avg: vals.reduce(function (a, b) { return a + b; }, 0) / vals.length };
+    var s = weightSeries(state), avg = null, prev = null;
+    return s.map(function (pt) {
+      if (avg == null) avg = pt.kg;
+      else avg += (1 - Math.pow(0.5, daysBetween(prev, pt.date) / RULES.trendHalfLife)) * (pt.kg - avg);
+      prev = pt.date;
+      return { date: pt.date, kg: pt.kg, avg: Math.round(avg * 100) / 100 };
     });
   }
-  /* kg/week over the last 14 days of trend, and advice for the phase */
+  /* The latest trend weight, or null without weigh-ins. Used for the food targets instead of a single day. */
+  function trendWeight(state) { var t = weightTrend(state); return t.length ? t[t.length - 1].avg : null; }
+  /* kg/week: least-squares slope of the weigh-ins in the RULES.rateDays up to endIso.
+     null when there are too few weigh-ins or they span too few days. */
+  function weightRate(state, endIso) {
+    var s = weightSeries(state).filter(function (p) { return p.date <= endIso && daysBetween(p.date, endIso) < RULES.rateDays; });
+    if (s.length < RULES.rateMinCount || daysBetween(s[0].date, s[s.length - 1].date) < RULES.rateMinDays) return null;
+    var xs = s.map(function (p) { return daysBetween(s[0].date, p.date); }), n = s.length;
+    var mx = xs.reduce(function (a, b) { return a + b; }, 0) / n, my = s.reduce(function (a, p) { return a + p.kg; }, 0) / n, num = 0, den = 0;
+    s.forEach(function (p, i) { num += (xs[i] - mx) * (p.kg - my); den += (xs[i] - mx) * (xs[i] - mx); });
+    return den ? num / den * 7 : null;
+  }
+  /* Advice for the phase. Weekly checks (the latest weigh-in, and a week before): the portions
+     change only when two checks in a row are outside the band. One bad week = wait and see. */
   function trendAdvice(state) {
-    var t = weightTrend(state);
-    if (t.length < 8) return { rate: null, text: 'Weigh in most mornings. After about 2 weeks the trend tells you whether to eat a bit more or a bit less.' };
-    var last = t[t.length - 1], back = null;
-    for (var i = t.length - 1; i >= 0; i--) {
-      if (daysBetween(t[i].date, last.date) >= 7) { back = t[i]; break; }
-    }
-    if (!back) return { rate: null, text: 'Keep weighing in — not enough spread of dates yet.' };
-    var days = daysBetween(back.date, last.date);
-    var rate = (last.avg - back.avg) / days * 7;
+    var s = weightSeries(state);
+    var wait = { rate: null, state: 'wait', text: 'Weigh in most mornings. After about 2 weeks the trend tells you whether to eat a bit more or a bit less.' };
+    if (!s.length) return wait;
+    var end = s[s.length - 1].date, rate = weightRate(state, end);
+    if (rate == null) return wait;
     var phase = (state.profile && state.profile.phase) || 'lean', band = RULES.trendTarget[phase];
-    var text;
-    if (rate < band[0]) { text = 'Losing faster than ' + Math.abs(band[0]) + ' kg a week — that risks muscle. Eat a bit more: a bigger handful of rice, potatoes or bread at lunch and dinner, or a banana with the shake.'; }
-    else if (rate > band[1]) { text = phase === 'bulk' ? 'Gaining faster than planned — a bit less rice, potatoes or bread.' : 'Weight is not coming down. Make the rice, potatoes or bread a bit smaller and skip snacks — keep the protein. Or walk 2,000 more steps a day.'; }
-    else text = 'On track (' + band[0] + ' to ' + band[1] + ' kg a week). Keep eating the way you do.';
-    return { rate: rate, text: text };
+    function side(r) { return r == null ? 0 : r < band[0] ? -1 : r > band[1] ? 1 : 0; }
+    var now = side(rate), before = side(weightRate(state, addDaysISO(end, -7))), text, st;
+    if (!now) { st = 'ok'; text = 'On track (' + band[0] + ' to ' + band[1] + ' kg a week). Keep eating the way you do.'; }
+    else if (now !== before) { st = 'watch'; text = now < 0 ? 'Losing a bit fast this week. Change nothing yet — if next week is the same, eat a bit more.' : 'Weight barely moved this week — that happens. Change nothing yet; if next week is the same, eat a bit less.'; }
+    else if (now < 0) { st = 'low'; text = 'Losing faster than ' + Math.abs(band[0]) + ' kg a week two weeks running — that risks muscle. Eat a bit more: a bigger handful of rice, potatoes or bread at lunch and dinner, or a banana with the shake.'; }
+    else { st = 'high'; text = phase === 'bulk' ? 'Gaining faster than planned two weeks running — a bit less rice, potatoes or bread.' : 'Weight not coming down two weeks running. Make the rice, potatoes or bread a bit smaller and skip snacks — keep the protein.'; }
+    return { rate: rate, state: st, text: text };
   }
 
   function weeklyVolume(state, exdb, weekEndISO) {
@@ -800,6 +822,6 @@
     exercisesFor: exercisesFor, idFor: idFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, suggestIn: suggestIn, feelOf: feelOf, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
     macros: macros, timeline: timeline, weightSeries: weightSeries, weightTrend: weightTrend,
-    trendAdvice: trendAdvice, weeklyVolume: weeklyVolume, bestSets: bestSets
+    trendAdvice: trendAdvice, trendWeight: trendWeight, weightRate: weightRate, macrosFor: macrosFor, weeklyVolume: weeklyVolume, bestSets: bestSets
   };
 });
