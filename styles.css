@@ -371,5 +371,19 @@ ul.bests li>span:nth-child(2){flex:1;min-width:0;font-size:14px}
 .wdots{display:flex;align-items:center;gap:6px;margin-top:6px}.wdots .xs{margin-left:6px}
 .wdot{width:14px;height:14px;border-radius:50%;background:var(--line)}.wdot.on{background:var(--ok)}
 .hint{margin:-4px 0 12px;text-align:center}
+/* session history (Progress) and its fix-a-number sheet */
+ul.hist{list-style:none;margin:6px 0 0;padding:0}
+ul.hist li+li{border-top:1px solid var(--line)}
+ul.hist button{width:100%;min-height:52px;display:flex;align-items:center;gap:10px;text-align:left;padding:6px 0}
+ul.hist .hd{flex:1;min-width:0}ul.hist .chev{transform:rotate(-45deg);margin:0 6px 0 0}
+.hxname{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:14px}.hxname .th{width:40px;height:27px}
+.hxrow{display:grid;grid-template-columns:16px 1fr 1fr 44px;gap:6px;align-items:center;margin-top:6px}
+.hxrow label{display:flex;align-items:center;gap:6px;background:var(--card2);border-radius:var(--r-m);padding:0 10px;min-width:0}
+.hxrow input{flex:1;min-width:0;width:100%;height:44px;background:transparent;border:0;font-family:var(--mono);font-size:16px;text-align:right}
+.hxrow input:focus{outline:none}.hxrow label:focus-within{box-shadow:inset 0 0 0 1.5px var(--acc)}
+.hxrow input.err{color:var(--bad)}.hxrow label:has(input.err){box-shadow:inset 0 0 0 1.5px var(--bad)}
+.hxrow .sn{font-size:12px;color:var(--ink3);text-align:center}
+.hxdel{width:44px;height:44px;border-radius:var(--r-m);background:var(--card2);color:var(--ink2);font-size:20px}
+.hxrow.gone label{opacity:.35;text-decoration:line-through}.hxrow.gone .hxdel{background:var(--bad-bg);color:var(--bad)}
 /* the A/B session letter: small print */
 small.ab{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--ink3);letter-spacing:.04em;text-transform:none;margin-left:4px}

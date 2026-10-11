@@ -791,9 +791,39 @@ function renderProgress(){
  // pick a lift by its picture
  h+='<div class="card"><h2>Lifts</h2>'+(sel?'<div class="lifts" role="list">'+withHist.map(function(id){return '<button class="lift'+(id===sel?' on':'')+'" data-lift="'+esc(id)+'" aria-pressed="'+(id===sel)+'"><img src="'+exOf(id).images[0]+'" alt="" loading="lazy"><span>'+esc(nm(id))+'</span></button>';}).join('')+'</div>'+
   '<h3 style="margin-top:10px">'+esc(nm(sel))+'</h3>'+liftChart(sel):'<p class="xs" style="margin-top:6px">Finish a session to see your lifts here.</p>')+'</div>';
+ h+=historyCard();
  h+='<div class="card"><h2>Hard sets per muscle, last 7 days</h2><p class="xs" style="margin:4px 0 8px">Target about '+E.RULES.volumeBand.normal.join('–')+' (priority muscles '+E.RULES.volumeBand.priority.join('–')+'). Secondary muscles count half.</p>'+volumeChart()+'</div>';
  $('#v-progress').innerHTML=h;
 }
+/* Past sessions, newest first: tap one to see it, and fix a wrong number in it. */
+var histAll=false;
+function historyCard(){
+ var ks=E.completedSessions(state).reverse();if(!ks.length)return '';
+ return '<div class="card"><h2>Sessions</h2><ul class="hist">'+(histAll?ks:ks.slice(0,6)).map(function(k){var s=state.sessions[k],n=0,pr=0,mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
+  s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){n++;if(x.pr)pr++;}});});
+  return '<li><button data-hist="'+k+'"><span class="hd"><b>'+niceDate(k)+'</b> <small class="ab">session '+esc(s.day)+'</small></span><span class="xs">'+n+(n===1?' set':' sets')+(mins&&mins<300?' · '+mins+' min':'')+(pr?' · ★ '+pr:'')+'</span><i class="chev"></i></button></li>';}).join('')+'</ul>'+
+  (ks.length>6?'<button class="linkbtn xs" data-act="histall" style="margin-top:8px">'+(histAll?'Show fewer':'Show all '+ks.length)+'</button>':'')+'</div>';
+}
+function histSheet(k,edit,msg){
+ var s=state.sessions[k];if(!s||!s.done)return;
+ var h='<h2>'+niceDate(k)+' <small class="ab">session '+esc(s.day)+'</small></h2><p class="sm" style="margin-top:4px">'+sessionSummary(s)+'</p>',exs=s.ex.map(function(e,ei){return {e:e,ei:ei};}).filter(function(o){return o.e.sets.length;});
+ if(!edit)h+='<ul class="bests" style="margin-top:10px">'+exs.map(function(o){var e=o.e;return '<li>'+thumb(e.id)+'<span><b>'+esc(nm(e.id))+'</b><br><span class="mono xs">'+e.sets.map(function(x){return esc(x.kg)+'×'+esc(x.reps)+(x.pr?' ★':'');}).join(', ')+(E.pair(e.id)?' · kg each hand':'')+'</span></span></li>';}).join('')+'</ul>'+
+  '<button class="btn wide ghost" data-histedit="'+k+'" style="margin-top:14px">Fix a number</button><button class="btn wide" data-act="sheetclose" style="margin-top:8px">Close</button>';
+ else h+='<form id="histform" data-k="'+k+'" autocomplete="off"><p class="xs" style="margin-top:6px">Change what was wrong. × removes a set.</p>'+exs.map(function(o){var e=o.e;
+   return '<p class="hxname">'+thumb(e.id)+'<b>'+esc(nm(e.id))+'</b>'+(E.pair(e.id)?' <span class="xs">kg each hand</span>':'')+'</p>'+e.sets.map(function(x,si){
+    return '<div class="hxrow" data-ei="'+o.ei+'" data-si="'+si+'"><span class="sn mono">'+(si+1)+'</span><label><input inputmode="decimal" name="kg" value="'+esc(x.kg)+'" aria-label="'+esc(nm(e.id))+', set '+(si+1)+', kg"><span class="xs">kg</span></label><label><input inputmode="numeric" name="reps" value="'+esc(x.reps)+'" aria-label="'+esc(nm(e.id))+', set '+(si+1)+', reps"><span class="xs">reps</span></label><button type="button" class="hxdel" data-hxdel="1" aria-label="Remove set '+(si+1)+'" aria-pressed="false">×</button></div>';}).join('');}).join('')+
+  '<p class="sm" id="histmsg" style="min-height:18px;margin-top:8px;color:var(--bad)">'+esc(msg||'')+'</p><button class="btn wide" type="submit">Save</button><button type="button" class="btn wide ghost" data-hist="'+k+'" style="margin-top:8px">Cancel</button></form>';
+ openSheet(h);
+}
+document.addEventListener('submit',function(ev){var f=ev.target;if(f.id!=='histform')return;ev.preventDefault();
+ var k=f.dataset.k,s=state.sessions[k];if(!s)return;
+ var rows=$$('.hxrow',f).map(function(r){return {ei:+r.dataset.ei,si:+r.dataset.si,kg:r.querySelector('[name=kg]').value,reps:r.querySelector('[name=reps]').value,del:r.classList.contains('gone')};});
+ var bad=E.editSets(s,rows);
+ if(bad){var m=$('#histmsg',f),e=s.ex[bad.ei];$$('.hxrow input',f).forEach(function(i){i.classList.remove('err');});
+  if(bad.field==='empty'){m.textContent='Keep at least one set.';return;}
+  m.textContent=bad.field==='kg'?'Check the kg: '+nm(e.id)+', set '+(bad.si+1)+'.':'Reps are a whole number: '+nm(e.id)+', set '+(bad.si+1)+'.';
+  var bi=$('.hxrow[data-ei="'+bad.ei+'"][data-si="'+bad.si+'"] [name='+bad.field+']',f);if(bi){bi.classList.add('err');bi.focus();}return;}
+ save();closeSheet();renderProgress();toast('Saved ✓');});
 function weekBests(){var m=E.mondayOf(todayISO()),out=[];Object.keys(state.sessions).filter(function(k){return k>=m;}).sort().forEach(function(k){(state.sessions[k].ex||[]).forEach(function(e){e.sets.forEach(function(x){if(x.pr&&x.done)out.push({id:e.id,kg:x.kg,reps:x.reps,date:k});});});});return out;}
 function weekSessions(){var m=E.mondayOf(todayISO());return E.completedSessions(state).filter(function(k){return k>=m;}).length;}
 function streakWeeks(){
@@ -912,7 +942,10 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-zoom],[data-undo],[data-lift]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-zoom],[data-undo],[data-lift],[data-hist],[data-histedit],[data-hxdel]');if(!b)return;
+ if(b.dataset.hist){histSheet(b.dataset.hist,false);return;}
+ if(b.dataset.histedit){histSheet(b.dataset.histedit,true);return;}
+ if(b.dataset.hxdel){var hr=b.closest('.hxrow'),gone=hr.classList.toggle('gone');b.setAttribute('aria-pressed',String(gone));b.textContent=gone?'↺':'×';b.setAttribute('aria-label',(gone?'Keep set ':'Remove set ')+(+hr.dataset.si+1));return;}
  if(b.dataset.lift){var lr=$('.lifts'),sl=lr?lr.scrollLeft:0,py=scrollY;renderProgress.sel=b.dataset.lift;renderProgress();scrollTo(0,py);lr=$('.lifts');if(lr)lr.scrollLeft=sl;return;}
  if(b.dataset.zoom){var zz=b.dataset.zoom.split(':');zoom(zz[0],+zz[1]);return;}
  if(b.dataset.wkday){wkv.sel=wkv.sel===b.dataset.wkday||b.dataset.wkday===todayISO()?null:b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
@@ -964,6 +997,7 @@ document.addEventListener('click',function(ev){
  var act=b.dataset.act;
  if(act==='start'){trainFocus=null;var iso=activeKey()||todayISO();if(!state.sessions[iso]){var p=planFor(iso);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
  if(act==='sheetclose'){closeSheet();return;}
+ if(act==='histall'){histAll=!histAll;renderProgress();return;}
  if(act==='finish'){if(!ses)return;var n=0;ses.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done)n++;});});if(!n){toast('No sets logged yet');return;}
   var skipped=0,miss=ses.ex.map(function(e){var k=e.sets.filter(function(x){return !x.done;}).length;if(k&&k===e.sets.length){skipped++;return '';}return k?'<li><b>'+esc(nm(e.id))+'</b> <span class="xs">'+k+' of '+e.sets.length+' sets</span></li>':'';}).join('');
   if(skipped)miss+='<li>'+skipped+(skipped===1?' exercise':' exercises')+' not started</li>';

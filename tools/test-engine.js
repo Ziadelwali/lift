@@ -303,5 +303,19 @@ var lst = { sessions: { '2026-10-01': lp('', [[100, 8], [100, 7]]), '2026-10-03'
 eq('lift points: top set per session', E.liftPoints(lst, 'Leg_Press').map(function (p) { return p.kg + 'x' + p.reps; }), ['100x8', '100x7', '100x10', '105x8']);
 eq('lift points: bests marked (a tie is not a new best)', E.liftPoints(lst, 'Leg_Press').map(function (p) { return p.best; }), [true, false, true, false]);
 
+// editing a past session: all checked first, nothing changes on a mistake
+function eses() { return { done: true, ex: [{ id: 'Leg_Press', base: 'Leg_Press', sets: [{ kg: 100, reps: 8, done: true, pr: true }, { kg: 100, reps: 7, done: true }] }, { id: 'Plank', base: 'Plank', sets: [{ kg: 0, reps: 30, done: true }] }] }; }
+var es1 = eses();
+eq('edit: saved', E.editSets(es1, [{ ei: 0, si: 0, kg: '102,5', reps: '8' }, { ei: 0, si: 1, del: true }, { ei: 1, si: 0, kg: '0', reps: '45' }]), null);
+eq('edit: values, comma decimal, a changed best loses its star, deleted set gone', es1.ex.map(function (e) { return e.sets; }), [[{ kg: 102.5, reps: 8, done: true }], [{ kg: 0, reps: 45, done: true }]]);
+var es2 = eses();
+eq('edit: kg 0 on a machine is refused', E.editSets(es2, [{ ei: 0, si: 1, del: true }, { ei: 0, si: 0, kg: '0', reps: '8' }]), { ei: 0, si: 0, field: 'kg' });
+eq('edit: nothing changed after a refusal', es2.ex[0].sets.length, 2);
+eq('edit: reps must be whole', E.editSets(eses(), [{ ei: 0, si: 0, kg: '100', reps: '7.5' }]), { ei: 0, si: 0, field: 'reps' });
+eq('edit: empty kg refused', E.editSets(eses(), [{ ei: 0, si: 0, kg: '', reps: '8' }]), { ei: 0, si: 0, field: 'kg' });
+eq('edit: removing every set is refused', E.editSets(eses(), [{ ei: 0, si: 0, del: true }, { ei: 0, si: 1, del: true }, { ei: 1, si: 0, del: true }]), { ei: 0, si: 0, field: 'empty' });
+var es3 = eses(); E.editSets(es3, [{ ei: 0, si: 0, kg: '100', reps: '8' }]);
+eq('edit: an unchanged best keeps its star', es3.ex[0].sets[0].pr, true);
+
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);
