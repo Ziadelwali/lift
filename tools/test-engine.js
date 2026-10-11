@@ -201,6 +201,10 @@ E.PROGRAM.A.concat(E.PROGRAM.B).forEach(function (c) { allIds.push(c.id); (c.alt
 eq('all have where/form', allIds.filter(function (id) { var i = E.info(id); return !(i && i.where && i.tip); }), []);
 eq('all have plain names', allIds.filter(function (id) { return !E.LABEL[id]; }), []);
 
+eq('effort: machines to no clean rep on the last set, big lifts 1–2 left', [E.cue('Leg_Extensions'), E.cue('Leg_Press')], ['Last set: until no clean rep is left.', 'Stop with 1–2 reps left in the tank.']);
+eq('stretch cue on the leg curl', E.cue('Seated_Leg_Curl'), 'Slow down, pause 1 s in the stretch. Last set: until no clean rep is left.');
+eq('calves: half reps at the bottom', /half reps/.test(E.cue('Calf_Press_On_The_Leg_Press_Machine')), true);
+eq('effort lines stay short', allIds.filter(function (id) { return E.cue(id).length > 80; }), []);
 var warm = [E.WARMUP.general].concat(E.WARMUP.A, E.WARMUP.B);
 eq('warm-ups explain how', warm.filter(function (w) { return !(w.how && w.how.length); }).map(function (w) { return w.id; }), []);
 

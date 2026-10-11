@@ -204,6 +204,28 @@
   /* Where / form text for any exercise id (main lift or swap option). */
   function info(id) { var c = findCfg(id); return c ? { where: c.where, tip: c.tip } : ALT_INFO[id] || null; }
 
+  /* How hard to go, one short line per card. Growth rises as sets get closer to failure (Robinson
+     2024), and machines and cables make that safe: their last set goes until no clean rep is left.
+     Free weights and big lifts stop with 1–2 reps left. Where the stretch matters, slow down there;
+     for calves, half reps at the bottom (lengthened partials) once full reps stop. */
+  var TO_FAILURE = ['Leg_Extensions', 'Seated_Leg_Curl', 'Calf_Press_On_The_Leg_Press_Machine', 'Smith_Machine_Calf_Raise',
+    'Triceps_Pushdown_-_Rope_Attachment', 'Triceps_Pushdown', 'Cable_Rope_Overhead_Triceps_Extension', 'Standing_Biceps_Cable_Curl',
+    'Straight-Arm_Pulldown', 'Rope_Straight-Arm_Pulldown', 'Cable_Seated_Lateral_Raise', 'Face_Pull', 'Cable_Rear_Delt_Fly',
+    'Ab_Crunch_Machine', 'Cable_Crunch'];
+  var STRETCH = {
+    Seated_Leg_Curl: 'Slow down, pause 1 s in the stretch.',
+    Cable_Rope_Overhead_Triceps_Extension: 'Slow down, pause 1 s in the stretch.',
+    Incline_Dumbbell_Curl: 'Slow down, pause 1 s in the stretch.',
+    'Wide-Grip_Lat_Pulldown': 'Slow down, pause 1 s in the stretch.',
+    Calf_Press_On_The_Leg_Press_Machine: 'Last set: when full reps stop, keep doing half reps at the bottom.'
+  };
+  function cue(id) {
+    if (BODYWEIGHT.indexOf(id) !== -1) return '';
+    var s = STRETCH[id];
+    if (/^Last set/.test(s || '')) return s;
+    return (s ? s + ' ' : '') + (TO_FAILURE.indexOf(id) !== -1 ? 'Last set: until no clean rep is left.' : 'Stop with 1–2 reps left in the tank.');
+  }
+
   /* Exercises loaded with dumbbells: capped at RULES.dumbbellMaxKg. */
   var DUMBBELL = ['Dumbbell_Bench_Press', 'Incline_Dumbbell_Press', 'Dumbbell_Shoulder_Press', 'Side_Lateral_Raise',
     'Seated_Side_Lateral_Raise', 'Stiff-Legged_Dumbbell_Deadlift', 'One-Arm_Dumbbell_Row', 'Dumbbell_Incline_Row',
@@ -762,7 +784,7 @@
 
 
   return {
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
     sanitize: sanitize, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, roundHalf: roundHalf, lighter: lighter, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
