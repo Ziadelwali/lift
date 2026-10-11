@@ -261,6 +261,8 @@ var AC=null;
 function unlockAudio(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();}catch(e){}}
 function beep(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();var o=AC.createOscillator(),g=AC.createGain();o.connect(g);g.connect(AC.destination);o.frequency.value=880;g.gain.value=.15;o.start();o.stop(AC.currentTime+.18);var o2=AC.createOscillator();o2.connect(g);o2.frequency.value=1175;o2.start(AC.currentTime+.22);o2.stop(AC.currentTime+.45);}catch(e){}}
 function buzz(p){try{navigator.vibrate&&navigator.vibrate(p||[150,80,150]);}catch(e){}}
+/* A short happy buzz for a new best; none with reduced motion. */
+function cheer(){if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))buzz([60,40,60,40,160]);}
 
 /* ---------------- rest timer ---------------- */
 /* {end,total} live in sessionStorage, so a reload mid-rest keeps the timer. */
@@ -552,8 +554,7 @@ function finishBody(s,k){
  var sets=0,vol=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=E.liftedKg(e.id,x.kg)*(x.reps||0);}});});
  var mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
  var bests=[];s.ex.forEach(function(e){var b=e.sets.filter(function(x){return x.pr&&x.done;})[0];if(!b)return;
-  var prev=0;E.history(state,e.id).forEach(function(hh){if(hh.date<k)hh.sets.forEach(function(x){prev=Math.max(prev,x.kg);});});
-  var up=b.kg>prev?'+'+E.fmtNum(b.kg-prev)+' kg'+(E.pair(e.id)?' each hand':''):'more reps';
+  var up=E.bestUp(E.history(state,e.id).filter(function(hh){return hh.date<k;}),e.id,b.kg,b.reps)||'new best';
   bests.push('<li class="best">'+thumb(e.id)+'<span><b>'+esc(nm(e.id))+'</b><br><span class="mono">'+esc(E.setText(e.id,b.kg,b.reps))+'</span></span><span class="chip ok">'+up+'</span></li>');});
  var t=E.weeksOnTrack(state,k);
  return '<div class="grid3" style="margin-top:12px"><div class="stat"><div class="v">'+sets+'</div><div class="l">sets</div></div><div class="stat"><div class="v">'+(mins||'–')+'</div><div class="l">minutes</div></div><div class="stat"><div class="v">'+E.fmtNum(vol,0)+'</div><div class="l">kg moved</div></div></div>'+
@@ -744,9 +745,11 @@ function exHead(e,ei,ses){
  var ex=exOf(e.id),cfg=cfgOf(e),d=exDone(e);
  return '<div class="head"'+(d?' data-toggle="'+ei+'"':'')+'><div class="row between"><h2>'+(d?'<span style="color:var(--ok)">✓</span> ':(ei+1)+'. ')+esc(nm(e.id))+'</h2>'+(cfg.prio?'<span class="chip prio">priority</span>':'')+'</div>'+
   '<p class="official">'+esc(ex.name)+' · '+esc(equipWord(e.id))+'</p>'+
-  '<p class="muscles">Works: '+ex.primary.map(function(m){return '<b>'+mw(m)+'</b>';}).join(', ')+(ex.secondary.length?' · also '+ex.secondary.map(mw).join(', '):'')+'</p>'+
+  '<p class="muscles">Works: '+ex.primary.map(function(m){return '<b>'+mw(m)+'</b>';}).join(', ')+(ex.secondary.length?' · also '+ex.secondary.map(mw).join(', '):'')+'</p>'+sinceLine(e.id)+
   (d?'<p class="exsum">'+e.sets.length+' sets · '+e.sets.map(function(s){return esc(s.kg)+'×'+esc(s.reps);}).join(', ')+' <span class="xs">· '+(E.pair(e.id)?'kg each hand · ':'')+(openCards[ei]?'tap to fold':'tap to open')+'</span></p>':'')+'</div>';
 }
+/* "Since you started: +12 kg" — progress you can see on every card. */
+function sinceLine(id){var s=E.sinceStart(state,id);return s?'<p class="since">Since you started: <b>'+esc(s.text)+'</b></p>':'';}
 function exInner(e,ei,ses,collapsed){
  return exHead(e,ei,ses)+(collapsed?'':exStrip(e,ei)+'<div class="body">'+exBody(e,ei,ses)+'</div>');
 }
@@ -873,7 +876,7 @@ function renderProgress(){
  var sel=withHist.indexOf(renderProgress.sel)>=0?renderProgress.sel:withHist[0];renderProgress.sel=sel;
  // pick a lift by its picture
  h+='<div class="card"><h2>Lifts</h2>'+(sel?'<div class="lifts" role="list">'+withHist.map(function(id){return '<button class="lift'+(id===sel?' on':'')+'" data-lift="'+esc(id)+'" aria-pressed="'+(id===sel)+'"><img src="'+thumbSrc(id)+'" alt="" loading="lazy" decoding="async"><span>'+esc(nm(id))+'</span></button>';}).join('')+'</div>'+
-  '<h3 style="margin-top:10px">'+esc(nm(sel))+'</h3>'+liftChart(sel):'<p class="xs" style="margin-top:6px">Finish a session to see your lifts here.</p>')+'</div>';
+  '<h3 style="margin-top:10px">'+esc(nm(sel))+'</h3>'+sinceLine(sel)+liftChart(sel):'<p class="xs" style="margin-top:6px">Finish a session to see your lifts here.</p>')+'</div>';
  h+=historyCard();
  h+='<div class="card"><h2>Hard sets per muscle, last 7 days</h2><p class="xs" style="margin:4px 0 8px">Target about '+E.RULES.volumeBand.normal.join('–')+' (priority muscles '+E.RULES.volumeBand.priority.join('–')+'). Secondary muscles count half.</p>'+volumeChart()+'</div>';
  $('#v-progress').innerHTML=h;
@@ -1058,9 +1061,9 @@ document.addEventListener('click',function(ev){
   save();return;}
  if(b.dataset.tick){unlockAudio();var t=b.dataset.tick.split(':'),ex=ses.ex[+t[0]],st=ex.sets[+t[1]];
   if(!st.done){if(!(st.kg>0||(st.kg===0&&E.BODYWEIGHT.indexOf(ex.id)>=0))||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;st.at=Date.now();
-   var prev=E.bestSets(state,ex.id).reduce(function(m,x){return Math.max(m,x.e1rm);},0),mine=E.epley(st.kg,st.reps);
-   var beat=ex.sets.some(function(x){return x!==st&&x.pr;});
-   if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+E.setText(ex.id,st.kg,st.reps)+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
+   // a new best: heavier, more reps at this weight, or stronger than every finished session (one ★ per exercise)
+   var bh=E.history(state,ex.id),up=E.bestUp(bh,ex.id,st.kg,st.reps),beat=ex.sets.some(function(x){return x!==st&&x.pr;});
+   if(up&&!beat){st.pr=true;setTimeout(function(){toast('★ New best on '+nm(ex.id)+': '+(up==='stronger'?E.setText(ex.id,st.kg,st.reps):up));cheer();},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
    var cfg=cfgOf(ex);var lastSet=exDone(ex);// last set: no timer over the next exercise (walking to the next machine is the rest), only the question
    if(lastSet){clearInterval(rest.t);rest.end=0;keepRest();if(!ex.feel)rest.ask=+t[0];}else startRest(cfg.rest);restRir();
    var ei=+t[0];if(lastSet)openCards[ei]=true;save();refreshCard(ei);
@@ -1086,7 +1089,8 @@ document.addEventListener('click',function(ev){
   var again=!!ses.reopened;delete ses.reopened;
   ses.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});});ses.done=true;if(!again||!ses.finished)ses.finished=Date.now();
   if(!again&&E.recentStalls(state,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;setNotice('Two lifts stalled, so the next 3 sessions are an easy week: lighter weights, fewer sets. After that the weights go back up.');}
-  save();stopRest();keepAwake(false);show('train');scrollTo(0,0);return;}
+  save();stopRest();keepAwake(false);show('train');scrollTo(0,0);
+  if(ses.ex.some(function(e){return e.sets.some(function(x){return x.pr;});}))cheer();return;}
  if(act==='easy'||act==='easyoff'){var on=act==='easy',es=activeSession()||state.sessions[todayISO()];
   state.settings.deloadUntil=on?E.completedSessions(state).length+3:0;
   // today's session not started yet: redo its weights now
