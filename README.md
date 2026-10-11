@@ -74,7 +74,7 @@ Goal: an athletic, defined physique — **muscle first, with the diet set so fat
 
 **Made for someone who doesn't know the names** (index.html)
 - Plain names as titles (`LABEL` in engine.js), the official name small underneath; muscles as body parts ("front of thigh"); photos everywhere a choice is made. `node tools/test-engine.js` fails if an exercise lacks a plain name or where/form text.
-- Training screen: big −/+ and ✓, "How was it?" once per exercise, sticky progress with a photo per exercise, finished exercises fold, rest timer ±30 s. Comma or dot decimals.
+- Training screen: big −/+ and ✓, "How was it?" once per exercise, sticky progress with a photo per exercise, finished exercises fold, rest timer ±30 s. Comma or dot decimals. The card opens with a small picture strip (exercise, muscles, gym photo; tap to enlarge), then the sets; Where/Form/Last time sit in a fold. After the last set, "How was it?" (with Undo) comes first, then the next exercise. Finish opens a sheet listing what isn't ticked, then a finish screen (bests, weeks on track, next session). Important news is a card until dismissed; toasts sit above the tabs.
 - Light ("clear day") and dark ("clear night") themes; Auto follows the phone. Colours are CSS tokens on `:root` / `:root[data-theme=light]`; the theme is applied before first paint from `localStorage['lift.theme']`.
 
 **Diet** (engine.js `macros`, `timeline`)
