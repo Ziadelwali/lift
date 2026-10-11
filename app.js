@@ -472,6 +472,23 @@ function easyLink(p,ses){
 }
 var ANYWAY='<p class="xs" style="margin-top:10px">Want to train anyway? <button class="linkbtn" data-act="start">Start a session</button></p>';
 var FIXLINK='<p class="xs" style="margin-top:6px">Wrong number or a forgotten set? <button class="linkbtn" data-act="reopen">Fix a mistake</button></p>';
+/* In-app sheet (instead of confirm()): slides up from the bottom; tap outside to close. */
+function openSheet(html){closeSheet();var w=document.createElement('div');w.className='sheetwrap';w.innerHTML='<div class="sheet" role="dialog" aria-modal="true">'+html+'</div>';
+ w.addEventListener('click',function(ev){if(ev.target===w)closeSheet();});document.body.appendChild(w);var f=w.querySelector('button');if(f)f.focus();}
+function closeSheet(){var w=$('.sheetwrap');if(w)w.remove();}
+/* Finish screen: what you did, new bests with the step up, weeks on track, the next session. */
+function finishBody(s,k){
+ var sets=0,vol=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=E.liftedKg(e.id,x.kg)*(x.reps||0);}});});
+ var mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
+ var bests=[];s.ex.forEach(function(e){var b=e.sets.filter(function(x){return x.pr&&x.done;})[0];if(!b)return;
+  var prev=0;E.history(state,e.id).forEach(function(hh){if(hh.date<k)hh.sets.forEach(function(x){prev=Math.max(prev,x.kg);});});
+  var up=b.kg>prev?'+'+(Math.round((b.kg-prev)*10)/10)+' kg'+(E.pair(e.id)?' each hand':''):'more reps';
+  bests.push('<li class="best">'+thumb(e.id)+'<span><b>'+esc(nm(e.id))+'</b><br><span class="mono">'+esc(E.setText(e.id,b.kg,b.reps))+'</span></span><span class="chip ok">'+up+'</span></li>');});
+ var wk=[],m=E.mondayOf(k),done=E.completedSessions(state);for(var i=5;i>=0;i--){var a=addDays(m,-7*i),z=addDays(a,6),c=done.filter(function(d){return d>=a&&d<=z;}).length;wk.push('<i class="wdot'+(c>=2?' on':'')+'" title="'+c+' sessions"></i>');}
+ return '<div class="grid3" style="margin-top:12px"><div class="stat"><div class="v">'+sets+'</div><div class="l">sets</div></div><div class="stat"><div class="v">'+(mins||'–')+'</div><div class="l">minutes</div></div><div class="stat"><div class="v">'+Math.round(vol).toLocaleString()+'</div><div class="l">kg moved</div></div></div>'+
+  (bests.length?'<p class="eyebrow" style="margin-top:14px">★ New best'+(bests.length>1?'s':'')+'</p><ul class="bests">'+bests.join('')+'</ul>':'')+
+  '<p class="eyebrow" style="margin-top:14px">Weeks on track</p><div class="wdots">'+wk.join('')+'<span class="xs">'+streakWeeks()+' in a row · 2+ sessions a week</span></div>'+nextSessionLine(k);
+}
 function sessionSummary(s){
  var sets=0,vol=0,up=0,pr=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=E.liftedKg(e.id,x.kg)*(x.reps||0);}if(x.pr)pr++;});if(e.suggest&&e.suggest.state==='up')up++;});
  var mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
@@ -560,9 +577,9 @@ function renderTrain(){
  var h='';
  if(!ses){
   var dk=sessionKey(true),ds=dk&&state.sessions[dk],done=!!(ds&&ds.done);
-  h='<div class="card" style="margin-top:14px"><h2>'+(done?'Session '+ds.day+' done':p.training?'Session '+p.day+' today':'Rest day')+'</h2>'+
-   '<p class="sm" style="margin-top:6px">'+(done?sessionSummary(ds):p.training?'Warm-up, then '+p.exercises.length+' exercises. Phone stays awake while you train.':'No session planned. You can still train if life moved a day — it becomes the next session in the rotation.')+'</p>'+
-   (done?FIXLINK:p.training?'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+p.day+'</button>':ANYWAY)+'</div>'+programCard();
+  h='<div class="card" style="margin-top:14px"><h2>'+(done?'Session '+ds.day+' done ✓':p.training?'Session '+p.day+' today':'Rest day')+'</h2>'+
+   '<p class="sm" style="margin-top:6px">'+(done?'':p.training?'Warm-up, then '+p.exercises.length+' exercises. Phone stays awake while you train.':'No session planned. You can still train if life moved a day — it becomes the next session in the rotation.')+'</p>'+
+   (done?finishBody(ds,dk)+FIXLINK:p.training?'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+p.day+'</button>':ANYWAY)+'</div>'+programCard();
   $('#v-train').innerHTML=h;return;
  }
  h+=trackBar(ses)+noticeCard()+(ses.reopened?'<div class="card notice"><p class="sm"><b>Fixing a mistake.</b> Change what was wrong, then tap Finish session again.</p></div>':'');
@@ -923,12 +940,17 @@ document.addEventListener('click',function(ev){
  if(b.dataset.addset){var exx=ses.ex[+b.dataset.addset],lastS=exx.sets[exx.sets.length-1];exx.sets.push({kg:lastS?lastS.kg:null,reps:lastS?lastS.reps:null,rir:null,done:false});save();refreshCard(+b.dataset.addset);return;}
  var act=b.dataset.act;
  if(act==='start'){trainFocus=null;var iso=activeKey()||todayISO();if(!state.sessions[iso]){var p=planFor(iso);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
+ if(act==='sheetclose'){closeSheet();return;}
  if(act==='finish'){if(!ses)return;var n=0;ses.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done)n++;});});if(!n){toast('No sets logged yet');return;}
-  if(!confirm('Finish session with '+n+' sets logged?'))return;
+  var skipped=0,miss=ses.ex.map(function(e){var k=e.sets.filter(function(x){return !x.done;}).length;if(k&&k===e.sets.length){skipped++;return '';}return k?'<li><b>'+esc(nm(e.id))+'</b> <span class="xs">'+k+' of '+e.sets.length+' sets</span></li>':'';}).join('');
+  if(skipped)miss+='<li>'+skipped+(skipped===1?' exercise':' exercises')+' not started</li>';
+  openSheet('<h2>Finish session?</h2><p class="sm" style="margin-top:6px">'+n+(n===1?' set':' sets')+' ticked.</p>'+(miss?'<p class="sm" style="margin-top:10px">Not ticked, so not saved:</p><ul class="shop" style="margin-top:4px">'+miss+'</ul>':'')+
+   '<button class="btn wide" data-act="finishyes" style="margin-top:14px">Finish</button><button class="btn wide ghost" data-act="sheetclose" style="margin-top:8px">Keep training</button>');return;}
+ if(act==='finishyes'){closeSheet();if(!ses)return;
   var again=!!ses.reopened;delete ses.reopened;
   ses.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});});ses.done=true;if(!again||!ses.finished)ses.finished=Date.now();
   if(!again&&E.recentStalls(state,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;setNotice('Two lifts stalled, so the next 3 sessions are an easy week: lighter weights, fewer sets. After that the weights go back up.');}
-  save();stopRest();keepAwake(false);show('today');return;}
+  save();stopRest();keepAwake(false);show('train');scrollTo(0,0);return;}
  if(act==='easy'||act==='easyoff'){var on=act==='easy',es=activeSession()||state.sessions[todayISO()];
   state.settings.deloadUntil=on?E.completedSessions(state).length+3:0;
   // today's session not started yet: redo its weights now

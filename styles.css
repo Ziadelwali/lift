@@ -346,3 +346,11 @@ details.how[open]>summary{margin-bottom:6px}
 .zgym{max-width:100%;max-height:80vh;border-radius:var(--r-m)}
 @media (prefers-reduced-motion: reduce){.sp.pic img,.zpic img{animation:none}.sp.pic img.f1,.zpic img.f1{opacity:0}}
 .rirrow.feel.ask{background:var(--acc2);border-radius:var(--r-m);padding:8px}
+.sheetwrap{position:fixed;inset:0;z-index:15;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:linear-gradient(var(--card),var(--card)),var(--bg);width:100%;max-width:520px;border-radius:var(--r-l) var(--r-l) 0 0;padding:18px 16px calc(var(--sab) + 18px);box-shadow:var(--shadow);max-height:85vh;overflow:auto}
+ul.bests{list-style:none;margin:6px 0 0;padding:0}
+ul.bests li{display:flex;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line)}ul.bests li:first-child{border-top:0}
+ul.bests li>span:nth-child(2){flex:1;min-width:0;font-size:14px}
+.chip.ok{background:var(--ok);color:var(--on-ok)}
+.wdots{display:flex;align-items:center;gap:6px;margin-top:6px}.wdots .xs{margin-left:6px}
+.wdot{width:14px;height:14px;border-radius:50%;background:var(--line)}.wdot.on{background:var(--ok)}
