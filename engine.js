@@ -20,11 +20,17 @@
     stallDrop: 0.9,             // cut load 10 % after two failed sessions
     sessionMinutes: 65,
     warmupMinutes: 10,          // 6–8 min uphill walk + ~2 min of moves
-    proteinPerKg: 2.0, // 2 g per kg body weight: the top of the useful range, for maximum muscle while losing fat
+    // Protein from the GOAL weight, not today's weight: 2.2 g × 93 kg ≈ 200 g ≈ 2.5 g per kg of lean mass,
+    // the top of what helps dieting lifters (Morton 2018: gains plateau near 1.6 g/kg; Helms 2014).
+    proteinPerGoalKg: 2.2,
+    proteinPerKg: 2.0, // fallback when no goal weight is set
     fatShare: 0.25,
     phase: { lean: 0.90, maintain: 1.0, bulk: 1.10 },  // lean = −10 %: small enough that muscle gain is barely slowed
     activity: { desk: 1.35, feet: 1.5, active: 1.65 },
-    trendTarget: { lean: [-0.5, -0.2], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] }, // kg/week
+    // kg/week. Lean −0.2 to −0.5 ≈ a 300–550 kcal/day deficit, where lean mass can still grow (Murphy & Koehler 2022).
+    trendTarget: { lean: [-0.5, -0.2], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] },
+    trendHalfLife: 7,           // days: the trend line moves halfway to a new weigh-in after a week, gaps or not
+    rateDays: 21, rateMinDays: 14, rateMinCount: 10, // rate = slope of the last 3 weeks; needs 10 weigh-ins over 2+ weeks
     creatineG: 5,
     volumeBand: { normal: [9, 15], priority: [12, 20] },   // hard sets a week (Pelland 2025: more still helps, less each time)
     dumbbellMaxKg: 30 // heaviest dumbbell at B1973 Fitness (per hand)
@@ -558,16 +564,28 @@
 
   /* ---------- nutrition ---------- */
   function bmi(p) { return p.height ? p.weight / Math.pow(p.height / 100, 2) : 0; }
+  /* Daily protein in g: 2.2 × goal weight rounded to 10 (about 200 g), else 2 × body weight. */
+  function proteinFor(p) {
+    var g = +p.goal2;
+    if (g >= 40 && g <= 250) return Math.round(g * RULES.proteinPerGoalKg / 10) * 10;
+    return Math.round(p.weight * RULES.proteinPerKg);
+  }
   function macros(p) {
     if (!p || !p.weight || !p.height || !p.age) return null;
     var bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === 'f' ? -161 : 5);
     var tdee = bmr * (RULES.activity[p.activity] || 1.5);
     var phase = p.phase || 'lean';
     var kcal = Math.round(tdee * RULES.phase[phase] / 10) * 10;
-    var protein = Math.round(p.weight * RULES.proteinPerKg);
+    var protein = proteinFor(p);
     var fat = Math.round(kcal * RULES.fatShare / 9);
     var carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
     return { bmr: Math.round(bmr), tdee: Math.round(tdee), kcal: kcal, protein: protein, fat: fat, carbs: carbs, phase: phase, bmi: bmi(p) };
+  }
+
+  /* Food targets from the trend weight, not one morning's number (a salty dinner moves the scale a kilo). */
+  function macrosFor(state) {
+    var p = state && state.profile, tw = trendWeight(state || {});
+    return macros(p && tw ? Object.assign({}, p, { weight: tw }) : p);
   }
 
   /* ---------- simple eating: 2 meals + 3 shakes, nothing to cook or weigh ----------
@@ -612,23 +630,26 @@
       slots.push(Object.assign({ t: t, time: fmtHM(t), key: key, label: label, why: why, protein: P, kcal: kcal ? Math.round(kcal / 10) * 10 : 0, foods: foods ? [foods] : null }, extra || {}));
     }
     var m1 = mealText(profile, iso, 1, tgt), m2 = mealText(profile, iso, 2, tgt), mo = morningFor(iso);
-    var lunch = hm(profile.lunch || '11:30'), last = bed - 180;   // meals end 3 h before bed; only the bedtime shake comes later
+    var lunch = hm(profile.lunch || '11:30'), last = bed - 180, lateDin = null;   // meals end 3 h before bed; only the bedtime shake comes later
     if (p.training && p.time) {
       var T = hm(p.time); if (T < wake) T += 1440;
       var end = T + RULES.sessionMinutes;
       slot(wake + 60, 'sh2', SHAKES.morning.label, 'Protein feed 1 — starts the day without cooking.', mo.P, mo.kcal, mo.short, { what: 'Shake · ' + mo.P + ' g protein', detail: 'Whey 30 g in 300 ml milk. Or instead: ' + mo.swap + ' — same protein.' });
-      slot(lunch, 'm1', 'Meal 1 (lunch)', T - lunch >= 60 ? 'Carbs + protein — also the fuel for the afternoon session.' : 'Recovery meal after the morning session.', tgt.P, tgt.kcal, null, { what: m1.what, detail: m1.detail });
-      slot(T - 15, 'cr', 'Creatine 5 g + water', 'Every day. Timing barely matters — consistency does. A banana now helps if lunch feels long ago.', 0, 0, null, { what: 'Creatine', detail: '5 g in water. A banana too, if lunch feels long ago.' });
+      var gap = T - lunch, cr = RULES.creatineG + ' g';
+      slot(lunch, 'm1', 'Meal 1 (lunch)', gap < 60 ? 'Recovery meal after the morning session.' : gap < 120 ? 'Training in under 2 h: a smaller plate, carbs + protein.' : gap <= 300 ? 'Eat 2–5 h before training: carbs + protein fuel the session.' : 'Carbs + protein. Training is over 5 h away — have a banana an hour before.', tgt.P, tgt.kcal, null, { what: m1.what, detail: m1.detail });
+      slot(T - 15, 'cr', 'Creatine ' + cr + ' + water', 'Every day. Timing barely matters — consistency does. A banana now helps if lunch feels long ago.', 0, 0, null, { what: 'Creatine', detail: cr + ' in water. A banana too, if lunch feels long ago.' });
       slot(T, 'train', 'Train', 'Session ' + p.day + ' · ~' + RULES.sessionMinutes + ' min incl. warm-up.', 0, 0, null, { what: 'Train', detail: '~' + RULES.sessionMinutes + ' min incl. warm-up.' });
-      slot(Math.min(end + 5, last), 'sh1', SHAKES.post.label, 'Straight after training: fast protein while you head home.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how, { what: 'Shake · ' + SHAKES.post.P + ' g protein', detail: 'Whey 40 g + 500 ml milk + a banana. Or instead: skyr 400 g + a banana.' });
-      slot(Math.min(end + 100, last), 'm2', 'Meal 2 (dinner)', 'The big meal: protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, null, { what: m2.what, detail: m2.detail });
+      // the shake and dinner always come after the session; a late session gets a light dinner
+      slot(end + 5, 'sh1', SHAKES.post.label, 'Straight after training: fast protein while you head home.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how, { what: 'Shake · ' + SHAKES.post.P + ' g protein', detail: 'Whey 40 g + 500 ml milk + a banana. Or instead: skyr 400 g + a banana.' });
+      if (end + 45 <= last) slot(Math.max(end + 45, Math.min(end + 100, last)), 'm2', 'Meal 2 (dinner)', 'The big meal: protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, null, { what: m2.what, detail: m2.detail });
+      else { lateDin = end + 45; slot(lateDin, 'm2', 'Meal 2 (light)', 'Late session, bed soon: a light meal instead of a big plate, so you sleep well.', tgt.P, tgt.kcal, null, { what: 'Light dinner', detail: 'Skyr 400 g + fruit, or a shake. Protein matters, the size does not.' }); }
     } else {
-      slot(wake + 60, 'sh2', SHAKES.morning.label + ' + creatine', 'Protein feed 1. Creatine every day, training or not.', mo.P, mo.kcal, mo.short, { what: 'Shake · ' + mo.P + ' g protein + creatine', detail: 'Whey 30 g in 300 ml milk, creatine 5 g. Or instead: ' + mo.swap + ' — same protein.' });
+      slot(wake + 60, 'sh2', SHAKES.morning.label + ' + creatine', 'Protein feed 1. Creatine every day, training or not.', mo.P, mo.kcal, mo.short, { what: 'Shake · ' + mo.P + ' g protein + creatine', detail: 'Whey 30 g in 300 ml milk, creatine ' + RULES.creatineG + ' g. Or instead: ' + mo.swap + ' — same protein.' });
       slot(lunch, 'm1', 'Meal 1 (lunch)', 'Protein + carbs + veg.', tgt.P, tgt.kcal, null, { what: m1.what, detail: m1.detail });
       slot(Math.min(lunch + 240, last - 180), 'sh1', SHAKES.post.label, 'Mid-afternoon on rest days — keeps protein coming.', SHAKES.post.P, SHAKES.post.kcal, SHAKES.post.how, { what: 'Shake · ' + SHAKES.post.P + ' g protein', detail: 'Whey 40 g + 500 ml milk + a banana. Or instead: skyr 400 g + a banana.' });
       slot(Math.min(wake + 720, last), 'm2', 'Meal 2 (dinner)', 'Protein + carbs + veg. Last food of the day.', tgt.P, tgt.kcal, null, { what: m2.what, detail: m2.detail });
     }
-    slot(bed - 45, 'sh3', SHAKES.bed.label, 'Protein for the night: muscle keeps building while you sleep. A drink, not a meal.', SHAKES.bed.P, SHAKES.bed.kcal, SHAKES.bed.how, { what: 'Shake · ' + SHAKES.bed.P + ' g protein', detail: 'Whey 30 g + 300 ml milk. Or instead: skyr 400 g.' });
+    if (lateDin == null || bed - 45 >= lateDin + 60) slot(bed - 45, 'sh3', SHAKES.bed.label, 'Protein for the night: muscle keeps building while you sleep. A drink, not a meal.', SHAKES.bed.P, SHAKES.bed.kcal, SHAKES.bed.how, { what: 'Shake · ' + SHAKES.bed.P + ' g protein', detail: 'Whey 30 g + 300 ml milk. Or instead: skyr 400 g.' });
     var wd = parseISO(iso).getDay(), nl = lattes(profile);
     if (wd >= 1 && wd <= 5) for (var li = 0; li < nl; li++) {
       var lt = li === 0 ? wake + 150 : li === 1 ? Math.min(lunch + 120, hm('14:45')) : Math.min(lunch + 60, hm('14:45'));
@@ -743,32 +764,45 @@
     var w = state.weight || {};
     return Object.keys(w).sort().map(function (k) { return { date: k, kg: +w[k] }; }).filter(function (x) { return x.kg > 0; });
   }
-  /* 7-day trailing average per point */
+  /* Trend weight: a time-aware moving average. Each weigh-in pulls the line toward it by an amount
+     that grows with the days since the last one (half-life RULES.trendHalfLife), so gaps are fine. */
   function weightTrend(state) {
-    var s = weightSeries(state);
-    return s.map(function (pt, i) {
-      var from = addDaysISO(pt.date, -6), vals = [];
-      for (var j = i; j >= 0 && s[j].date >= from; j--) vals.push(s[j].kg);
-      return { date: pt.date, kg: pt.kg, avg: vals.reduce(function (a, b) { return a + b; }, 0) / vals.length };
+    var s = weightSeries(state), avg = null, prev = null;
+    return s.map(function (pt) {
+      if (avg == null) avg = pt.kg;
+      else avg += (1 - Math.pow(0.5, daysBetween(prev, pt.date) / RULES.trendHalfLife)) * (pt.kg - avg);
+      prev = pt.date;
+      return { date: pt.date, kg: pt.kg, avg: Math.round(avg * 100) / 100 };
     });
   }
-  /* kg/week over the last 14 days of trend, and advice for the phase */
+  /* The latest trend weight, or null without weigh-ins. Used for the food targets instead of a single day. */
+  function trendWeight(state) { var t = weightTrend(state); return t.length ? t[t.length - 1].avg : null; }
+  /* kg/week: least-squares slope of the weigh-ins in the RULES.rateDays up to endIso.
+     null when there are too few weigh-ins or they span too few days. */
+  function weightRate(state, endIso) {
+    var s = weightSeries(state).filter(function (p) { return p.date <= endIso && daysBetween(p.date, endIso) < RULES.rateDays; });
+    if (s.length < RULES.rateMinCount || daysBetween(s[0].date, s[s.length - 1].date) < RULES.rateMinDays) return null;
+    var xs = s.map(function (p) { return daysBetween(s[0].date, p.date); }), n = s.length;
+    var mx = xs.reduce(function (a, b) { return a + b; }, 0) / n, my = s.reduce(function (a, p) { return a + p.kg; }, 0) / n, num = 0, den = 0;
+    s.forEach(function (p, i) { num += (xs[i] - mx) * (p.kg - my); den += (xs[i] - mx) * (xs[i] - mx); });
+    return den ? num / den * 7 : null;
+  }
+  /* Advice for the phase. Weekly checks (the latest weigh-in, and a week before): the portions
+     change only when two checks in a row are outside the band. One bad week = wait and see. */
   function trendAdvice(state) {
-    var t = weightTrend(state);
-    if (t.length < 8) return { rate: null, text: 'Weigh in most mornings. After about 2 weeks the trend tells you whether to eat a bit more or a bit less.' };
-    var last = t[t.length - 1], back = null;
-    for (var i = t.length - 1; i >= 0; i--) {
-      if (daysBetween(t[i].date, last.date) >= 7) { back = t[i]; break; }
-    }
-    if (!back) return { rate: null, text: 'Keep weighing in — not enough spread of dates yet.' };
-    var days = daysBetween(back.date, last.date);
-    var rate = (last.avg - back.avg) / days * 7;
+    var s = weightSeries(state);
+    var wait = { rate: null, state: 'wait', text: 'Weigh in most mornings. After about 2 weeks the trend tells you whether to eat a bit more or a bit less.' };
+    if (!s.length) return wait;
+    var end = s[s.length - 1].date, rate = weightRate(state, end);
+    if (rate == null) return wait;
     var phase = (state.profile && state.profile.phase) || 'lean', band = RULES.trendTarget[phase];
-    var text;
-    if (rate < band[0]) { text = 'Losing faster than ' + Math.abs(band[0]) + ' kg a week — that risks muscle. Eat a bit more: a bigger handful of rice, potatoes or bread at lunch and dinner, or a banana with the shake.'; }
-    else if (rate > band[1]) { text = phase === 'bulk' ? 'Gaining faster than planned — a bit less rice, potatoes or bread.' : 'Weight is not coming down. Make the rice, potatoes or bread a bit smaller and skip snacks — keep the protein. Or walk 2,000 more steps a day.'; }
-    else text = 'On track (' + band[0] + ' to ' + band[1] + ' kg a week). Keep eating the way you do.';
-    return { rate: rate, text: text };
+    function side(r) { return r == null ? 0 : r < band[0] ? -1 : r > band[1] ? 1 : 0; }
+    var now = side(rate), before = side(weightRate(state, addDaysISO(end, -7))), text, st;
+    if (!now) { st = 'ok'; text = 'On track (' + band[0] + ' to ' + band[1] + ' kg a week). Keep eating the way you do.'; }
+    else if (now !== before) { st = 'watch'; text = now < 0 ? 'Losing a bit fast this week. Change nothing yet — if next week is the same, eat a bit more.' : 'Weight barely moved this week — that happens. Change nothing yet; if next week is the same, eat a bit less.'; }
+    else if (now < 0) { st = 'low'; text = 'Losing faster than ' + Math.abs(band[0]) + ' kg a week two weeks running — that risks muscle. Eat a bit more: a bigger handful of rice, potatoes or bread at lunch and dinner, or a banana with the shake.'; }
+    else { st = 'high'; text = phase === 'bulk' ? 'Gaining faster than planned two weeks running — a bit less rice, potatoes or bread.' : 'Weight not coming down two weeks running. Make the rice, potatoes or bread a bit smaller and skip snacks — keep the protein.'; }
+    return { rate: rate, state: st, text: text };
   }
 
   function weeklyVolume(state, exdb, weekEndISO) {
@@ -794,13 +828,13 @@
 
 
   return {
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, PAIR: PAIR, pair: pair, kgText: kgText, setText: setText, liftedKg: liftedKg, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, PAIR: PAIR, pair: pair, kgText: kgText, setText: setText, liftedKg: liftedKg, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, proteinFor: proteinFor, handPlate: handPlate, palms: palms,
     sanitize: sanitize, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, roundHalf: roundHalf, lighter: lighter, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
     exercisesFor: exercisesFor, idFor: idFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, suggestIn: suggestIn, feelOf: feelOf, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
     macros: macros, timeline: timeline, weightSeries: weightSeries, weightTrend: weightTrend,
-    trendAdvice: trendAdvice, weeklyVolume: weeklyVolume, bestSets: bestSets
+    trendAdvice: trendAdvice, trendWeight: trendWeight, weightRate: weightRate, macrosFor: macrosFor, weeklyVolume: weeklyVolume, bestSets: bestSets
   };
 });

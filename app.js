@@ -154,7 +154,7 @@ function isInstalled(){return (window.matchMedia&&matchMedia('(display-mode: sta
 addEventListener('beforeinstallprompt',function(e){e.preventDefault();installEvt=e;if(typeof render==='function'&&view!=='train')render();});
 addEventListener('appinstalled',function(){installEvt=null;toast('Installed — open Lift from your home screen');if(view!=='train')render();});
 function remindersCard(){
- var mac=E.macros(state.profile);if(!mac)return '';
+ var mac=E.macrosFor(state);if(!mac)return '';
  var ev=E.reminderEvents(state.profile,mac,todayISO(),true),DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
  return '<div class="card"><h2>Reminders</h2><p class="sm" style="margin-top:6px">Put your training and meal times in your phone\'s calendar — it reminds you even when Lift is closed.</p>'+
   '<div class="row" style="margin-top:12px;gap:8px;flex-wrap:wrap"><button class="btn small" data-act="ics" data-meals="1">Training + meals</button><button class="btn small ghost" data-act="ics" data-meals="0">Training only</button></div>'+
@@ -362,7 +362,7 @@ function render(){
 
 /* ---- Today ---- */
 function renderToday(){
- var iso=todayISO(),p=planFor(iso),mac=E.macros(state.profile),ses=state.sessions[iso]||activeSession();
+ var iso=todayISO(),p=planFor(iso),mac=E.macrosFor(state),ses=state.sessions[iso]||activeSession();
  var h='<p class="eyebrow" style="margin-top:6px">'+niceDate(iso)+' · week '+p.week+'</p>';
  h+=weighCard(iso);
  var sesCard='';
@@ -494,7 +494,7 @@ function saveWeight(iso,kg){
  if(!(kg>=40&&kg<=250)){toast('Weight between 40 and 250 kg');return false;}
  var t=E.weightTrend(state).filter(function(x){return x.date<iso;}),ref=t.length?t[t.length-1].avg:null;
  if(ref&&Math.abs(kg-ref)/ref>0.08&&!confirm(kg+' kg is far from your usual ~'+ref.toFixed(1)+' kg. Save it anyway?'))return false;
- state.weight[iso]=kg;state.profile.weight=kg;return true;
+ state.weight[iso]=kg;return true;   // profile.weight stays the start weight; targets follow the trend (E.macrosFor)
 }
 function saveWaist(iso,cm){
  if(!(cm>=50&&cm<=200)){toast('Waist between 50 and 200 cm');return false;}
@@ -692,13 +692,13 @@ function programCard(){
 
 /* ---- Eat ---- */
 function renderEat(){
- var mac=E.macros(state.profile),p=state.profile,iso=todayISO();
+ var mac=E.macrosFor(state),p=state.profile,iso=todayISO();
  if(!mac){$('#v-eat').innerHTML='<div class="card"><p>Fill in your profile first.</p></div>';return;}
  var ta=E.trendAdvice(state);
  var tgt=E.mealTargets(mac,p),sh=E.SHAKES.morning.P+E.SHAKES.post.P+E.SHAKES.bed.P;
  var h='<div class="card" style="margin-top:14px"><div class="row between"><h2>Protein a day</h2><span class="chip acc">'+({lean:'build & lean',maintain:'maintain',bulk:'lean bulk'})[mac.phase]+'</span></div>'+
   '<div class="grid2" style="margin-top:10px"><div class="stat"><div class="v">'+mac.protein+' g</div><div class="l">protein a day</div></div><div class="stat"><div class="v">'+sh+' g</div><div class="l">from the 3 shakes</div></div></div>'+
-  '<p class="xs" style="margin-top:10px">About 2 g per kg of bodyweight — the one number that matters for muscle. The shakes cover '+sh+' g; lunch and dinner bring the rest, about '+tgt.P+' g each. Nothing else to count.</p></div>';
+  '<p class="xs" style="margin-top:10px">'+(+p.goal2?'2.2 g per kg of your goal weight ('+p.goal2+' kg)':'About 2 g per kg of bodyweight')+' — the one number that matters for muscle, and it keeps muscle while fat comes off. The shakes cover '+sh+' g; lunch and dinner bring the rest, about '+tgt.P+' g each. Nothing else to count.</p></div>';
  h+='<div class="card"><h2>Your plate</h2><p class="xs" style="margin:4px 0 10px">Eat what you like — just build lunch and dinner like this. Your hand is the measure, so there is nothing to weigh.</p>'+plateHTML(tgt.P)+'<p class="xs" style="margin-top:10px">Still hungry? More vegetables first. Protein is the part not to skip.</p></div>';
  h+='<div class="card"><h2>Eating vs your weight</h2><p class="sm" style="margin-top:6px">'+esc(ta.text)+(ta.rate!=null?' <span class="xs">(trend on the Progress tab)</span>':'')+'</p></div>';
  var pt=planFor(iso),pTrain=Object.assign({},pt,{training:true,time:pt.time||(p.sched&&p.sched[1])||'16:00',day:pt.day||'A'}),pRest=Object.assign({},pt,{training:false});
@@ -706,16 +706,16 @@ function renderEat(){
  h+='<div class="card"><h2>Training day</h2><p class="xs" style="margin:4px 0 6px">What a training day looks like: morning shake, lunch, a shake after training, dinner, and a shake before bed. Meals end 3 hours before bed; the bedtime shake is just a drink. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pTrain,mac,false)+'</div>';
  h+='<div class="card"><h2>Rest day</h2><p class="xs" style="margin:4px 0 6px">What a rest day looks like: same protein, the after-training shake moves to the afternoon, creatine still. Tick things off on the <b>Today</b> tab.</p>'+timelineHTML(iso,pRest,mac,false)+'</div>';
  h+='<details class="card fold"><summary><h2>Supplements — what earns its place</h2></summary><div class="stack sm" style="margin-top:8px">'+
-  '<p><b>Creatine monohydrate, 5 g every day.</b> The best-evidenced supplement there is: more reps per set, faster gains. No loading phase needed; any time of day; mix into anything. Cheapest own-brand is identical to expensive ones.</p>'+
+  '<p><b>Creatine monohydrate, '+E.RULES.creatineG+' g every day.</b> The best-evidenced supplement there is: more reps per set, faster gains. No loading phase needed; any time of day; mix into anything. Cheapest own-brand is identical to expensive ones.</p>'+
   '<p><b>Whey protein.</b> Just convenient milk protein — your three shakes are your no-cook protein. Any plain whey works; price and taste decide. Skyr, Greek yoghurt or eggs are the alternatives.</p>'+
   '<p><b>A shake before bed.</b> About 35–40 g milk protein before sleep keeps muscle building through the night. It is a drink, not an extra meal, and it does not make you fat.</p>'+
   '<p><b>Caffeine 1–3 mg/kg, 30–60 min pre-session</b> if you want it. A coffee. Not after 15:00 if sleep suffers — sleep beats caffeine.</p>'+
   '<p><b>Vitamin D 20–40 µg/day Oct–Apr</b> at Danish latitude. Fish oil only if you eat no oily fish.</p>'+
   '<p class="xs">Skip: BCAAs (pointless with enough protein), fat burners, test boosters, pre-workouts beyond caffeine.</p></div></details>';
  h+='<details class="card fold"><summary><h2>The rules behind it</h2></summary><div class="stack sm" style="margin-top:8px">'+
-  '<p>• Protein: 1.6–2.2 g/kg a day. Total per day matters most; 2 meals + 3 shakes spreads it over 5 feeds.</p>'+
-  '<p>• Pre-workout meal 1–3 h before: carbs + protein. Post-workout meal within ~2 h. The "anabolic window" is hours wide, not minutes.</p>'+
-  '<p>• Weigh most mornings and judge by the 7-day average. Only change your portions when the trend is off for 2 weeks — a bit more or a bit less rice, potatoes or bread.</p>'+
+  '<p>• Protein: about 2.2 g per kg of your goal weight. Muscle gain levels off near 1.6 g/kg; while losing fat, a bit more keeps muscle. Total per day matters most; 2 meals + 3 shakes spreads it over 5 feeds.</p>'+
+  '<p>• Last meal 2–5 h before training: carbs + protein. Post-workout meal within ~2 h. The "anabolic window" is hours wide, not minutes.</p>'+
+  '<p>• Weigh most mornings; the trend line decides, not one morning. Portions change only when two weekly checks in a row are off — a bit more or a bit less rice, potatoes or bread. Aim: '+E.RULES.trendTarget.lean.map(Math.abs).reverse().join('–')+' kg a week down, slow enough to keep building muscle.</p>'+
   '<p>• Sleep 7–9 h. Under 6 h measurably cuts muscle gain and raises fat gain — it is a training variable.</p></div></details>';
  $('#v-eat').innerHTML=h;
 }
@@ -782,7 +782,7 @@ function weightChart(){
  var last=t[t.length-1],g=goals(),cur=last?last.avg:state.profile.weight,next=cur>g.g1?g.g1:g.g2,ta=E.trendAdvice(state),line='';
  if(cur){var left=Math.round((cur-next)*10)/10;
   line=left>0?'<b class="mono">'+left+' kg</b> to '+(next===g.g1?'your first goal':'your goal')+' ('+next+' kg)'+(ta.rate!=null&&ta.rate<-0.05?' · at your pace ~'+Math.ceil(left/-ta.rate)+' weeks':''):'Goal reached — '+next+' kg. Set the next one under Profile.';}
- return (last?'<p class="sm" style="margin:4px 0 2px"><b class="mono" style="font-size:22px">'+last.avg.toFixed(1)+' kg</b> 7-day average'+(ta.rate!=null?' · <b class="mono">'+(ta.rate>0?'+':'')+ta.rate.toFixed(2)+' kg/week</b>':'')+'</p>':'')+
+ return (last?'<p class="sm" style="margin:4px 0 2px"><b class="mono" style="font-size:22px">'+last.avg.toFixed(1)+' kg</b> trend'+(ta.rate!=null?' · <b class="mono">'+(ta.rate>0?'+':'')+ta.rate.toFixed(2)+' kg/week</b>':'')+'</p>':'')+
   (line?'<p class="sm" style="margin:0 0 6px">'+line+'</p>':'')+
   lineChart(pts,{fmtX:fmtX,step:5,empty:'weigh in on the Today tab.',goals:[{y:g.g1,label:'first goal '+g.g1},{y:g.g2,label:'goal '+g.g2}]});
 }
@@ -908,7 +908,7 @@ document.addEventListener('click',function(ev){
   save();renderToday();toast(on?'Easy week: the next 3 sessions are lighter':'Back to normal weights');return;}
  if(act==='reopen'){var rk=sessionKey(true),rs=rk&&state.sessions[rk];if(!rs||!rs.done)return;rs.done=false;rs.reopened=true;trainFocus=0;save();show('train');toast('Change what was wrong, then Finish again');return;}
  if(act==='abandon'){if(!ses||ses.reopened)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[activeKey()];save();stopRest();keepAwake(false);renderTrain();return;}
- if(act==='ics'){downloadBlob(E.calendarICS(state.profile,E.macros(state.profile),todayISO(),b.dataset.meals==='1'),'text/calendar','lift-reminders.ics');toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
+ if(act==='ics'){downloadBlob(E.calendarICS(state.profile,E.macrosFor(state),todayISO(),b.dataset.meals==='1'),'text/calendar','lift-reminders.ics');toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
  if(act==='install'){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(c){if(c&&c.outcome==='accepted')installEvt=null;render();});}return;}
  if(act==='wedit'){weighEdit=true;renderToday();var wi=$('.weigh input');if(wi)wi.focus();return;}
  if(act==='wskip'){try{localStorage.setItem('lift.wskip',todayISO());}catch(e){}renderToday();return;}

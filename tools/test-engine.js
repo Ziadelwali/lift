@@ -30,6 +30,8 @@ var prof = { sex: 'm', age: 38, height: 186, weight: 112, activity: 'feet', phas
 var m = E.macros(prof);
 eq('bmr', m.bmr, 2098);
 eq('protein 2 g/kg', m.protein, 224);
+eq('protein from goal weight: 2.2 × 93 ≈ 200 g, rounded to 10', [E.macros(Object.assign({}, prof, { goal2: 93 })).protein, E.proteinFor({ weight: 112, goal2: 85 }), E.proteinFor({ weight: 112, goal2: 'x' })], [200, 190, 224]);
+eq('meals with 200 g: about 40 g each', E.mealTargets(E.macros(Object.assign({}, prof, { goal2: 93 })), {}).P, 40);
 console.log('macros', m);
 
 var st = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: {} };
@@ -147,6 +149,12 @@ eq('timeline lunch at 11:30', tl.indexOf('11:30 Meal 1 (lunch)') >= 0, true);
 eq('only the bedtime shake after 19:30 (bed 22:30)', E.timeline(prof, E.plan('2026-09-21', st), m).concat(E.timeline(prof, E.plan('2026-09-22', st), m)).filter(function (x) { return x.t > E.hm('19:30'); }).map(function (x) { return x.key; }), ['sh3', 'sh3']);
 eq('timeline shake at 17:10', tl.indexOf('17:10 Protein shake') >= 0, true);
 eq('timeline meal 2 at 18:45', tl.indexOf('18:45 Meal 2 (dinner)') >= 0, true);
+function tlAt(time) { return E.timeline(prof, { date: '2026-09-21', training: true, time: time, day: 'A' }, m).map(function (s) { return s.time + ' ' + s.label; }); }
+eq('17:00 session: shake and dinner after it', tlAt('17:00').filter(function (x) { return /Protein shake|Meal 2/.test(x); }), ['18:10 Protein shake', '19:30 Meal 2 (dinner)']);
+eq('18:00 session: light dinner after it, bedtime shake stays', tlAt('18:00').filter(function (x) { return /Protein shake|Meal 2|Bedtime/.test(x); }), ['19:10 Protein shake', '19:50 Meal 2 (light)', '21:45 Bedtime shake']);
+eq('19:00 session: nothing before it ends, no shake right after the light dinner', tlAt('19:00').filter(function (x) { return x > '19:00'; }), ['19:00 Train', '20:10 Protein shake', '20:50 Meal 2 (light)']);
+eq('lunch 4.5 h before training says 2–5 h', /2–5 h/.test(E.timeline(prof, E.plan('2026-09-21', st), m).filter(function (s) { return s.key === 'm1'; })[0].why), true);
+eq('creatine amount from RULES', tl.indexOf('15:45 Creatine ' + E.RULES.creatineG + ' g + water') >= 0, true);
 eq('timeline 2 meals + 3 shakes', tl.filter(function (x) { return /Meal \d|shake|Morning protein/i.test(x); }).length, 5);
 eq('bedtime shake 45 min before bed', tl.indexOf('21:45 Bedtime shake') >= 0, true);
 
@@ -184,6 +192,18 @@ st.weight = w;
 var ta = E.trendAdvice(st);
 eq('trend rate ~-0.49', Math.round(ta.rate * 100) / 100, -0.49);
 eq('trend in band', /^On track/.test(ta.text), true);
+function days(n, f) { var o = {}; for (var i = 0; i < n; i++) o[E.addDaysISO('2026-09-01', i)] = Math.round(f(i) * 100) / 100; return o; }
+function adv(wt) { return E.trendAdvice({ profile: { phase: 'lean' }, weight: wt }); }
+eq('trend: a 3-week gap moves the line 7/8 of the way (half-life 7 days)', E.weightTrend({ weight: { '2026-09-01': 100, '2026-09-22': 94 } })[1].avg, 94.75);
+eq('trend weight = last trend point', E.trendWeight({ weight: { '2026-09-01': 100, '2026-09-22': 94 } }), 94.75);
+eq('rate needs 10 weigh-ins', adv(days(21, function (i) { return i % 3 ? 0 : 112 - i * 0.1; })).rate, null);
+var spaced = {}; for (var si = 0; si < 12; si++) spaced[E.addDaysISO('2026-09-01', si)] = 112;
+eq('rate needs 14 days of spread', adv(spaced).state, 'wait');
+eq('rate with gaps: slope of what is there', Math.round(adv(days(22, function (i) { return i % 2 ? 0 : 112 - i * 0.05; })).rate * 100) / 100, -0.35);
+eq('one fast week = wait and see', adv(days(28, function (i) { return i < 21 ? 112 - i * 0.05 : 111 - (i - 20) * 0.3; })).state, 'watch');
+eq('two fast weeks = eat more', adv(days(28, function (i) { return 112 - i * 0.15; })).state, 'low');
+eq('two flat weeks = eat less', adv(days(28, function () { return 112; })).state, 'high');
+eq('food targets use the trend weight', E.macrosFor({ profile: prof, weight: { '2026-09-01': 112, '2026-09-02': 112, '2026-09-03': 115 } }).kcal < E.macros(Object.assign({}, prof, { weight: 115 })).kcal, true);
 
 
 // dumbbell cap: no suggestion above the heaviest dumbbell in the gym
@@ -235,10 +255,11 @@ var dw = {}; for (var di = 0; di < 14; di++) dw[E.addDaysISO('2026-10-20', di)] 
 eq('addDaysISO over the autumn change', E.addDaysISO('2026-10-24', 2), '2026-10-26');
 eq('addDaysISO over the spring change', E.addDaysISO('2026-03-28', 2), '2026-03-30');
 eq('daysBetween over both changes', [E.daysBetween('2026-10-24', '2026-10-27'), E.daysBetween('2026-03-28', '2026-03-31')], [3, 3]);
-var dt = E.weightTrend({ weight: dw });
-eq('7-day mean over the autumn change has 7 days', dt.filter(function (x) { return x.date === '2026-10-28'; })[0].avg, 105);
-var sw7 = {}; for (var dj = 0; dj < 10; dj++) sw7[E.addDaysISO('2026-03-25', dj)] = 100 + dj;
-eq('7-day mean over the spring change has 7 days', E.weightTrend({ weight: sw7 }).filter(function (x) { return x.date === '2026-04-01'; })[0].avg, 104);
+var sameShape = {}; for (var dk = 0; dk < 14; dk++) sameShape[E.addDaysISO('2026-09-01', dk)] = 100 + dk;
+var avgs = function (wt) { return E.weightTrend({ weight: wt }).map(function (x) { return x.avg; }); };
+eq('trend over the autumn change = same days without it', avgs(dw), avgs(sameShape));
+var sw7 = {}; for (var dj = 0; dj < 14; dj++) sw7[E.addDaysISO('2026-03-22', dj)] = 100 + dj;
+eq('trend over the spring change = same days without it', avgs(sw7), avgs(sameShape));
 var vst = { sessions: { '2026-10-20': { done: true, ex: [{ id: 'Leg_Press', sets: [{ kg: 1, reps: 1, done: true }] }] }, '2026-10-26': { done: true, ex: [{ id: 'Leg_Press', sets: [{ kg: 1, reps: 1, done: true }] }] } } };
 var vdb = { Leg_Press: { primary: ['quadriceps'], secondary: [] } };
 eq('weekly volume: 7 calendar days back over the change', [E.weeklyVolume(vst, vdb, '2026-10-26').quadriceps, E.weeklyVolume(vst, vdb, '2026-10-27').quadriceps], [2, 1]);

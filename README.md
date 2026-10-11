@@ -79,9 +79,10 @@ Goal: an athletic, defined physique — **muscle first, with the diet set so fat
 
 **Diet** (engine.js `macros`, `timeline`)
 - Mifflin-St Jeor × activity = expenditure; phase multiplier (build & lean 0.90, i.e. −10 %, kept under the ~500 kcal/day deficit where lean-mass gain is seen to slow / maintain 1.0 / lean bulk 1.10).
-- Protein 2.0 g/kg body weight (top of the useful range, for maximum muscle in a deficit); fat 25 % of kcal; carbs the rest. Calories stay fixed — extra protein replaces carbs.
+- Protein 2.2 g per kg of the goal weight (`RULES.proteinPerGoalKg`, ~200 g at 93 kg ≈ 2.5 g/kg lean mass; Morton 2018 plateau ~1.6 g/kg, more helps while dieting), 2.0 g/kg body weight without a goal. Food targets use the trend weight, not one weigh-in; fat 25 % of kcal; carbs the rest. Calories stay fixed — extra protein replaces carbs.
 - No cooking plan or shopping list, nothing to weigh: lunch and dinner are the user's own plate, built with the hand (`handPlate`: a palm of protein per ~30 g, a fist of veg, a cupped hand of carbs, a thumb of fat). Only the daily protein number is shown; kcal is used internally for the trend band.
 - Clock-time schedule anchored on the session: 2 meals + 3 whey shakes (morning, after training, ~45 min before bed; skyr/yoghurt/eggs are the alternatives). Meals end 3 h before bed; only the bedtime shake comes later. Creatine 5 g daily.
-- 7-day weight trend vs the phase's target band → plain portion advice (a bit more or less rice, potatoes or bread).
+- Weight trend: a time-aware moving average (half-life 7 days, so gaps are fine); rate = slope of the last 3 weeks (needs 10 weigh-ins over 2+ weeks). Portion advice (a bit more or less rice, potatoes or bread) only when two weekly checks in a row are outside the band; one off week says wait. Lean band −0.2 to −0.5 kg a week ≈ a 300–550 kcal/day deficit, where lean mass can still grow (Murphy & Koehler 2022).
+- Timeline: lunch 2–5 h before training; the shake and dinner always after the session (a late session gets a light dinner).
 
 Evidence: Pelland et al. 2025 (volume/frequency dose–response), Robinson et al. 2024 (proximity to failure), Haugen et al. 2023 (machines vs free weights), ISSN position stands (protein; creatine 2025), warm-up reviews. Not medical advice.
