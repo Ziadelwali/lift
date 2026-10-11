@@ -4,7 +4,7 @@ const VERSION = 'v-2bf8748550';
 /* Other pages share this github.io origin (and its caches), so Lift's caches carry a lift- prefix
    and only those are ever cleaned up. */
 const CACHE = 'lift-' + VERSION;
-const SHELL = ['./', './index.html', './theme.js', './styles.css', './app.js', './exercises.js', './engine.js', './fbconfig.js', './manifest.webmanifest', './icon-192.png', './icon-180.png'];
+const SHELL = ['./', './index.html', './theme.js', './styles.css', './app.js', './exercises.js', './sync.js', './engine.js', './fbconfig.js', './manifest.webmanifest', './icon-192.png', './icon-180.png'];
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', function (e) {

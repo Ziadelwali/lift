@@ -101,6 +101,9 @@ function rnd(seed) { return function () { seed = (seed * 1103515245 + 12345) % 2
   var big = { data: { daily: {} } }; for (var i = 0; i < 2000; i++) big.data.daily['d' + i] = { sleep: 7.5, steps: 8000 };
   eq('gzip keeps a year small', (await S.seal(kA.dataKey, kA.docId, big)).ct.length < JSON.stringify(big).length / 4, true);
 
+  var v1obj = { a: 1, b: 1.5, c: 'x', d: null, e: true, f: [1, 'y', { g: 2 }], h: { '2026-09-21': { kg: 112.5 } } };
+  eq('v1 Firestore codec round trip', S.fromFs(S.toFs(v1obj)), v1obj);
+
   /* ---- merge ---- */
   var M = S.merge3;
   eq('only local changed', M({ a: 1 }, { a: 2 }, { a: 1 }), { a: 2 });
