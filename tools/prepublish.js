@@ -1,5 +1,5 @@
 /* Runs before every publish:
-   1. LEAK SCAN - no Google API key (AIzaâ€¦) or firebase-config.json content may be
+   1. LEAK SCAN - no Google API key (AIza...) or firebase-config.json content may be
       in any file that would be committed. The repo is public.
    2. fbconfig.js must hold the v2 sealed config (node tools/seal-config.js).
    3. tools/test-engine.js and tools/test-sync.js must pass.

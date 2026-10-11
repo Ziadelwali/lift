@@ -39,15 +39,15 @@
   /* ---------- program ---------- */
   var PROGRAM = {
     A: [
-      { id: 'Leg_Press', sets: 3, reps: [6, 10], inc: 5, rest: 120, ramp: true,
+      { id: 'Leg_Press', main: true, sets: 3, reps: [6, 10], inc: 5, rest: 120, ramp: true,
         where: 'Nautilus leg press.',
         tip: 'Feet mid-plate. Knees to 90°, lower back stays on the pad.',
         alts: ['Smith_Machine_Squat'] },
-      { id: 'Dumbbell_Bench_Press', sets: 3, reps: [6, 10], inc: 2, rest: 120, ramp: true,
+      { id: 'Dumbbell_Bench_Press', main: true, sets: 3, reps: [6, 10], inc: 2, rest: 120, ramp: true,
         where: 'Flat bench, two dumbbells.',
         tip: 'Shoulder blades back. Lower to the chest, press up.',
         alts: ['Machine_Bench_Press', 'Smith_Machine_Bench_Press'] },
-      { id: 'Wide-Grip_Lat_Pulldown', sets: 3, reps: [8, 12], inc: 2.5, rest: 100,
+      { id: 'Wide-Grip_Lat_Pulldown', main: true, sets: 3, reps: [8, 12], inc: 2.5, rest: 100,
         where: 'Nautilus lat pulldown.',
         tip: 'Lean back a little, pull the elbows down to your sides.',
         alts: ['Close-Grip_Front_Lat_Pulldown'] },
@@ -61,7 +61,7 @@
         where: 'Nautilus leg extension.',
         tip: 'Straighten fully, squeeze 1 s, lower slowly.',
         alts: ['Goblet_Squat'] },
-      { id: 'Dumbbell_Shoulder_Press', sets: 3, reps: [8, 12], inc: 2, rest: 100,
+      { id: 'Dumbbell_Shoulder_Press', main: true, sets: 3, reps: [8, 12], inc: 2, rest: 100,
         where: 'Upright bench, two dumbbells.',
         tip: 'From the ears up to almost straight arms. No arching.',
         alts: ['Leverage_Shoulder_Press', 'Smith_Machine_Overhead_Shoulder_Press'] },
@@ -87,19 +87,19 @@
         alts: ['Cable_Crunch', 'Plank'] }
     ],
     B: [
-      { id: 'Smith_Machine_Squat', sets: 3, reps: [6, 10], inc: 5, rest: 120, ramp: true,
+      { id: 'Smith_Machine_Squat', main: true, sets: 3, reps: [6, 10], inc: 5, rest: 120, ramp: true,
         where: 'Smith machine, bar on your upper back.',
         tip: 'Feet a bit forward. Down to parallel, stand up. Safety stops just below.',
         alts: ['Leg_Press', 'Goblet_Squat'] },
-      { id: 'Stiff-Legged_Dumbbell_Deadlift', sets: 3, reps: [8, 12], inc: 2, rest: 120, ramp: true,
+      { id: 'Stiff-Legged_Dumbbell_Deadlift', main: true, sets: 3, reps: [8, 12], inc: 2, rest: 120, ramp: true,
         where: 'Two dumbbells, standing.',
         tip: 'Soft knees, hips back, flat back. Down until the back of the thigh stretches.',
         alts: ['Smith_Machine_Stiff-Legged_Deadlift', 'Hyperextensions_Back_Extensions'] },
-      { id: 'Incline_Dumbbell_Press', sets: 3, reps: [8, 12], inc: 2, rest: 120,
+      { id: 'Incline_Dumbbell_Press', main: true, sets: 3, reps: [8, 12], inc: 2, rest: 120,
         where: 'Bench at ~30°, two dumbbells.',
         tip: 'Lower to the upper chest, press up.',
         alts: ['Smith_Machine_Incline_Bench_Press', 'Dumbbell_Bench_Press'] },
-      { id: 'One-Arm_Dumbbell_Row', sets: 3, reps: [8, 12], inc: 2, rest: 100,
+      { id: 'One-Arm_Dumbbell_Row', main: true, sets: 3, reps: [8, 12], inc: 2, rest: 100,
         where: 'Bench and one dumbbell, knee and hand on the bench.',
         tip: 'Flat back, pull toward the hip, lower slowly.',
         alts: ['Seated_Cable_Rows', 'Dumbbell_Incline_Row'] },
@@ -900,6 +900,101 @@
     ses.ex.forEach(function (e) { e.sets = e.sets.filter(function (s) { return !s.gone; }); });
     return null;
   }
+  /* ---------- motivation ---------- */
+  /* Weeks on track: a week with 2+ finished sessions. Up to the last n weeks (oldest → newest), from
+     the first week you trained (a first week too short for 2 is left out). This week only counts once
+     it has 2; until then it is "open", never a miss. streak = weeks in a row up to now, with no limit;
+     on/total = the rolling count ("11 of the last 12"), so one bad week never shows as 0. */
+  function weeksOnTrack(state, todayISO, n) {
+    n = n || 12;
+    var done = completedSessions(state), cur = mondayOf(todayISO), count = {};
+    done.forEach(function (k) { if (k <= todayISO) { var m = mondayOf(k); count[m] = (count[m] || 0) + 1; } });
+    var ks = Object.keys(count).sort(), first = ks[0];
+    if (first && first < cur && count[first] < 2) first = addDaysISO(first, 7);
+    var weeks = [];
+    for (var i = n - 1; i >= 0; i--) {
+      var m = addDaysISO(cur, -7 * i);
+      if (!first || m < first) continue;
+      var c = count[m] || 0;
+      weeks.push({ mon: m, count: c, on: c >= 2, open: m === cur && c < 2 });
+    }
+    var streak = 0, w = (count[cur] || 0) >= 2 ? cur : addDaysISO(cur, -7);
+    while ((count[w] || 0) >= 2) { streak++; w = addDaysISO(w, -7); }
+    var shut = weeks.filter(function (x) { return !x.open; });
+    return { streak: streak, weeks: weeks, on: shut.filter(function (x) { return x.on; }).length, total: shut.length, thisWeek: count[cur] || 0 };
+  }
+
+  /* Planned sessions missed since the last one you did (moved or skipped days don't count).
+     null when nothing was missed, when you never trained, or when you trained today.
+     back: 'light' / 'refind' after a long break (the same rules as plan()). */
+  function missedSessions(state, todayISO) {
+    var done = completedSessions(state);
+    if (!done.length) return null;
+    var last = done[done.length - 1];
+    if (last >= todayISO) return null;
+    var gap = daysBetween(last, todayISO), dates = [], ss = state.sessions || {};
+    for (var i = 1; i < gap && i <= 60; i++) {
+      var d = addDaysISO(last, i);
+      if (ss[d] && hasDoneSet(ss[d])) return null;   // trained since (not finished yet)
+      if (plan(d, state, todayISO).training) dates.push(d);
+    }
+    if (!dates.length) return null;
+    return { dates: dates, last: last, gap: gap, back: gap >= RULES.refindDays ? 'refind' : gap >= RULES.breakDays ? 'light' : null };
+  }
+
+  /* Is this set a new best, compared with the finished sessions in hist (history())?
+     'kg' = heavier than ever, 'reps' = more reps than ever at this weight, 'strength' = a higher
+     estimated strength (Epley). null for the first time (nothing to beat) or when nothing beat. */
+  function bestKind(hist, kg, reps) {
+    if (!hist || !hist.length || !(reps > 0)) return null;
+    var maxKg = 0, repsAt = 0, top = 0;
+    hist.forEach(function (h) {
+      h.sets.forEach(function (s) {
+        maxKg = Math.max(maxKg, s.kg);
+        if (s.kg === kg) repsAt = Math.max(repsAt, s.reps);
+        top = Math.max(top, epley(s.kg, s.reps));
+      });
+    });
+    if (kg > maxKg) return 'kg';
+    if (repsAt && reps > repsAt) return 'reps';
+    if (epley(kg, reps) > top + 0.05) return 'strength';
+    return null;
+  }
+  /* What the best beat, in words: "+2.5 kg", "+2 reps" or "stronger". */
+  function bestUp(hist, exId, kg, reps) {
+    var k = bestKind(hist, kg, reps);
+    if (!k) return null;
+    var maxKg = 0, repsAt = 0;
+    hist.forEach(function (h) { h.sets.forEach(function (s) { maxKg = Math.max(maxKg, s.kg); if (s.kg === kg) repsAt = Math.max(repsAt, s.reps); }); });
+    if (k === 'kg' && maxKg > 0) return '+' + fmtNum(kg - maxKg) + ' kg' + (pair(exId) ? ' each hand' : '');
+    if (k === 'reps') return '+' + (reps - repsAt) + (reps - repsAt === 1 ? ' rep' : ' reps');
+    return 'stronger';
+  }
+
+  /* "Since you started": heaviest weight now against your first real session (finding sets are
+     guesses, so they are skipped when there is a later one). Bodyweight moves: reps. null without gain. */
+  function sinceStart(state, exId) {
+    var hs = history(state, exId);
+    if (hs.length < 2) return null;
+    var real = hs.filter(function (h) { return !h.calib && !h.light; }), base = real.length ? real[0] : hs[0];
+    function top(h, f) { return Math.max.apply(null, h.sets.map(function (s) { return s[f]; })); }
+    if (BODYWEIGHT.indexOf(exId) !== -1) {
+      var r = Math.max.apply(null, hs.map(function (h) { return top(h, 'reps'); })) - top(base, 'reps');
+      return r > 0 ? { reps: r, text: '+' + r + (r === 1 ? ' rep' : ' reps') } : null;
+    }
+    var kg = Math.max.apply(null, hs.map(function (h) { return top(h, 'kg'); })) - top(base, 'kg');
+    return kg > 0 ? { kg: kg, text: '+' + fmtNum(kg) + ' kg' + (pair(exId) ? ' each hand' : '') } : null;
+  }
+
+  /* Short version after a miss: the main lifts with all their sets, no extras (this session only). */
+  function shortExercises(cfgs) { return cfgs.filter(function (c) { return c.main; }); }
+  /* Rough minutes for a list of exercises: warm-up + every set with its rest (~35 s of work a set),
+     to the nearest 5. */
+  function estMinutes(cfgs) {
+    var s = cfgs.reduce(function (a, c) { return a + c.sets * ((c.rest || 60) + 35); }, 0);
+    return Math.round((RULES.warmupMinutes + s / 60) / 5) * 5;
+  }
+
   /* bestSets with best: true where the strength beat every earlier session (the first one counts) */
   function liftPoints(state, exId) {
     var top = 0;
@@ -915,6 +1010,7 @@
     exercisesFor: exercisesFor, idFor: idFor, findCfg: findCfg, completedSessions: completedSessions, history: history, withMemo: withMemo,
     suggest: suggest, suggestIn: suggestIn, feelOf: feelOf, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
     macros: macros, timeline: timeline, proteinDone: proteinDone, weightSeries: weightSeries, weightTrend: weightTrend,
-    trendAdvice: trendAdvice, trendWeight: trendWeight, weightRate: weightRate, macrosFor: macrosFor, weeklyVolume: weeklyVolume, bestSets: bestSets, liftPoints: liftPoints, editSets: editSets
+    trendAdvice: trendAdvice, trendWeight: trendWeight, weightRate: weightRate, macrosFor: macrosFor, weeklyVolume: weeklyVolume, bestSets: bestSets, liftPoints: liftPoints, editSets: editSets,
+    weeksOnTrack: weeksOnTrack, missedSessions: missedSessions, bestKind: bestKind, bestUp: bestUp, sinceStart: sinceStart, shortExercises: shortExercises, estMinutes: estMinutes
   };
 });
