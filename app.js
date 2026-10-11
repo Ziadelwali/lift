@@ -420,7 +420,7 @@ function renderToday(){
  // what comes first: the session when it is close (or running), otherwise the next food
  var soon=p.training&&!(ses&&ses.done)&&(ses||nowMin()>=E.hm(p.time||'16:00')-90);
  h+=soon?sesCard+foodCard(iso,p,mac):foodCard(iso,p,mac)+sesCard;
- h+=weekCard(mac)+dailyCard(iso,mac)+installCard('today');
+ h+=weekCard(mac)+trackCard(iso)+dailyCard(iso,mac)+installCard('today');
  $('#v-today').innerHTML=h;
 }
 function foodCard(iso,p,mac){
@@ -523,10 +523,25 @@ function finishBody(s,k){
   var prev=0;E.history(state,e.id).forEach(function(hh){if(hh.date<k)hh.sets.forEach(function(x){prev=Math.max(prev,x.kg);});});
   var up=b.kg>prev?'+'+E.fmtNum(b.kg-prev)+' kg'+(E.pair(e.id)?' each hand':''):'more reps';
   bests.push('<li class="best">'+thumb(e.id)+'<span><b>'+esc(nm(e.id))+'</b><br><span class="mono">'+esc(E.setText(e.id,b.kg,b.reps))+'</span></span><span class="chip ok">'+up+'</span></li>');});
- var wk=[],m=E.mondayOf(k),done=E.completedSessions(state);for(var i=5;i>=0;i--){var a=addDays(m,-7*i),z=addDays(a,6),c=done.filter(function(d){return d>=a&&d<=z;}).length;wk.push('<i class="wdot'+(c>=2?' on':'')+'" title="'+c+' sessions"></i>');}
+ var t=E.weeksOnTrack(state,k);
  return '<div class="grid3" style="margin-top:12px"><div class="stat"><div class="v">'+sets+'</div><div class="l">sets</div></div><div class="stat"><div class="v">'+(mins||'–')+'</div><div class="l">minutes</div></div><div class="stat"><div class="v">'+E.fmtNum(vol,0)+'</div><div class="l">kg moved</div></div></div>'+
   (bests.length?'<p class="eyebrow" style="margin-top:14px">★ New best'+(bests.length>1?'s':'')+'</p><ul class="bests">'+bests.join('')+'</ul>':'')+
-  '<p class="eyebrow" style="margin-top:14px">Weeks on track</p><div class="wdots">'+wk.join('')+'<span class="xs">'+streakWeeks()+' in a row · 2+ sessions a week</span></div>'+nextSessionLine(k);
+  '<p class="eyebrow" style="margin-top:14px">'+trackHead(t)+'</p>'+trackDots(t)+'<p class="xs" style="margin-top:6px">'+trackLine(t)+'</p>'+nextSessionLine(k);
+}
+/* Weeks on track: a week with 2+ sessions. The headline is the run of weeks; the rolling count
+   ("11 of the last 12") never drops to 0 after one bad week. This week stays open until it has 2. */
+function trackHead(t){return t.streak?t.streak+(t.streak===1?' week':' weeks')+' on track':'Weeks on track';}
+function trackLine(t){
+ var a=t.total?t.on+' of '+(t.total>=12?'the last 12 weeks':t.total+(t.total===1?' week':' weeks')+' so far'):'';
+ return [a,t.thisWeek>=2?'this week done ✓':'this week '+t.thisWeek+' of 2'].filter(Boolean).join(' · ');
+}
+function trackDots(t){
+ return '<div class="wdots" role="img" aria-label="'+esc(trackHead(t)+'. '+trackLine(t))+'">'+t.weeks.map(function(w){
+  return '<i class="wdot'+(w.on?' on':w.open?' open':'')+'" title="'+niceDate(w.mon)+': '+w.count+(w.count===1?' session':' sessions')+'"></i>';}).join('')+'</div>';
+}
+function trackCard(iso){
+ var t=E.weeksOnTrack(state,iso);if(!t.weeks.length)return '';
+ return '<div class="card ontrack"><div class="row between"><h2>'+trackHead(t)+'</h2><span class="xs">2+ sessions a week</span></div>'+trackDots(t)+'<p class="xs" style="margin-top:6px">'+trackLine(t)+'</p></div>';
 }
 function sessionSummary(s){
  var sets=0,vol=0,up=0,pr=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=E.liftedKg(e.id,x.kg)*(x.reps||0);}if(x.pr)pr++;});if(e.suggest&&e.suggest.state==='up')up++;});
@@ -815,9 +830,9 @@ function shakeCard(){
 /* ---- Progress ---- */
 function renderProgress(){
  var h='',done=E.completedSessions(state);
- var wk=weekSessions(),streak=streakWeeks();
+ var wk=weekSessions(),streak=E.weeksOnTrack(state,todayISO()).streak;
  var wb=weekBests();
- h+='<div class="grid3" style="margin-top:14px"><div class="stat"><div class="v">'+wk+'/3</div><div class="l">sessions this week</div></div><div class="stat"><div class="v">'+streak+'</div><div class="l">weeks streak</div></div><div class="stat"><div class="v">'+done.length+'</div><div class="l">sessions in total</div></div></div>'+
+ h+='<div class="grid3" style="margin-top:14px"><div class="stat"><div class="v">'+wk+'/3</div><div class="l">sessions this week</div></div><div class="stat"><div class="v">'+streak+'</div><div class="l">weeks on track</div></div><div class="stat"><div class="v">'+done.length+'</div><div class="l">sessions in total</div></div></div>'+
   (wb.length?'<div class="card"><h2>★ '+wb.length+' new best'+(wb.length>1?'s':'')+' this week</h2><ul class="shop" style="margin-top:6px">'+wb.map(function(b){return '<li>★ <b>'+esc(nm(b.id))+'</b> <span class="mono">'+esc(E.setText(b.id,b.kg,b.reps))+'</span> <span class="xs">'+niceDate(b.date)+'</span></li>';}).join('')+'</ul></div>':'');
  h+='<div class="card"><h2>Bodyweight</h2>'+weightChart()+'</div>'+waistCard();
  var ids=[];E.PROGRAM.A.concat(E.PROGRAM.B).forEach(function(c){if(ids.indexOf(c.id)<0)ids.push(c.id);});
@@ -862,14 +877,6 @@ document.addEventListener('submit',function(ev){var f=ev.target;if(f.id!=='histf
  save();closeSheet();renderProgress();toast('Saved ✓');});
 function weekBests(){var m=E.mondayOf(todayISO()),out=[];Object.keys(state.sessions).filter(function(k){return k>=m;}).sort().forEach(function(k){(state.sessions[k].ex||[]).forEach(function(e){e.sets.forEach(function(x){if(x.pr&&x.done)out.push({id:e.id,kg:x.kg,reps:x.reps,date:k});});});});return out;}
 function weekSessions(){var m=E.mondayOf(todayISO());return E.completedSessions(state).filter(function(k){return k>=m;}).length;}
-function streakWeeks(){
- var done=E.completedSessions(state);if(!done.length)return 0;
- var weeks={};done.forEach(function(k){var m=E.mondayOf(k);weeks[m]=(weeks[m]||0)+1;});
- var n=0,cur=E.mondayOf(todayISO());
- if(!weeks[cur])cur=addDays(cur,-7);
- while(weeks[cur]>=2){n++;cur=addDays(cur,-7);}
- return n;
-}
 function lineChart(pts,opts){
  /* pts: [{x:Date ms, y, y2?}], opts.band [lo,hi] */
  var W=340,H=160,L=34,R=8,T=10,B=22;
