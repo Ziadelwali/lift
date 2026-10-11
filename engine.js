@@ -765,6 +765,25 @@
     return ch;
   }
 
+  /* A backup file (Profile → Export) checked before it is used: an object holding the app's
+     sections, with at least a profile, a session or a weigh-in. Odd values are cleaned like synced
+     ones. Returns {state, sessions, weighins} or null when it isn't a Lift backup. */
+  function readBackup(text) {
+    var o; try { o = JSON.parse(text); } catch (e) { return null; }
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+    var st = {}, any = false, bad = false;
+    ['profile', 'sessions', 'weight', 'daily', 'settings'].forEach(function (s) {
+      if (o[s] == null) st[s] = {};
+      else if (typeof o[s] !== 'object' || Array.isArray(o[s])) bad = true;
+      else { st[s] = o[s]; any = true; }
+    });
+    if (bad || !any) return null;
+    sanitize(st);
+    var n = Object.keys(st.sessions).length, w = Object.keys(st.weight).length;
+    if (!n && !w && !Object.keys(st.profile).length) return null;
+    return { state: st, sessions: n, weighins: w };
+  }
+
   /* ---------- progress ---------- */
   function weightSeries(state) {
     var w = state.weight || {};
@@ -865,7 +884,7 @@
 
   return {
     RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, PAIR: PAIR, pair: pair, kgText: kgText, setText: setText, liftedKg: liftedKg, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, proteinFor: proteinFor, handPlate: handPlate, palms: palms,
-    sanitize: sanitize, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
+    sanitize: sanitize, readBackup: readBackup, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, roundHalf: roundHalf, lighter: lighter, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
     exercisesFor: exercisesFor, idFor: idFor, findCfg: findCfg, completedSessions: completedSessions, history: history,

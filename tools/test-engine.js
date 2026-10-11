@@ -317,5 +317,15 @@ eq('edit: removing every set is refused', E.editSets(eses(), [{ ei: 0, si: 0, de
 var es3 = eses(); E.editSets(es3, [{ ei: 0, si: 0, kg: '100', reps: '8' }]);
 eq('edit: an unchanged best keeps its star', es3.ex[0].sets[0].pr, true);
 
+// import: only a Lift backup is accepted, and it is cleaned like synced data
+var bk = E.readBackup(JSON.stringify({ profile: { age: '38' }, sessions: { '2026-10-01': lp('', [[100, 8]]), 'x': {} }, weight: { '2026-10-01': 112, '2026-10-02': '111.5' }, daily: {}, settings: {} }));
+eq('backup: read and cleaned', [bk.sessions, bk.weighins, bk.state.profile.age, bk.state.weight['2026-10-02']], [1, 2, 38, 111.5]);
+eq('backup: an old file without some sections is fine', E.readBackup('{"weight":{"2026-10-01":112}}').weighins, 1);
+eq('backup: not JSON', E.readBackup('hello'), null);
+eq('backup: not an object', [E.readBackup('[1,2]'), E.readBackup('5'), E.readBackup('null')], [null, null, null]);
+eq('backup: some other JSON file', E.readBackup('{"name":"x","items":[]}'), null);
+eq('backup: a section of the wrong kind', E.readBackup('{"sessions":[],"weight":{"2026-10-01":112}}'), null);
+eq('backup: nothing in it', E.readBackup('{"profile":{},"sessions":{},"weight":{}}'), null);
+
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);

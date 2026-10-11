@@ -932,10 +932,14 @@ function renderProfile(){
  var tm=themeMode();
  h+='<div class="card"><h2>Appearance</h2><p class="xs" style="margin:4px 0 10px">Auto follows your phone\'s light/dark setting.</p><div class="seg">'+[['auto','Auto'],['light','Light'],['dark','Dark']].map(function(o){return '<button data-themeset="'+o[0]+'"'+(tm===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div></div>';
  h+=installCard('profile')+remindersCard();
- h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+esc($('#syncline').textContent)+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+(SYNC.eng?' · v2'+(syncStore.get('mig')==='done'?' · migrated':' · moving from v1'):'')+'</p><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button>'+(SYNC.eng?'<button class="btn small ghost" data-act="pwopen">Change password</button>':'<button class="btn small ghost" data-act="forget">Sync with a password</button>')+'<button class="btn small ghost" data-act="export">Export JSON</button><button class="btn small danger" data-act="wipe">Wipe this device</button></div>'+
+ h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+esc($('#syncline').textContent)+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+(SYNC.eng?' · v2'+(syncStore.get('mig')==='done'?' · migrated':' · moving from v1'):'')+'</p><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button>'+(SYNC.eng?'<button class="btn small ghost" data-act="pwopen">Change password</button>':'<button class="btn small ghost" data-act="forget">Sync with a password</button>')+'</div>'+
+  '<details class="fold" style="margin-top:10px"><summary><span class="xs">Details</span></summary><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre></details>'+
   '<form id="pwform" hidden style="margin-top:12px"><label class="field"><span class="l">Current password</span><input type="password" name="cur" autocomplete="current-password"></label>'+
   '<label class="field"><span class="l">New password</span><input type="password" name="nw" autocomplete="new-password"></label><label class="field"><span class="l">New password again</span><input type="password" name="nw2" autocomplete="new-password"></label>'+
   '<button class="btn wide" type="submit">Change password</button><p class="sm" id="pwmsg" style="min-height:18px;margin-top:8px;color:var(--bad)"></p></form></div>';
+ h+='<div class="card"><h2>Backup</h2><p class="xs" style="margin:4px 0 10px">Save everything to a file now and then. Import puts a saved file back.</p><div class="row" style="flex-wrap:wrap;gap:8px"><button class="btn small ghost" data-act="export">Export to a file</button><button class="btn small ghost" data-act="import">Import a file</button></div>'+
+  '<input type="file" id="importfile" accept=".json,application/json" hidden></div>';
+ h+='<div class="card danger"><h2>Danger zone</h2><p class="xs" style="margin:4px 0 10px">Removes all Lift data from this phone. '+(SYNC.eng?'The synced copy stays; your password brings it back.':'Nothing is synced, so export a backup first.')+'</p><button class="btn small danger" data-act="wipe">Wipe this device…</button></div>';
  h+='<p class="xs" style="padding:0 4px 10px">Exercise photos and descriptions: free-exercise-db (public domain). Training and nutrition rules: Pelland 2025, Robinson 2024, Schoenfeld, ISSN position stands. This is a tool, not medical advice.</p>';
  $('#v-profile').innerHTML=h;
 }
@@ -1027,7 +1031,15 @@ document.addEventListener('click',function(ev){
  if(act==='forget'){try{localStorage.removeItem(PK);}catch(e){}location.reload();return;}
  if(act==='pwopen'){var pf=$('#pwform');if(pf){pf.hidden=!pf.hidden;if(!pf.hidden)pf.elements.cur.focus();}return;}
  if(act==='export'){downloadBlob(JSON.stringify(state,null,1),'application/json','lift-'+todayISO()+'.json');return;}
- if(act==='wipe'){if(!confirm('Remove all data from this device? The synced copy stays in the cloud.'))return;if(SYNC.eng)SYNC.eng.stop();clearTimeout(saveT);   // never pushes
+ if(act==='import'){var fi2=$('#importfile');if(fi2){fi2.value='';fi2.click();}return;}
+ if(act==='impmerge'||act==='impreplace'){closeSheet();var imp=pendingImport;pendingImport=null;if(!imp)return;
+  // add: what is on this device wins where both have the same day; replace: the file becomes this device's data
+  state=act==='impmerge'?SYNC2.merge3({},state,imp.state):SYNC2.shape(imp.state);migrate();save();render();toast(act==='impmerge'?'Backup added ✓':'Replaced with the backup ✓');return;}
+ // wipe: typed confirmation in a sheet first
+ if(act==='wipe'){openSheet('<h2>Wipe this device?</h2><p class="sm" style="margin-top:6px">All Lift data on this phone is removed. '+(SYNC.eng?'The synced copy stays.':'Nothing is synced: without a backup it is gone.')+'</p>'+
+  '<label class="field"><span class="l">Type WIPE to confirm</span><input id="wipeword" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>'+
+  '<button class="btn wide danger" data-act="wipeyes" id="wipeyes" disabled>Wipe this device</button><button class="btn wide ghost" data-act="sheetclose" style="margin-top:8px">Cancel</button>');return;}
+ if(act==='wipeyes'){var ww2=$('#wipeword');if(!ww2||ww2.value.trim().toUpperCase()!=='WIPE')return;closeSheet();if(SYNC.eng)SYNC.eng.stop();clearTimeout(saveT);   // never pushes
   try{[LS,PK,LS+'.bad','lift.dev'].concat(Object.keys(SYNC_LS).map(function(k){return SYNC_LS[k];})).forEach(function(k){localStorage.removeItem(k);});}catch(e){}
   kv.clear().then(function(){location.reload();});return;}
 });
@@ -1041,6 +1053,17 @@ function doSwap(ei,id){
  if(swapKeep==='always'){state.settings.swaps=state.settings.swaps||{};if(id===e.base)delete state.settings.swaps[e.base];else state.settings.swaps[e.base]=id;}
  save();renderTrain();toast((id===e.base?'Back to ':'Swapped to ')+nm(id)+(swapKeep==='always'?' from now on':' for today'));
 }
+document.addEventListener('input',function(ev){if(ev.target.id==='wipeword'){var wb=$('#wipeyes');if(wb)wb.disabled=ev.target.value.trim().toUpperCase()!=='WIPE';}});
+/* Import: read the chosen file, check it, then ask: add to what is here, or replace it. */
+var pendingImport=null;
+document.addEventListener('change',function(ev){var t=ev.target;if(t.id!=='importfile'||!t.files||!t.files[0])return;var file=t.files[0];
+ if(file.size>20e6){toast('That file is too big for a Lift backup');return;}
+ file.text().then(function(txt){var b=E.readBackup(txt);if(!b){toast('This file is not a Lift backup');return;}pendingImport=b;
+  var have=E.completedSessions(state).length+Object.keys(state.weight).length;
+  openSheet('<h2>Import backup?</h2><p class="sm" style="margin-top:6px">'+esc(file.name)+': '+b.sessions+(b.sessions===1?' session':' sessions')+', '+b.weighins+(b.weighins===1?' weigh-in':' weigh-ins')+'.</p>'+
+   '<button class="btn wide" data-act="impmerge" style="margin-top:14px">Add to what is here</button><p class="xs" style="margin-top:4px">Missing days are filled in. Where both have the same day, this phone’s copy stays.</p>'+
+   (have?'<button class="btn wide danger" data-act="impreplace" style="margin-top:12px">Replace everything here</button><p class="xs" style="margin-top:4px">This phone’s data becomes the file’s.</p>':'')+
+   '<button class="btn wide ghost" data-act="sheetclose" style="margin-top:12px">Cancel</button>');},function(){toast('Could not read the file');});});
 document.addEventListener('focusin',function(ev){var t=ev.target;if(t.dataset&&t.dataset.val)setTimeout(function(){try{t.select();}catch(e){}},0);});
 document.addEventListener('change',function(ev){
  var t=ev.target,ses=activeSession();

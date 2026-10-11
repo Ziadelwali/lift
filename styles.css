@@ -371,6 +371,7 @@ ul.bests li>span:nth-child(2){flex:1;min-width:0;font-size:14px}
 .wdots{display:flex;align-items:center;gap:6px;margin-top:6px}.wdots .xs{margin-left:6px}
 .wdot{width:14px;height:14px;border-radius:50%;background:var(--line)}.wdot.on{background:var(--ok)}
 .hint{margin:-4px 0 12px;text-align:center}
+.card.danger{border-color:var(--bad-bg);border-left:3px solid var(--bad)}
 /* session history (Progress) and its fix-a-number sheet */
 ul.hist{list-style:none;margin:6px 0 0;padding:0}
 ul.hist li+li{border-top:1px solid var(--line)}
