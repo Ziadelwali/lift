@@ -335,6 +335,51 @@ ms.sessions['2026-10-03'] = lp('', [[100, 9]]);
 eq('memo: data changed after the render is seen', [E.completedSessions(ms).length, E.history(ms, 'Leg_Press').length], [2, 2]);
 eq('memo: another state object is not mixed up', E.withMemo(function () { E.history(ms, 'Leg_Press'); return E.history({ sessions: {} }, 'Leg_Press').length; }), 0);
 
+// weeks on track: 2+ sessions a week; this week only counts once it has 2
+function wst(dates) { var s = {}; dates.forEach(function (d) { s[d] = { done: true, ex: [] }; }); return { profile: prof, sessions: s, settings: {} }; }
+var wt = E.weeksOnTrack(wst(['2026-09-14', '2026-09-16', '2026-09-21', '2026-09-23', '2026-09-25', '2026-09-28', '2026-10-05', '2026-10-07', '2026-10-12']), '2026-10-13');
+eq('on track: weeks from the first one, this week open', wt.weeks.map(function (w) { return w.mon + (w.open ? ' open' : w.on ? ' on' : ' off'); }), ['2026-09-14 on', '2026-09-21 on', '2026-09-28 off', '2026-10-05 on', '2026-10-12 open']);
+eq('on track: streak 1 after a bad week, rolling 3 of 4 (never 0)', [wt.streak, wt.on, wt.total, wt.thisWeek], [1, 3, 4, 1]);
+var wt2 = E.weeksOnTrack(wst(['2026-09-14', '2026-09-16', '2026-09-21', '2026-09-23', '2026-10-05', '2026-10-07', '2026-10-12', '2026-10-13']), '2026-10-14');
+eq('on track: this week counts once it has 2', [wt2.streak, wt2.on, wt2.total, wt2.weeks[wt2.weeks.length - 1].open], [2, 4, 5, false]);
+eq('on track: a short first week is left out', E.weeksOnTrack(wst(['2026-09-11', '2026-09-14', '2026-09-16']), '2026-09-22').weeks.map(function (w) { return w.mon; }), ['2026-09-14', '2026-09-21']);
+eq('on track: weeks across the October clock change', E.weeksOnTrack(wst(['2026-10-19', '2026-10-21', '2026-10-26', '2026-10-28', '2026-11-02']), '2026-11-03').weeks.map(function (w) { return w.mon + ':' + w.count; }), ['2026-10-19:2', '2026-10-26:2', '2026-11-02:1']);
+var many = []; for (var wi = 0; wi < 15; wi++) { many.push(E.addDaysISO('2026-06-01', 7 * wi), E.addDaysISO('2026-06-03', 7 * wi)); }
+var wt3 = E.weeksOnTrack(wst(many), '2026-09-15');
+eq('on track: 12 dots, streak without a limit', [wt3.weeks.length, wt3.streak, wt3.on, wt3.total], [12, 15, 11, 11]);
+eq('on track: nothing yet', E.weeksOnTrack(wst([]), '2026-10-13'), { streak: 0, weeks: [], on: 0, total: 0, thisWeek: 0 });
+
+// missed sessions (Mon/Wed/Fri): moved or skipped days are not missed
+eq('missed: Wednesday', E.missedSessions(wst(['2026-10-05']), '2026-10-08'), { dates: ['2026-10-07'], last: '2026-10-05', gap: 3, back: null });
+var mvd = wst(['2026-10-05']); mvd.settings.moves = { '2026-10-07': '2026-10-08' };
+eq('missed: moved to today is not a miss', E.missedSessions(mvd, '2026-10-08'), null);
+var skp = wst(['2026-10-05']); skp.settings.moves = { '2026-10-07': '' };
+eq('missed: skipped on purpose is not a miss', E.missedSessions(skp, '2026-10-09'), null);
+eq('missed: trained since', E.missedSessions(wst(['2026-10-05', '2026-10-07']), '2026-10-09'), null);
+eq('missed: trained today', E.missedSessions(wst(['2026-10-05', '2026-10-09']), '2026-10-09'), null);
+eq('missed: never trained', E.missedSessions(wst([]), '2026-10-09'), null);
+var prt = wst(['2026-10-05']); prt.sessions['2026-10-07'] = { done: false, ex: [{ id: 'Leg_Press', base: 'Leg_Press', sets: [{ kg: 100, reps: 8, done: true }] }] };
+eq('missed: a started session counts as trained', E.missedSessions(prt, '2026-10-09'), null);
+eq('missed: two', E.missedSessions(wst(['2026-10-02']), '2026-10-08').dates, ['2026-10-05', '2026-10-07']);
+eq('missed: a break of 2+ weeks is lighter, 6+ weeks finds weights again', [E.missedSessions(wst(['2026-09-14']), '2026-10-08').back, E.missedSessions(wst(['2026-09-14']), '2026-11-02').back], ['light', 'refind']);
+
+// new bests: heavier, more reps at that weight, or stronger
+var bh = E.history({ sessions: { '2026-10-01': lp('', [[100, 8], [100, 7]]), '2026-10-03': lp('', [[90, 9]]) } }, 'Leg_Press');
+eq('best: kinds', [E.bestKind(bh, 102.5, 6), E.bestKind(bh, 100, 9), E.bestKind(bh, 90, 10), E.bestKind(bh, 95, 11), E.bestKind(bh, 100, 8), E.bestKind(bh, 80, 12), E.bestKind([], 100, 8)], ['kg', 'reps', 'reps', 'strength', null, null, null]);
+eq('best: in words', [E.bestUp(bh, 'Leg_Press', 102.5, 6), E.bestUp(bh, 'Leg_Press', 100, 9), E.bestUp(bh, 'Leg_Press', 90, 11), E.bestUp(bh, 'Leg_Press', 95, 11), E.bestUp(bh, 'Leg_Press', 100, 8)], ['+2.5 kg', '+1 rep', '+2 reps', 'stronger', null]);
+eq('best: dumbbells per hand', E.bestUp([{ sets: [{ kg: 20, reps: 10 }] }], 'Dumbbell_Bench_Press', 22, 8), '+2 kg each hand');
+
+// since you started: from the first real session (finding sets are guesses)
+function ss1(kg, st) { return { done: true, ex: [{ id: 'Leg_Press', base: 'Leg_Press', suggest: { state: st || 'up' }, sets: [{ kg: kg, reps: 8, done: true }] }] }; }
+eq('since start: finding session skipped', E.sinceStart({ sessions: { '2026-09-01': ss1(60, 'calibrate'), '2026-09-03': ss1(80, 'set'), '2026-09-05': ss1(90), '2026-09-08': ss1(85) } }, 'Leg_Press'), { kg: 10, text: '+10 kg' });
+eq('since start: one session, or no gain', [E.sinceStart({ sessions: { '2026-09-01': ss1(80) } }, 'Leg_Press'), E.sinceStart({ sessions: { '2026-09-01': ss1(80), '2026-09-03': ss1(80) } }, 'Leg_Press')], [null, null]);
+eq('since start: bodyweight in reps', E.sinceStart({ sessions: { '2026-09-01': { done: true, ex: [{ id: 'Plank', base: 'Plank', sets: [{ kg: 0, reps: 30, done: true }] }] }, '2026-09-03': { done: true, ex: [{ id: 'Plank', base: 'Plank', sets: [{ kg: 0, reps: 45, done: true }] }] } } }, 'Plank').text, '+15 reps');
+
+// short version: the main lifts with all their sets
+var exA = E.exercisesFor('A', prof);
+eq('short version: main lifts, all sets', E.shortExercises(exA).map(function (c) { return c.id + ':' + c.sets; }), ['Leg_Press:3', 'Dumbbell_Bench_Press:3', 'Wide-Grip_Lat_Pulldown:3', 'Dumbbell_Shoulder_Press:3']);
+eq('minutes: full A matches the 65 min, short about 40', [E.estMinutes(exA), E.estMinutes(E.shortExercises(exA)), E.estMinutes(E.shortExercises(E.exercisesFor('B', prof)))], [65, 40, 40]);
+
 eq('number style', [E.fmtNum(13125), E.fmtNum(112.45), E.fmtNum(112.04), E.fmtNum(165.8, 0), E.fmtNum(-0.25, 2), E.fmtNum(999), E.fmtNum(1234567.89), E.fmtNum(null), E.fmtNum(-0.01)],
   ['13 125', '112.5', '112', '166', '−0.25', '999', '1 234 567.9', '–', '0']);
 
