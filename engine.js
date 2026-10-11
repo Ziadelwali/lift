@@ -1,6 +1,6 @@
 /* engine.js - the rules of the app as pure functions. No DOM. Loaded by
    index.html and by tools/test-engine.js (node). Everything here follows the
-   evidence summarised in README.md: 10-20 hard sets per muscle per week,
+   evidence summarised in README.md: about 9-15 hard sets per muscle per week,
    1-3 reps in reserve, double progression, an easy week only when lifts stall, protein spread
    over 5 feeds (2 meals + 3 shakes), creatine daily. */
 (function (root, factory) {
@@ -26,7 +26,7 @@
     activity: { desk: 1.35, feet: 1.5, active: 1.65 },
     trendTarget: { lean: [-0.5, -0.2], maintain: [-0.2, 0.2], bulk: [0.2, 0.45] }, // kg/week
     creatineG: 5,
-    volumeBand: { normal: [10, 16], priority: [14, 20] },
+    volumeBand: { normal: [9, 15], priority: [12, 20] },   // hard sets a week (Pelland 2025: more still helps, less each time)
     dumbbellMaxKg: 30 // heaviest dumbbell at B1973 Fitness (per hand)
   };
 
