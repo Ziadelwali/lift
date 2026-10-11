@@ -167,12 +167,16 @@ function remindersCard(){
   ev.map(function(g){return '<li><a href="'+E.googleCalLink(g)+'" target="_blank" rel="noopener">'+esc(g.time+' '+g.title.replace('Lift: ',''))+'</a> <span class="xs">'+g.days.map(function(d){return DN[d];}).join(' ')+'</span></li>';}).join('')+'</ul></details>'+
   '<p class="xs" style="margin-top:6px">Changed your training days or times? Add them again (and delete the old ones in the calendar).</p></div>';
 }
+/* iPhone/iPad (an iPad asks for the desktop site, so it shows up as a Mac with a touch screen) */
+function isIOS(){return /iPhone|iPad|iPod/.test(navigator.userAgent)||(/Macintosh/.test(navigator.userAgent)&&navigator.maxTouchPoints>1);}
+var ICON_SHARE='<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M6 11H5v10h14V11h-1"/></svg>';
 function installCard(where){
  if(isInstalled())return where==='profile'?'<div class="card"><h2>App</h2><p class="sm" style="margin-top:6px">Installed ✓ — you are using Lift as an app.</p></div>':'';
  if(where==='today'){try{if(localStorage.getItem('lift.installLater')===todayISO().slice(0,7))return '';}catch(e){}}
  return '<div class="card install"><h2>Install Lift as an app</h2><p class="sm" style="margin-top:6px">Full screen, its own icon on your home screen, screen stays on during training, and updates arrive more reliably. No app store needed.</p>'+
-  (installEvt?'<button class="btn wide" data-act="install" style="margin-top:12px">Install app</button>':
-   '<p class="sm" style="margin-top:10px"><b>How:</b> tap the browser menu <b>⋮</b> → <b>Install app</b> (or <b>Add to Home screen</b>).</p>')+
+  (installEvt?'<button class="btn wide" data-act="install" style="margin-top:12px">Install app</button>':isIOS()?
+   '<p class="sm" style="margin-top:10px"><b>iPhone / iPad:</b> open Lift in <b>Safari</b>, tap <b>Share</b> '+ICON_SHARE+' at the bottom → <b>Add to Home Screen</b> → <b>Add</b>.</p>':
+   '<p class="sm" style="margin-top:10px"><b>Android:</b> tap the browser menu <b>⋮</b> →<b>Install app</b> or <b>Add to Home screen</b> → <b>Install</b>.</p>')+
   (where==='today'?'<button class="btn small ghost" data-act="installlater" style="margin-top:8px">Not now</button>':'')+'</div>';
 }
 
