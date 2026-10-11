@@ -389,3 +389,6 @@ ul.hist .hd{flex:1;min-width:0}ul.hist .chev{transform:rotate(-45deg);margin:0 6
 .hxrow.gone label{opacity:.35;text-decoration:line-through}.hxrow.gone .hxdel{background:var(--bad-bg);color:var(--bad)}
 /* the A/B session letter: small print */
 small.ab{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--ink3);letter-spacing:.04em;text-transform:none;margin-left:4px}
+/* "New version ready" pill: under the header, until tapped */
+#updpill{position:fixed;top:calc(var(--sat) + 60px);left:50%;transform:translateX(-50%);z-index:9;min-height:44px;padding:0 18px;border-radius:999px;background:var(--acc);color:var(--on-acc);font-weight:600;font-size:14px;box-shadow:var(--shadow);white-space:nowrap}
+#updpill[hidden]{display:none}

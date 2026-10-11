@@ -121,9 +121,14 @@ function startSync(rec,pp){
 }
 
 /* ---------------- service worker ---------------- */
+/* A new version takes over in the background. The page never reloads by itself (not mid-session,
+   not while typing): a small pill offers it, and a tap reloads. The first install is not news. */
+var swHad=false;
+function updateReady(){var u=$('#updpill');if(u)u.hidden=false;}
+$('#updpill').addEventListener('click',function(){location.reload();});
 if('serviceWorker' in navigator&&location.hostname!=='localhost'){
- var had=!!navigator.serviceWorker.controller;
- navigator.serviceWorker.addEventListener('controllerchange',function(){if(had&&!activeSession())location.reload();had=true;});
+ swHad=!!navigator.serviceWorker.controller;
+ navigator.serviceWorker.addEventListener('controllerchange',function(){if(swHad)updateReady();swHad=true;});
  navigator.serviceWorker.register('sw.js').then(function(r){try{r.update();}catch(e){}}).catch(function(){});
 }
 
@@ -1031,7 +1036,8 @@ document.addEventListener('click',function(ev){
  if(act==='wedit'){weighEdit=true;renderToday();var wi=$('.weigh input');if(wi)wi.focus();return;}
  if(act==='wskip'){try{localStorage.setItem('lift.wskip',todayISO());}catch(e){}renderToday();return;}
  if(act==='installlater'){try{localStorage.setItem('lift.installLater',todayISO().slice(0,7));}catch(e){}renderToday();return;}
- if(act==='update'){if(!('serviceWorker' in navigator)){location.reload();return;}toast('Checking…');navigator.serviceWorker.getRegistration().then(function(r){return r?r.update():null;}).then(function(){setTimeout(function(){location.reload();},1500);});return;}
+ if(act==='update'){if(!('serviceWorker' in navigator)||!navigator.serviceWorker.controller){location.reload();return;}toast('Checking…');
+  navigator.serviceWorker.getRegistration().then(function(r){return r?r.update():null;}).then(function(){setTimeout(function(){if($('#updpill').hidden)toast('You have the latest version');},4000);},function(){toast('Offline? Try again later');});return;}
  if(act==='forget'){try{localStorage.removeItem(PK);}catch(e){}location.reload();return;}
  if(act==='pwopen'){var pf=$('#pwform');if(pf){pf.hidden=!pf.hidden;if(!pf.hidden)pf.elements.cur.focus();}return;}
  if(act==='export'){downloadBlob(JSON.stringify(state,null,1),'application/json','lift-'+todayISO()+'.json');return;}
