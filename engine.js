@@ -1,7 +1,7 @@
 /* engine.js - the rules of the app as pure functions. No DOM. Loaded by
    index.html and by tools/test-engine.js (node). Everything here follows the
    evidence summarised in README.md: 10-20 hard sets per muscle per week,
-   1-3 reps in reserve, double progression, periodic deloads, protein spread
+   1-3 reps in reserve, double progression, an easy week only when lifts stall, protein spread
    over 5 feeds (2 meals + 3 shakes), creatine daily. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -12,8 +12,11 @@
   var RULES = {
     findSets: 2,                // first time on an exercise: 2 sets to find the weight
     epleyMaxReps: 12,           // Epley guesses badly above ~12 reps
-    deloadEvery: 6,             // every 6th training week
+    // Easy week (deload): after two stalled lifts or when you ask for one, not on a fixed rota
+    // (Coleman 2024: a planned deload week didn't help growth and cost a little strength).
     deloadLoad: 0.9, deloadSets: 0.5,
+    breakDays: 14, breakLoad: 0.9, // 2+ weeks off: the first session back is 10 % lighter
+    refindDays: 42,             // 6+ weeks off: find the weights again
     stallDrop: 0.9,             // cut load 10 % after two failed sessions
     sessionMinutes: 65,
     warmupMinutes: 10,          // 6–8 min uphill walk + ~2 min of moves
@@ -294,7 +297,9 @@
         var sets = (e.sets || []).filter(function (s) { return s.done && s.reps > 0 && (s.kg > 0 || (bw && s.kg === 0)); });
         // calib = these sets were finding the weight (the exercise's first time; older data: the first sessions)
         var st = e.suggest && e.suggest.state;
-        if (sets.length) out.push({ date: k, sets: sets, feel: e.feel || null, calib: st ? st === 'calibrate' : !!ses.calibration });
+        // light = lighter on purpose (easy week, first session after a break): not a base for progression
+        if (sets.length) out.push({ date: k, sets: sets, feel: e.feel || null, calib: st ? st === 'calibrate' : !!ses.calibration,
+          light: st ? st === 'deload' || st === 'back' : !!ses.deload });
       });
     });
     return out;
@@ -312,16 +317,20 @@
      All sets at the top of the range: up 2 steps when easy (1 for dumbbells), else 1 step.
      In the range: +2 reps when easy, +1 about right, same again when hard. Below: hold, then drop.
      Returns {kg, reps, sets, note, state}: 'calibrate' (find the weight), 'set' (weight from the
-     finding sets), 'up', 'push', 'again', 'hold', 'drop', 'maxed', 'deload'. */
+     finding sets), 'up', 'push', 'again', 'hold', 'drop', 'maxed', 'deload', 'back' (after a break).
+     opts: { deload, back: 'light' | 'refind' }. */
   function suggest(cfg, hist, opts) {
     opts = opts || {};
-    hist = hist || [];
+    // after an easy week (or a light first session back) carry on from the last normal session,
+    // so stall and easy-week cuts never stack
+    var normal = (hist || []).filter(function (h) { return !h.light; });
+    hist = normal.length ? normal : hist || [];
     var lo = cfg.reps[0], hi = cfg.reps[1], sets = cfg.sets, inc = cfg.inc;
     var bw = BODYWEIGHT.indexOf(cfg.id) !== -1, cap = DUMBBELL.indexOf(cfg.id) !== -1 ? RULES.dumbbellMaxKg : null;
-    if (!hist.length) {
-      // first time on this exercise (also after a swap): 2 sets to find the weight
+    if (!hist.length || opts.back === 'refind') {
+      // first time on this exercise (also after a swap), or 6+ weeks off: 2 sets to find the weight
       return { kg: bw ? 0 : null, reps: hi, sets: Math.min(sets, RULES.findSets), state: 'calibrate',
-        note: 'First time: ' + (bw ? hi + ' reps' : 'a weight you can lift ' + hi + ' times') + ' with 3 to spare.' };
+        note: (hist.length ? 'Long break: find it again, ' : 'First time: ') + (bw ? hi + ' reps' : 'a weight you can lift ' + hi + ' times') + ' with 3 to spare.' };
     }
     var lastH = hist[hist.length - 1], last = lastH.sets, feel = feelOf(lastH);
     var kg = Math.max.apply(null, last.map(function (s) { return s.kg; }));
@@ -338,7 +347,12 @@
     }
     if (opts.deload) {
       return { kg: lighter(kg, RULES.deloadLoad, inc), reps: lo, sets: Math.max(1, Math.round(sets * RULES.deloadSets)),
-        state: 'deload', note: 'Deload week: lighter, fewer sets, 3–4 reps to spare.' };
+        state: 'deload', note: 'Easy week: lighter, fewer sets, 3–4 reps to spare.' };
+    }
+    if (opts.back === 'light') {
+      // 2+ weeks off: strength mostly stays, so the same sets at 10 % less; normal weights next time
+      return { kg: lighter(lastH.calib ? suggest(cfg, hist).kg : kg, RULES.breakLoad, inc), reps: Math.max(lo, Math.min(hi, minReps)), sets: sets,
+        state: 'back', note: 'First time back after a break: 10 % lighter. Normal weights next time.' };
     }
     if (lastH.calib) {
       // Finding weights are guesses. Estimate the weight for the middle of the rep range with
@@ -462,7 +476,13 @@
     if (existing && existing.done) n = done.indexOf(dateISO);
     var week = Math.floor(n / 3) + 1;          // training week number, 1-based
     var deloadUntil = (state.settings && state.settings.deloadUntil) || 0;
-    var deload = week % RULES.deloadEvery === 0 || n < deloadUntil;
+    var deload = n < deloadUntil;
+    // a break: days since the last session before this one
+    var prevISO = null;
+    for (var i = done.length - 1; i >= 0; i--) if (done[i] < dateISO) { prevISO = done[i]; break; }
+    var gap = prevISO ? daysBetween(prevISO, dateISO) : 0;
+    var back = existing ? existing.back || null : gap >= RULES.refindDays ? 'refind' : gap >= RULES.breakDays ? 'light' : null;
+    if (existing) deload = !!existing.deload;
     var day = existing ? existing.day : (n % 2 === 0 ? 'A' : 'B');
     var movedAway = dateISO in mv, fromTime = from ? sched[parseISO(from).getDay()] || '16:00' : null;
     var training = !!existing || (sched[wd] != null && !movedAway) || !!from;
@@ -473,14 +493,14 @@
     return {
       date: dateISO, training: training, movedAway: movedAway && !existing ? mv[dateISO] : null, movedFrom: from,
       time: existing && existing.time || (sched[wd] != null && !movedAway ? sched[wd] : fromTime),
-      day: training ? day : null, week: week, n: n, calibration: calibration, deload: deload,
+      day: training ? day : null, week: week, n: n, calibration: calibration, deload: deload, back: back, gap: gap,
       exercises: training ? exercisesFor(day, profile) : []
     };
   }
 
   /* The suggestion for cfg (cfg.id = the exercise done) inside a session or plan. */
   function suggestIn(state, ses, cfg) {
-    return suggest(cfg, history(state, cfg.id), { deload: !!ses.deload });
+    return suggest(cfg, history(state, cfg.id), { deload: !!ses.deload, back: ses.back });
   }
   /* Build the session object for a plan (suggestions filled in). */
   function buildSession(p, state) {
@@ -489,7 +509,7 @@
       var sg = suggestIn(state, p, Object.assign({}, cfg, { id: id }));
       return { id: id, base: cfg.id, suggest: sg, sets: freshSets(sg) };
     });
-    return { date: p.date, day: p.day, time: p.time, week: p.week, calibration: p.calibration, deload: p.deload,
+    return { date: p.date, day: p.day, time: p.time, week: p.week, calibration: p.calibration, deload: p.deload, back: p.back || null,
       started: null, finished: null, done: false, warm: {}, ex: ex };
   }
 
@@ -668,6 +688,7 @@
       var s = state.sessions[k];
       if (!s || typeof s !== 'object' || !Array.isArray(s.ex)) { delete state.sessions[k]; ch = true; return; }
       if (s.day !== 'A' && s.day !== 'B') { s.day = 'A'; ch = true; }
+      if (s.back != null && s.back !== 'light' && s.back !== 'refind') { delete s.back; ch = true; }
       timeField(s, 'time');
       ['week', 'started', 'finished'].forEach(function (f) { numField(s, f); });
       s.ex = s.ex.filter(function (e) { var ok = e && typeof e.id === 'string' && ID_RE.test(e.id) && typeof e.base === 'string' && ID_RE.test(e.base) && Array.isArray(e.sets); if (!ok) ch = true; return ok; });

@@ -18,7 +18,7 @@ eq('up', E.suggest(cfg, [h([[40, 12, 2], [40, 12, 1], [40, 12, 0]])]).kg, 42.5);
 eq('up reps', E.suggest(cfg, [h([[40, 12, 2], [40, 12, 1], [40, 12, 0]])]).reps, 8);
 eq('hold', E.suggest(cfg, [h([[42.5, 8, 1], [42.5, 7, 0], [42.5, 6, 0]])]).state, 'hold');
 eq('drop', E.suggest(cfg, [h([[42.5, 7, 0], [42.5, 7, 0]]), h([[42.5, 8, 1], [42.5, 7, 0]])]).kg, 37.5);
-eq('deload', E.suggest(cfg, [h([[40, 10, 2]])], { deload: true }), { kg: 35, reps: 8, sets: 2, state: 'deload', note: 'Deload week: lighter, fewer sets, 3–4 reps to spare.' });
+eq('deload', E.suggest(cfg, [h([[40, 10, 2]])], { deload: true }), { kg: 35, reps: 8, sets: 2, state: 'deload', note: 'Easy week: lighter, fewer sets, 3–4 reps to spare.' });
 eq('ramp', E.rampSets(80), [{ kg: 40, reps: 8 }, { kg: 55, reps: 5 }, { kg: 67.5, reps: 2 }]);
 eq('ramp on dumbbells uses real dumbbells (2 kg steps)', E.rampSets(27, 'Dumbbell_Bench_Press').map(function (r) { return r.kg; }), [14, 18, 22]);
 // weight steps: one step up from what was lifted, only rounded to 0.5 kg
@@ -95,6 +95,35 @@ var s3b = E.buildSession(E.plan('2026-09-25', fst), fst);
 eq('a swap to a new exercise finds its weight (2 sets)', [s3b.ex[0].id, s3b.ex[0].suggest.state, s3b.ex[0].sets.length], ['Smith_Machine_Squat', 'calibrate', 2]);
 s3b.ex[0].sets.forEach(function (x) { x.kg = 60; x.reps = 12; x.done = true; }); s3b.done = true; fst.sessions['2026-09-25'] = s3b;
 eq('next time, the swapped exercise gets its weight from those sets', E.suggest(E.findCfg('Smith_Machine_Squat'), E.history(fst, 'Smith_Machine_Squat')).state, 'set');
+
+// easy week (deload): only after stalls or on request; afterwards back to the pre-deload weights
+function hs(sets, state, feel) { var x = { id: 'X', feel: feel, suggest: { state: state }, sets: sets.map(function (s) { return { kg: s[0], reps: s[1], done: true }; }) }; return x; }
+function sesOn(d, x, extra) { return Object.assign({ day: 'A', done: true, ex: [x] }, extra || {}); }
+var dl = { sessions: {
+  '2026-10-05': sesOn('', hs([[50, 10], [50, 10], [50, 10]], 'push', 'right')),
+  '2026-10-07': sesOn('', hs([[45, 8], [45, 8]], 'deload', 'easy'), { deload: true }),
+  '2026-10-09': sesOn('', hs([[45, 8], [45, 8]], 'deload', 'easy'), { deload: true }) } };
+eq('after an easy week: from the last normal session (50 kg), not the easy-week 45', kr(E.suggest(cfg, E.history(dl, 'X'))), [50, 11, 'push']);
+eq('old data: a session flagged deload counts as light', E.history({ sessions: { '2026-10-07': { done: true, deload: true, ex: [{ id: 'X', sets: [{ kg: 45, reps: 8, done: true }] }] } } }, 'X')[0].light, true);
+var dst = { profile: prof, sessions: {}, settings: {} }, dd = '2026-09-07';
+var allEx = E.PROGRAM.A.concat(E.PROGRAM.B).map(function (c) { return { id: c.id, base: c.id, suggest: { state: 'push' }, sets: [{ kg: 20, reps: 10, done: true }] }; });
+for (var di2 = 0; di2 < 18; di2++) { dst.sessions[dd] = { day: di2 % 2 ? 'B' : 'A', done: true, ex: allEx }; dd = E.addDaysISO(dd, di2 % 3 === 2 ? 3 : 2); }
+eq('no fixed easy week every 6th week', E.plan(dd, dst).deload, false);
+dst.settings.deloadUntil = 18 + 3;
+eq('stall/asked easy week: the next 3 sessions', E.plan(dd, dst).deload, true);
+// coming back after a break
+var brk = { profile: prof, settings: {}, sessions: { '2026-09-02': sesOn('', hs([[50, 10], [50, 10], [50, 10]], 'push', 'right')) } };
+eq('13 days off: normal', E.plan('2026-09-15', brk).back, null);
+eq('14 days off: light first session', E.plan('2026-09-16', brk).back, 'light');
+eq('42 days off: find weights again', E.plan('2026-10-14', brk).back, 'refind');
+var bs = E.suggest(cfg, E.history(brk, 'X'), { back: 'light' });
+eq('first session back: 10 % lighter, same sets', [bs.kg, bs.sets, bs.state], [45, 3, 'back']);
+var rf = E.suggest(cfg, E.history(brk, 'X'), { back: 'refind' });
+eq('6+ weeks off: 2 finding sets', [rf.state, rf.sets], ['calibrate', 2]);
+brk.sessions['2026-09-16'] = sesOn('', hs([[45, 10], [45, 10], [45, 10]], 'back', 'easy'), { back: 'light' });
+eq('after the light session: back to the old weight', E.suggest(cfg, E.history(brk, 'X')).kg, 50);
+var bses = E.buildSession(E.plan('2026-09-30', { profile: prof, settings: {}, sessions: { '2026-09-02': { day: 'B', done: true, ex: [{ id: 'Smith_Machine_Squat', base: 'Smith_Machine_Squat', suggest: { state: 'push' }, sets: [{ kg: 100, reps: 8, done: true }, { kg: 100, reps: 8, done: true }] }] } } }), { profile: prof, settings: {}, sessions: { '2026-09-02': { day: 'B', done: true, ex: [{ id: 'Smith_Machine_Squat', base: 'Smith_Machine_Squat', suggest: { state: 'push' }, sets: [{ kg: 100, reps: 8, done: true }, { kg: 100, reps: 8, done: true }] }] } } });
+eq('a session after a break remembers it', [bses.back, bses.ex[0].suggest.kg], ['light', 90]);
 
 // moved and skipped sessions
 var mst = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: { moves: { '2026-09-25': '2026-09-26', '2026-09-28': '' } } };
