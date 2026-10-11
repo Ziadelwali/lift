@@ -9,7 +9,11 @@ function todayISO(){return E.isoDate(new Date());}
 function nowMin(){var d=new Date();return d.getHours()*60+d.getMinutes();}
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function niceDate(iso){var d=E.parseISO(iso);return DOW[d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()];}
-function toast(t){var el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){el.classList.remove('on');},1800);}
+function toast(t){var el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){el.classList.remove('on');},3000);}
+/* Important news (easy week, stalls) stays as a card on Today and Train until dismissed, instead of a toast. */
+function notice(){try{return JSON.parse(localStorage.getItem('lift.notice')||'null');}catch(e){return null;}}
+function setNotice(t){try{if(t)localStorage.setItem('lift.notice',JSON.stringify({text:t,at:Date.now()}));else localStorage.removeItem('lift.notice');}catch(e){}}
+function noticeCard(){var n=notice();return n&&n.text?'<div class="card notice" role="status"><p class="sm">'+esc(n.text)+'</p><button class="btn small ghost" data-act="noticeoff">OK</button></div>':'';}
 function fmtSec(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60);}
 
 /* ---------------- persistent state ----------------
@@ -364,7 +368,7 @@ function render(){
 function renderToday(){
  var iso=todayISO(),p=planFor(iso),mac=E.macrosFor(state),ses=state.sessions[iso]||activeSession();
  var h='<p class="eyebrow" style="margin-top:6px">'+niceDate(iso)+' · week '+p.week+'</p>';
- h+=weighCard(iso);
+ h+=noticeCard()+weighCard(iso);
  var sesCard='';
  if(p.training){
   var exs=(ses?ses.ex.map(function(e){var c=E.findCfg(e.base)||{};return {id:e.id,prio:c.prio};}):p.exercises);
@@ -468,6 +472,23 @@ function easyLink(p,ses){
 }
 var ANYWAY='<p class="xs" style="margin-top:10px">Want to train anyway? <button class="linkbtn" data-act="start">Start a session</button></p>';
 var FIXLINK='<p class="xs" style="margin-top:6px">Wrong number or a forgotten set? <button class="linkbtn" data-act="reopen">Fix a mistake</button></p>';
+/* In-app sheet (instead of confirm()): slides up from the bottom; tap outside to close. */
+function openSheet(html){closeSheet();var w=document.createElement('div');w.className='sheetwrap';w.innerHTML='<div class="sheet" role="dialog" aria-modal="true">'+html+'</div>';
+ w.addEventListener('click',function(ev){if(ev.target===w)closeSheet();});document.body.appendChild(w);var f=w.querySelector('button');if(f)f.focus();}
+function closeSheet(){var w=$('.sheetwrap');if(w)w.remove();}
+/* Finish screen: what you did, new bests with the step up, weeks on track, the next session. */
+function finishBody(s,k){
+ var sets=0,vol=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=E.liftedKg(e.id,x.kg)*(x.reps||0);}});});
+ var mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
+ var bests=[];s.ex.forEach(function(e){var b=e.sets.filter(function(x){return x.pr&&x.done;})[0];if(!b)return;
+  var prev=0;E.history(state,e.id).forEach(function(hh){if(hh.date<k)hh.sets.forEach(function(x){prev=Math.max(prev,x.kg);});});
+  var up=b.kg>prev?'+'+(Math.round((b.kg-prev)*10)/10)+' kg'+(E.pair(e.id)?' each hand':''):'more reps';
+  bests.push('<li class="best">'+thumb(e.id)+'<span><b>'+esc(nm(e.id))+'</b><br><span class="mono">'+esc(E.setText(e.id,b.kg,b.reps))+'</span></span><span class="chip ok">'+up+'</span></li>');});
+ var wk=[],m=E.mondayOf(k),done=E.completedSessions(state);for(var i=5;i>=0;i--){var a=addDays(m,-7*i),z=addDays(a,6),c=done.filter(function(d){return d>=a&&d<=z;}).length;wk.push('<i class="wdot'+(c>=2?' on':'')+'" title="'+c+' sessions"></i>');}
+ return '<div class="grid3" style="margin-top:12px"><div class="stat"><div class="v">'+sets+'</div><div class="l">sets</div></div><div class="stat"><div class="v">'+(mins||'–')+'</div><div class="l">minutes</div></div><div class="stat"><div class="v">'+Math.round(vol).toLocaleString()+'</div><div class="l">kg moved</div></div></div>'+
+  (bests.length?'<p class="eyebrow" style="margin-top:14px">★ New best'+(bests.length>1?'s':'')+'</p><ul class="bests">'+bests.join('')+'</ul>':'')+
+  '<p class="eyebrow" style="margin-top:14px">Weeks on track</p><div class="wdots">'+wk.join('')+'<span class="xs">'+streakWeeks()+' in a row · 2+ sessions a week</span></div>'+nextSessionLine(k);
+}
 function sessionSummary(s){
  var sets=0,vol=0,up=0,pr=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=E.liftedKg(e.id,x.kg)*(x.reps||0);}if(x.pr)pr++;});if(e.suggest&&e.suggest.state==='up')up++;});
  var mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
@@ -556,12 +577,12 @@ function renderTrain(){
  var h='';
  if(!ses){
   var dk=sessionKey(true),ds=dk&&state.sessions[dk],done=!!(ds&&ds.done);
-  h='<div class="card" style="margin-top:14px"><h2>'+(done?'Session '+ds.day+' done':p.training?'Session '+p.day+' today':'Rest day')+'</h2>'+
-   '<p class="sm" style="margin-top:6px">'+(done?sessionSummary(ds):p.training?'Warm-up, then '+p.exercises.length+' exercises. Phone stays awake while you train.':'No session planned. You can still train if life moved a day — it becomes the next session in the rotation.')+'</p>'+
-   (done?FIXLINK:p.training?'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+p.day+'</button>':ANYWAY)+'</div>'+programCard();
+  h='<div class="card" style="margin-top:14px"><h2>'+(done?'Session '+ds.day+' done ✓':p.training?'Session '+p.day+' today':'Rest day')+'</h2>'+
+   '<p class="sm" style="margin-top:6px">'+(done?'':p.training?'Warm-up, then '+p.exercises.length+' exercises. Phone stays awake while you train.':'No session planned. You can still train if life moved a day — it becomes the next session in the rotation.')+'</p>'+
+   (done?finishBody(ds,dk)+FIXLINK:p.training?'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+p.day+'</button>':ANYWAY)+'</div>'+programCard();
   $('#v-train').innerHTML=h;return;
  }
- h+=trackBar(ses);
+ h+=trackBar(ses)+noticeCard()+(ses.reopened?'<div class="card notice"><p class="sm"><b>Fixing a mistake.</b> Change what was wrong, then tap Finish session again.</p></div>':'');
  /* warm-up */
  var wl=E.WARMUP,firstRamp=null;
  for(var i=0;i<ses.ex.length;i++){var c=E.findCfg(ses.ex[i].base);if(c&&c.ramp&&ses.ex[i].sets[0]&&ses.ex[i].sets[0].kg){firstRamp=ses.ex[i];break;}}
@@ -580,6 +601,7 @@ function renderTrain(){
  h+='<div class="row between exnav"><button class="btn small ghost" data-jump="'+pv+'"'+(pv>=0?'':' disabled')+'>‹ Back</button>'+
   (others.length?'<button class="btn small ghost" data-pickother="1">⇆ Busy? Pick another</button>':'')+
   '<button class="btn small ghost" data-jump="'+nx+'"'+(nx>=0?'':' disabled')+'>Next ›</button></div>'+
+  (nx>=0&&!swipeKnown()?'<p class="xs hint">Tip: swipe the card left or right to change exercise. <button class="linkbtn" data-act="hintoff">Got it</button></p>':'')+
   (others.length?'<div class="card" id="others" hidden><h2>What is free?</h2><p class="xs" style="margin:2px 0 8px">Order barely matters for growth — do whichever machine is free.</p><div class="swaps">'+others.map(function(i){var a=ses.ex[i].id;
    return '<button class="tile" data-jump="'+i+'"><img src="'+exOf(a).images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+esc(equipWord(a))+(ses.ex[i].sets.some(function(x){return x.done;})?' · started':'')+'</small></button>';}).join('')+'</div></div>':'');
  h+='<div class="card"><button class="btn wide" data-act="finish">Finish session</button>'+(ses.reopened?'':'<button class="btn wide ghost" data-act="abandon" style="margin-top:8px">Discard session</button>')+'</div>';
@@ -588,9 +610,11 @@ function renderTrain(){
  clearInterval(renderTrain._t);renderTrain._t=setInterval(function(){var el=$('#elapsed');if(el&&activeSession())el.textContent=fmtSec((Date.now()-ses.started)/1000);else clearInterval(renderTrain._t);},1000);
 }
 (function(){var x0=null,y0=null;
- document.addEventListener('touchstart',function(e){var c=e.target.closest('#v-train .card.ex');if(!c||e.target.closest('input,button,.media'))return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;},{passive:true});
+ document.addEventListener('touchstart',function(e){var c=e.target.closest('#v-train .card.ex');if(!c||e.target.closest('input,button,.strip,summary'))return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;},{passive:true});
  document.addEventListener('touchend',function(e){if(x0==null)return;var dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;x0=null;var ses=activeSession();
-  if(!ses||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx))return;var f=stepUndone(ses,focusOf(ses),dx<0?1:-1);if(f>=0){ses.warmShut=true;trainFocus=f;renderTrain();scrollTo(0,0);}},{passive:true});})();
+  if(!ses||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx))return;var f=stepUndone(ses,focusOf(ses),dx<0?1:-1);if(f>=0){swipeKnown(true);goEx(ses,f);}},{passive:true});})();
+/* One-time hint that swiping changes exercise; gone after the first swipe or "Got it". */
+function swipeKnown(set){try{if(set)localStorage.setItem('lift.swipe','1');return localStorage.getItem('lift.swipe')==='1';}catch(e){return true;}}
 /* Warm-up move: tick box + tap-to-open picture and plain steps. */
 var openWarm={};
 function warmItem(key,w,amount,wdone){
@@ -607,6 +631,9 @@ function focusOf(ses){if(trainFocus==null||trainFocus<0||trainFocus>=ses.ex.leng
 function nextUndone(ses,from){for(var k=0;k<ses.ex.length;k++){var i=(from+k)%ses.ex.length;if(!exDone(ses.ex[i]))return i;}return -1;}
 /* Next/Back (and swipe) step through unfinished exercises only, wrapping round; -1 if none. Done ones: tap their picture up top. */
 function stepUndone(ses,f,dir){var n=ses.ex.length;for(var k=1;k<n;k++){var i=((f+dir*k)%n+n)%n;if(!exDone(ses.ex[i]))return i;}return -1;}
+/* Show exercise ei with its first set that isn't done in view (below the sticky bars). */
+function goEx(ses,ei){ses.warmShut=true;trainFocus=ei;renderTrain();var c=$('#ex-'+ei),r=c&&(c.querySelector('.setrow:not(.done)')||c.querySelector('.feel')||c);
+ if(!c)return;c.scrollIntoView({block:'start'});if(r!==c&&r.getBoundingClientRect().bottom>innerHeight-150)r.scrollIntoView({block:'center'});}
 function exDone(e){return e.sets.length>0&&e.sets.every(function(s){return s.done;});}
 function trackBar(ses){
  var n=ses.ex.filter(exDone).length,cur=focusOf(ses);   /* highlight the exercise on screen */
@@ -621,6 +648,7 @@ function measureBars(){
 }
 addEventListener('resize',measureBars);
 var openCards={};   /* finished exercises the user re-opened */
+var justDone=null;  /* exercise whose last set was just ticked: moves on after "How was it?" */
 function exerciseCard(e,ei,ses){
  var collapsed=exDone(e)&&!openCards[ei];
  return '<div class="card ex'+(collapsed?' collapsed':'')+'" id="ex-'+ei+'" data-ei="'+ei+'">'+exInner(e,ei,ses,collapsed)+'</div>';
@@ -633,13 +661,25 @@ function exHead(e,ei,ses){
   (d?'<p class="exsum">'+e.sets.length+' sets · '+e.sets.map(function(s){return esc(s.kg)+'×'+esc(s.reps);}).join(', ')+' <span class="xs">· '+(E.pair(e.id)?'kg each hand · ':'')+(openCards[ei]?'tap to fold':'tap to open')+'</span></p>':'')+'</div>';
 }
 function exInner(e,ei,ses,collapsed){
- var ex=exOf(e.id);
- return exHead(e,ei,ses)+(collapsed?'':
-  '<div class="media"><img src="'+ex.images[0]+'" alt="" loading="lazy"><img class="f1" src="'+ex.images[1]+'" alt="" loading="lazy"><div class="map">'+bodyMap(ex.primary,ex.secondary)+'</div></div>'+
-  '<div class="body">'+exBody(e,ei,ses)+'</div>');
+ return exHead(e,ei,ses)+(collapsed?'':exStrip(e,ei)+'<div class="body">'+exBody(e,ei,ses)+'</div>');
+}
+/* Compact picture strip: the moving exercise picture, the muscles, and the machine at the gym.
+   Tap one to see it big. Keeps the set rows on the first screen. */
+function exStrip(e,ei){
+ var ex=exOf(e.id),g=GYM_PHOTO[e.id];
+ return '<div class="strip'+(g?'':' two')+'"><button class="sp pic" data-zoom="pic:'+ei+'" aria-label="Show the exercise bigger"><img src="'+ex.images[0]+'" alt="" loading="lazy"><img class="f1" src="'+ex.images[1]+'" alt="" loading="lazy"></button>'+
+  '<button class="sp map" data-zoom="map:'+ei+'" aria-label="Show the muscles bigger">'+bodyMap(ex.primary,ex.secondary)+'</button>'+
+  (g?'<button class="sp" data-zoom="gym:'+ei+'" aria-label="Show the machine at your gym bigger"><img src="'+g+'" alt="" loading="lazy"><span>At your gym</span></button>':'')+'</div>';
+}
+function zoom(kind,ei){
+ var ses=activeSession(),e=ses&&ses.ex[ei];if(!e)return;var ex=exOf(e.id),z=document.createElement('div');
+ z.className='zoom';z.setAttribute('role','dialog');z.setAttribute('aria-label','Picture, tap to close');
+ z.innerHTML=kind==='pic'?'<div class="zpic"><img src="'+ex.images[0]+'" alt=""><img class="f1" src="'+ex.images[1]+'" alt=""></div>':kind==='map'?'<div class="zmap">'+bodyMap(ex.primary,ex.secondary)+'</div>':'<img class="zgym" src="'+GYM_PHOTO[e.id]+'" alt="">';
+ z.innerHTML+='<p class="xs">'+esc(nm(e.id))+' · tap to close</p>';
+ z.addEventListener('click',function(){z.remove();});document.body.appendChild(z);
 }
 /* One question per exercise instead of reps-in-reserve per set: easy = 3+ left, about right = 2,
-   hard = 0. The answer (e.feel) sets next time's weight and reps; it is also stored as rir on the sets. */
+   hard = 0. The answer (e.feel) sets the weight for next time and reps; it is also stored as rir on the sets. */
 var FEEL=[['easy','Easy',3],['right','About right',2],['hard','Hard',0]];
 function feelButtons(ei,e){return FEEL.map(function(o){return '<button data-feel="'+ei+':'+o[0]+'"'+(e.feel===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('');}
 function setFeel(e,k){var o=FEEL.filter(function(x){return x[0]===k;})[0],done=e.sets.filter(function(x){return x.done;});if(!o||!done.length)return;
@@ -647,39 +687,41 @@ function setFeel(e,k){var o=FEEL.filter(function(x){return x[0]===k;})[0],done=e
 function exBody(e,ei,ses){
  var cfg=cfgOf(e),sg=e.suggest||{};
  var alts=(cfg.alts||[]).concat(e.id!==e.base?[e.base]:[]).filter(function(a){return a!==e.id&&EX[a];});
- var inf=E.info(e.id)||cfg;
- return (GYM_PHOTO[e.id]?'<button class="gymph" data-gymph="1" aria-label="Show the machine at your gym bigger"><img src="'+GYM_PHOTO[e.id]+'" alt="" loading="lazy"><span>At your gym</span></button>':'')+'<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+
-  (E.cue(e.id)?'<p class="sm cue" style="margin-top:4px"><b>Effort:</b> '+esc(E.cue(e.id))+'</p>':'')+
-  lastTime(e.id)+
-  '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?esc(E.setText(e.id,sg.kg,sg.reps)):'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
+ var inf=E.info(e.id)||cfg,lt=lastTxt(e.id);
+ return '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?esc(E.setText(e.id,sg.kg,sg.reps)):'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+
+   (E.cue(e.id)?'<br><span class="xs">'+esc(E.cue(e.id))+'</span>':'')+'</div>'+
   '<div class="sethead"><span></span><span>'+(E.pair(e.id)?'kg each hand':'kg')+'</span><span>reps</span><span></span></div>'+
   e.sets.map(function(s,si){
    return '<div class="setrow'+(s.done?' done':'')+'"><span class="sn mono">'+(si+1)+'</span>'+stepper('kg',ei,si,s.kg,cfg.inc||1)+stepper('reps',ei,si,s.reps,1)+
-    '<button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'" aria-label="Set done">'+(s.pr?'★':'✓')+'</button></div>'+
-    '';
+    '<button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'" aria-label="Set done">'+(s.pr?'★':'✓')+'</button></div>';
   }).join('')+
-  (exDone(e)?'<div class="rirrow feel"><span>How was it?</span>'+feelButtons(ei,e)+'</div>':'')+
+  (exDone(e)?'<div class="rirrow feel'+(e.feel?'':' ask')+'"><span>How was it?</span>'+feelButtons(ei,e)+'</div>'+(e.feel?'':'<p class="xs" style="margin-top:6px">Your answer sets the weight for next time. Ticked by mistake? <button class="linkbtn" data-undo="'+ei+'">Undo last set</button></p>'):'')+
   '<div class="row between" style="margin-top:10px;flex-wrap:wrap;gap:8px"><span class="row" style="gap:8px">'+(e.sets.length>1&&!e.sets[e.sets.length-1].done?'<button class="btn small ghost" data-delset="'+ei+'">− set</button>':'')+'<button class="btn small ghost" data-addset="'+ei+'">+ set</button></span>'+(alts.length?'<button class="btn small ghost" data-swapopen="'+ei+'">⇄ Other options ('+alts.length+')</button>':'')+'</div>'+
-  (alts.length?'<div id="swaps-'+ei+'" hidden><div class="seg" style="margin-top:10px">'+[['today','Just today'],['always','From now on']].map(function(o){return '<button data-swapkeep="'+o[0]+'"'+(swapKeep===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div><p class="xs" style="margin-top:6px">'+(swapKeep==='always'?'Replaces it in every session.':'Only today. Good when a machine is busy.')+'</p><div class="swaps">'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div></div>':'');
+  (alts.length?'<div id="swaps-'+ei+'" hidden><div class="seg" style="margin-top:10px">'+[['today','Just today'],['always','From now on']].map(function(o){return '<button data-swapkeep="'+o[0]+'"'+(swapKeep===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div><p class="xs" style="margin-top:6px">'+(swapKeep==='always'?'Replaces it in every session.':'Only today. Good when a machine is busy.')+'</p><div class="swaps">'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div></div>':'')+
+  '<details class="how" data-how="'+esc(e.id)+'"'+(openHow[e.id]?' open':'')+'><summary><b>How to do it</b>'+(lt?'<span class="xs">Last: '+esc(lt.txt)+'</span>':'')+'</summary>'+
+   '<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+lastTime(e.id)+'</details>';
 }
+var openHow={};   /* "How to do it" folds the user opened, by exercise */
+document.addEventListener('toggle',function(ev){var d=ev.target;if(d.dataset&&d.dataset.how)openHow[d.dataset.how]=d.open;},true);
 /* Update one exercise card without redrawing the screen (keeps the photo running). */
 function refreshCard(ei){
  var ses=activeSession(),el=$('#ex-'+ei);if(!ses||!el)return;
- var e=ses.ex[ei],collapsed=exDone(e)&&!openCards[ei],media=el.querySelector('.media');
+ var e=ses.ex[ei],collapsed=exDone(e)&&!openCards[ei],media=el.querySelector('.strip');
  el.className='card ex'+(collapsed?' collapsed':'');
  if(!collapsed&&media){el.querySelector('.head').outerHTML=exHead(e,ei,ses);el.querySelector('.body').innerHTML=exBody(e,ei,ses);}
  else el.innerHTML=exInner(e,ei,ses,collapsed);
  updateTrack();
 }
 /* "Last time" line: what you did the previous time you did this exercise. */
-function lastTime(id){
+function lastTxt(id){
  var hs=E.history(state,id),l=hs[hs.length-1];
- if(!l)return '';
+ if(!l)return null;
  var same=l.sets.every(function(s){return s.kg===l.sets[0].kg;});
  var reps=l.sets.map(function(s){return s.reps;}).join(', '),p=E.pair(id);
  var txt=same?(p?E.kgText(id,l.sets[0].kg)+': '+reps+' reps':l.sets[0].kg+' kg × '+reps):l.sets.map(function(s){return s.kg+'×'+s.reps;}).join(' · ')+(p?' (kg each hand)':'');
- return '<p class="lasttime"><span>Last time · '+niceDate(l.date)+'</span><b class="mono">'+esc(txt)+'</b></p>';
+ return {date:l.date,txt:txt};
 }
+function lastTime(id){var l=lastTxt(id);return l?'<p class="lasttime"><span>Last time · '+niceDate(l.date)+'</span><b class="mono">'+esc(l.txt)+'</b></p>':'';}
 function num(v){v=String(v==null?'':v).trim().replace(',','.');return v===''||isNaN(+v)?null:+v;}
 function stepper(kind,ei,si,val,inc){
  return '<span class="step"><button data-step="'+kind+':'+ei+':'+si+':-'+inc+'" aria-label="less">−</button><input type="text" inputmode="'+(kind==='kg'?'decimal':'numeric')+'" autocomplete="off" data-val="'+kind+':'+ei+':'+si+'" value="'+esc(val==null?'':val)+'" placeholder="'+(kind==='kg'?'kg':'reps')+'"><button data-step="'+kind+':'+ei+':'+si+':'+inc+'" aria-label="more">+</button></span>';
@@ -851,15 +893,15 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-gymph]');if(!b)return;
- if(b.dataset.gymph){b.classList.toggle('big');return;}
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-zoom],[data-undo]');if(!b)return;
+ if(b.dataset.zoom){var zz=b.dataset.zoom.split(':');zoom(zz[0],+zz[1]);return;}
  if(b.dataset.wkday){wkv.sel=wkv.sel===b.dataset.wkday||b.dataset.wkday===todayISO()?null:b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
  if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
  if(b.dataset.mealdone){var di=todayISO();state.daily[di]=state.daily[di]||{};state.daily[di].meals=state.daily[di].meals||{};state.daily[di].meals[b.dataset.mealdone]=1;save();renderToday();toast('Nice — ticked off');return;}
  if(b.dataset.wuopen){var wk=b.dataset.wuopen;openWarm[wk]=!openWarm[wk];var wses=activeSession();if(!wses)return;var ww=wk==='gen'?E.WARMUP.general:E.WARMUP[wses.day].filter(function(x){return x.id===wk;})[0];var wel=$('#wu-'+wk);if(ww&&wel)wel.outerHTML=warmItem(wk,ww,wk==='gen'?ww.amount:ww.reps,wses.warm||{});return;}
  if(b.dataset.mealrow){if(ev.target.tagName==='INPUT')return;var mi=b.querySelector('input');if(mi&&!mi.disabled){mi.checked=!mi.checked;mi.dispatchEvent(new Event('change',{bubbles:true}));}return;}
  if(b.dataset.rest){rest.end+=(+b.dataset.rest)*1000;rest.total=Math.max(1,rest.total+(+b.dataset.rest));keepRest();if(rest.end>Date.now())$('#rest').classList.remove('over');tickRest();return;}
- if(b.dataset.jump){var jses=activeSession();if(jses&&!jses.warmShut){jses.warmShut=true;save();}trainFocus=+b.dataset.jump;renderTrain();scrollTo(0,0);return;}
+ if(b.dataset.jump){var jses=activeSession();if(jses){if(!jses.warmShut){jses.warmShut=true;save();}goEx(jses,+b.dataset.jump);}return;}
  if(b.dataset.pickother){var ob=$('#others');if(ob){ob.hidden=!ob.hidden;if(!ob.hidden)ob.scrollIntoView({behavior:SMOOTH,block:'start'});}return;}
  if(b.dataset.toggle){var tg=+b.dataset.toggle;openCards[tg]=!openCards[tg];refreshCard(tg);return;}
  if(b.dataset.move!=null){var mv=b.dataset.move.split('|'),moves=Object.assign({},state.settings.moves||{}),old=addDays(todayISO(),-21);
@@ -873,7 +915,13 @@ document.addEventListener('click',function(ev){
  if(b.dataset.swapopen){var box=$('#swaps-'+b.dataset.swapopen);if(box)box.hidden=!box.hidden;return;}
  if(b.dataset.swapto){var sw=b.dataset.swapto.split(':');doSwap(+sw[0],sw.slice(1).join(':'));return;}
  var ses=activeSession();
- if(b.dataset.feel){var fe=b.dataset.feel.split(':'),fx=ses.ex[+fe[0]];setFeel(fx,fe[1]);save();refreshCard(+fe[0]);if(rest.ask===+fe[0])rest.ask=null;restRir();return;}
+ if(b.dataset.feel){var fe=b.dataset.feel.split(':'),fi=+fe[0],fx=ses.ex[fi];setFeel(fx,fe[1]);save();refreshCard(fi);if(rest.ask===fi)rest.ask=null;restRir();
+  if(justDone===fi){justDone=null;var nx=nextUndone(ses,fi+1);
+   if(nx>=0)setTimeout(function(){goEx(ses,nx);toast('Next: '+nm(ses.ex[nx].id));},400);
+   else{var fb=$('[data-act="finish"]');if(fb)fb.scrollIntoView({behavior:SMOOTH,block:'center'});toast('All exercises done — tap Finish session');}}
+  return;}
+ if(b.dataset.undo){var ui=+b.dataset.undo,ux=ses.ex[ui],us=ux.sets.filter(function(x){return x.done;}).pop();if(!us)return;
+  us.done=false;delete us.pr;delete us.at;delete ux.feel;justDone=null;if(rest.ask===ui)rest.ask=null;openCards[ui]=true;save();refreshCard(ui);restRir();return;}
  if(b.dataset.step){var a=b.dataset.step.split(':'),e=ses.ex[+a[1]],si=+a[2],s=e.sets[si],inc=+a[3];var cur=+s[a[0]]||0;s[a[0]]=Math.max(0,Math.round((cur+inc)*100)/100);
   var inp=$('[data-val="'+a[0]+':'+a[1]+':'+si+'"]');if(inp)inp.value=s[a[0]];
   if(a[0]==='kg'&&!s.done)e.sets.forEach(function(x,i){if(i>si&&!x.done&&(x.kg==null||x.kg===cur)){x.kg=s.kg;var q=$('[data-val="kg:'+a[1]+':'+i+'"]');if(q)q.value=x.kg;}});
@@ -885,8 +933,9 @@ document.addEventListener('click',function(ev){
    if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+E.setText(ex.id,st.kg,st.reps)+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
    var cfg=cfgOf(ex);var lastSet=exDone(ex);// last set: no timer over the next exercise (walking to the next machine is the rest), only the question
    if(lastSet){clearInterval(rest.t);rest.end=0;keepRest();if(!ex.feel)rest.ask=+t[0];}else startRest(cfg.rest);restRir();
-   var ei=+t[0];if(lastSet)delete openCards[ei];save();refreshCard(ei);
-   if(lastSet){var nx=nextUndone(ses,ei+1);if(nx>=0)setTimeout(function(){ses.warmShut=true;trainFocus=nx;renderTrain();scrollTo(0,0);toast('Next: '+nm(ses.ex[nx].id));},700);}
+   var ei=+t[0];if(lastSet)openCards[ei]=true;save();refreshCard(ei);
+   if(lastSet){var fr=$('#ex-'+ei+' .feel');if(fr&&fr.getBoundingClientRect().bottom>innerHeight-150)fr.scrollIntoView({behavior:SMOOTH,block:'center'});}
+   if(lastSet)justDone=ei;   // no auto-jump: "How was it?" (or Undo) first, then on to the next one
    return;}
   else{st.done=false;delete st.pr;delete st.at;}
   save();refreshCard(+t[0]);return;}
@@ -894,22 +943,29 @@ document.addEventListener('click',function(ev){
  if(b.dataset.addset){var exx=ses.ex[+b.dataset.addset],lastS=exx.sets[exx.sets.length-1];exx.sets.push({kg:lastS?lastS.kg:null,reps:lastS?lastS.reps:null,rir:null,done:false});save();refreshCard(+b.dataset.addset);return;}
  var act=b.dataset.act;
  if(act==='start'){trainFocus=null;var iso=activeKey()||todayISO();if(!state.sessions[iso]){var p=planFor(iso);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
+ if(act==='sheetclose'){closeSheet();return;}
  if(act==='finish'){if(!ses)return;var n=0;ses.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done)n++;});});if(!n){toast('No sets logged yet');return;}
-  if(!confirm('Finish session with '+n+' sets logged?'))return;
+  var skipped=0,miss=ses.ex.map(function(e){var k=e.sets.filter(function(x){return !x.done;}).length;if(k&&k===e.sets.length){skipped++;return '';}return k?'<li><b>'+esc(nm(e.id))+'</b> <span class="xs">'+k+' of '+e.sets.length+' sets</span></li>':'';}).join('');
+  if(skipped)miss+='<li>'+skipped+(skipped===1?' exercise':' exercises')+' not started</li>';
+  openSheet('<h2>Finish session?</h2><p class="sm" style="margin-top:6px">'+n+(n===1?' set':' sets')+' ticked.</p>'+(miss?'<p class="sm" style="margin-top:10px">Not ticked, so not saved:</p><ul class="shop" style="margin-top:4px">'+miss+'</ul>':'')+
+   '<button class="btn wide" data-act="finishyes" style="margin-top:14px">Finish</button><button class="btn wide ghost" data-act="sheetclose" style="margin-top:8px">Keep training</button>');return;}
+ if(act==='finishyes'){closeSheet();if(!ses)return;
   var again=!!ses.reopened;delete ses.reopened;
   ses.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});});ses.done=true;if(!again||!ses.finished)ses.finished=Date.now();
-  if(!again&&E.recentStalls(state,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;toast('Two lifts stalled — the next 3 sessions are an easy week');}
-  save();stopRest();keepAwake(false);show('today');return;}
+  if(!again&&E.recentStalls(state,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;setNotice('Two lifts stalled, so the next 3 sessions are an easy week: lighter weights, fewer sets. After that the weights go back up.');}
+  save();stopRest();keepAwake(false);show('train');scrollTo(0,0);return;}
  if(act==='easy'||act==='easyoff'){var on=act==='easy',es=activeSession()||state.sessions[todayISO()];
   state.settings.deloadUntil=on?E.completedSessions(state).length+3:0;
   // today's session not started yet: redo its weights now
   if(es&&!es.done&&!es.ex.some(function(e){return e.sets.some(function(x){return x.done;});})){es.deload=on;
    es.ex.forEach(function(e){e.suggest=E.suggestIn(state,es,Object.assign({},cfgOf(e),{id:e.id}));e.sets=E.freshSets(e.suggest);});}
   save();renderToday();toast(on?'Easy week: the next 3 sessions are lighter':'Back to normal weights');return;}
- if(act==='reopen'){var rk=sessionKey(true),rs=rk&&state.sessions[rk];if(!rs||!rs.done)return;rs.done=false;rs.reopened=true;trainFocus=0;save();show('train');toast('Change what was wrong, then Finish again');return;}
+ if(act==='reopen'){var rk=sessionKey(true),rs=rk&&state.sessions[rk];if(!rs||!rs.done)return;rs.done=false;rs.reopened=true;trainFocus=0;save();show('train');return;}
  if(act==='abandon'){if(!ses||ses.reopened)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[activeKey()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='ics'){downloadBlob(E.calendarICS(state.profile,E.macrosFor(state),todayISO(),b.dataset.meals==='1'),'text/calendar','lift-reminders.ics');toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
  if(act==='install'){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(c){if(c&&c.outcome==='accepted')installEvt=null;render();});}return;}
+ if(act==='hintoff'){swipeKnown(true);var hn=$('.hint');if(hn)hn.remove();return;}
+ if(act==='noticeoff'){setNotice(null);render();return;}
  if(act==='wedit'){weighEdit=true;renderToday();var wi=$('.weigh input');if(wi)wi.focus();return;}
  if(act==='wskip'){try{localStorage.setItem('lift.wskip',todayISO());}catch(e){}renderToday();return;}
  if(act==='installlater'){try{localStorage.setItem('lift.installLater',todayISO().slice(0,7));}catch(e){}renderToday();return;}
