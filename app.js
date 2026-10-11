@@ -899,7 +899,7 @@ function volumeChart(){
  var order=['chest','shoulders','lats','middle back','triceps','biceps','quadriceps','hamstrings','glutes','calves','abdominals','lower back','traps','forearms'];
  var rows=order.filter(function(m){return vol[m]!=null||prio.indexOf(m)>=0||['chest','shoulders','lats','quadriceps','hamstrings'].indexOf(m)>=0;});
  if(!Object.keys(vol).length)return '<p class="xs">No completed sessions in the last 7 days.</p>';
- var W=340,rh=22,L=118,H=rows.length*rh+4,max=24;
+ var W=340,rh=24,L=142,H=rows.length*rh+4,max=24;   // room for 12 px labels like "middle of the back"
  var h='<svg class="chart" viewBox="0 0 '+W+' '+H+'">';
  rows.forEach(function(m,i){
   var v=vol[m]||0,isP=prio.indexOf(m)>=0,band=isP?E.RULES.volumeBand.priority:E.RULES.volumeBand.normal,y=i*rh+2;
