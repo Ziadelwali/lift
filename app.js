@@ -492,17 +492,17 @@ function finishBody(s,k){
  var mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
  var bests=[];s.ex.forEach(function(e){var b=e.sets.filter(function(x){return x.pr&&x.done;})[0];if(!b)return;
   var prev=0;E.history(state,e.id).forEach(function(hh){if(hh.date<k)hh.sets.forEach(function(x){prev=Math.max(prev,x.kg);});});
-  var up=b.kg>prev?'+'+(Math.round((b.kg-prev)*10)/10)+' kg'+(E.pair(e.id)?' each hand':''):'more reps';
+  var up=b.kg>prev?'+'+E.fmtNum(b.kg-prev)+' kg'+(E.pair(e.id)?' each hand':''):'more reps';
   bests.push('<li class="best">'+thumb(e.id)+'<span><b>'+esc(nm(e.id))+'</b><br><span class="mono">'+esc(E.setText(e.id,b.kg,b.reps))+'</span></span><span class="chip ok">'+up+'</span></li>');});
  var wk=[],m=E.mondayOf(k),done=E.completedSessions(state);for(var i=5;i>=0;i--){var a=addDays(m,-7*i),z=addDays(a,6),c=done.filter(function(d){return d>=a&&d<=z;}).length;wk.push('<i class="wdot'+(c>=2?' on':'')+'" title="'+c+' sessions"></i>');}
- return '<div class="grid3" style="margin-top:12px"><div class="stat"><div class="v">'+sets+'</div><div class="l">sets</div></div><div class="stat"><div class="v">'+(mins||'–')+'</div><div class="l">minutes</div></div><div class="stat"><div class="v">'+Math.round(vol).toLocaleString()+'</div><div class="l">kg moved</div></div></div>'+
+ return '<div class="grid3" style="margin-top:12px"><div class="stat"><div class="v">'+sets+'</div><div class="l">sets</div></div><div class="stat"><div class="v">'+(mins||'–')+'</div><div class="l">minutes</div></div><div class="stat"><div class="v">'+E.fmtNum(vol,0)+'</div><div class="l">kg moved</div></div></div>'+
   (bests.length?'<p class="eyebrow" style="margin-top:14px">★ New best'+(bests.length>1?'s':'')+'</p><ul class="bests">'+bests.join('')+'</ul>':'')+
   '<p class="eyebrow" style="margin-top:14px">Weeks on track</p><div class="wdots">'+wk.join('')+'<span class="xs">'+streakWeeks()+' in a row · 2+ sessions a week</span></div>'+nextSessionLine(k);
 }
 function sessionSummary(s){
  var sets=0,vol=0,up=0,pr=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=E.liftedKg(e.id,x.kg)*(x.reps||0);}if(x.pr)pr++;});if(e.suggest&&e.suggest.state==='up')up++;});
  var mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
- return sets+(sets===1?' set · ':' sets · ')+Math.round(vol).toLocaleString()+' kg moved'+(mins?' · '+mins+' min':'')+(up?' · '+up+' exercises went up':'')+(pr?' · ★ '+pr+' new best'+(pr>1?'s':''):'');
+ return sets+(sets===1?' set · ':' sets · ')+E.fmtNum(vol,0)+' kg moved'+(mins?' · '+mins+' min':'')+(up?' · '+up+' exercises went up':'')+(pr?' · ★ '+pr+' new best'+(pr>1?'s':''):'');
 }
 /* Morning weigh-in (and the weekly waist) first thing on Today, until it is filled in. */
 function waistDue(iso){var ks=Object.keys(state.daily).filter(function(k){return state.daily[k]&&state.daily[k].waist>0&&k<iso;}).sort(),l=ks[ks.length-1];return !(state.daily[iso]||{}).waist&&(!l||l<=addDays(iso,-7));}
@@ -873,16 +873,16 @@ function weightChart(){
  var last=t[t.length-1],g=goals(),cur=last?last.avg:state.profile.weight,next=cur>g.g1?g.g1:g.g2,ta=E.trendAdvice(state),line='';
  if(cur){var left=Math.round((cur-next)*10)/10;
   line=left>0?'<b class="mono">'+left+' kg</b> to '+(next===g.g1?'your first goal':'your goal')+' ('+next+' kg)'+(ta.rate!=null&&ta.rate<-0.05?' · at your pace ~'+Math.ceil(left/-ta.rate)+' weeks':''):'Goal reached — '+next+' kg. Set the next one under Profile.';}
- return (last?'<p class="sm" style="margin:4px 0 2px"><b class="mono" style="font-size:22px">'+last.avg.toFixed(1)+' kg</b> trend'+(ta.rate!=null?' · <b class="mono">'+(ta.rate>0?'+':'')+ta.rate.toFixed(2)+' kg/week</b>':'')+'</p>':'')+
+ return (last?'<p class="sm" style="margin:4px 0 2px"><b class="mono" style="font-size:22px">'+E.fmtNum(last.avg)+' kg</b> trend'+(ta.rate!=null?' · <b class="mono">'+(ta.rate>0?'+':'')+E.fmtNum(ta.rate,2)+' kg/week</b>':'')+'</p>':'')+
   (line?'<p class="sm" style="margin:0 0 6px">'+line+'</p>':'')+
-  lineChart(pts,{fmtX:fmtX,step:5,empty:'weigh in on the Today tab.',goals:[{y:g.g1,label:'first goal '+g.g1},{y:g.g2,label:'goal '+g.g2}]});
+  lineChart(pts,{fmtX:fmtX,step:5,months:true,empty:'weigh in on the Today tab.',goals:[{y:g.g1,label:'first goal '+g.g1},{y:g.g2,label:'goal '+g.g2}]});
 }
 function waistCard(){
  var iso=todayISO(),g=goals(),rows=Object.keys(state.daily).sort().filter(function(k){return state.daily[k]&&state.daily[k].waist>0;}),
   pts=rows.map(function(k){return {x:E.parseISO(k).getTime(),y:state.daily[k].waist};}),first=rows[0],last=rows[rows.length-1],today=(state.daily[iso]||{}).waist;
- var info=last?'<b class="mono" style="font-size:22px">'+state.daily[last].waist+' cm</b>'+(first!==last?' · '+(state.daily[last].waist-state.daily[first].waist>0?'+':'')+(Math.round((state.daily[last].waist-state.daily[first].waist)*10)/10)+' cm since '+niceDate(first):'')+' · goal under <b class="mono">'+g.waist+' cm</b>':'Goal: under <b class="mono">'+g.waist+' cm</b> (half your height).';
+ var info=last?'<b class="mono" style="font-size:22px">'+state.daily[last].waist+' cm</b>'+(first!==last?' · '+(state.daily[last].waist-state.daily[first].waist>0?'+':'')+E.fmtNum(state.daily[last].waist-state.daily[first].waist)+' cm since '+niceDate(first):'')+' · goal under <b class="mono">'+g.waist+' cm</b>':'Goal: under <b class="mono">'+g.waist+' cm</b> (half your height).';
  return '<div class="card"><h2>Waist</h2><p class="xs" style="margin:4px 0 8px">Once a week, same morning — Today asks for it. Better than the scale when you are also building muscle.</p>'+
-  '<p class="sm" style="margin:4px 0 6px">'+info+'</p>'+lineChart(pts,{fmtX:fmtX,dec:0,empty:'measure again next week to see the line.',goals:[{y:g.waist,label:'goal '+g.waist}]})+'</div>';
+  '<p class="sm" style="margin:4px 0 6px">'+info+'</p>'+lineChart(pts,{fmtX:fmtX,dec:0,months:true,empty:'measure again next week to see the line.',goals:[{y:g.waist,label:'goal '+g.waist}]})+'</div>';
 }
 /* Strength over time; the dots are each session's top set. Bests are marked; the latest top set and
    the best one carry their kg × reps. */
@@ -891,7 +891,7 @@ function liftChart(id){
  bs.forEach(function(b){if(b.best)top=b;});
  function lbl(b){return E.pair(id)?'2×'+b.kg+'×'+b.reps:b.kg+'×'+b.reps;}
  var pts=bs.map(function(b){return {x:E.parseISO(b.date).getTime(),y:b.e1rm,best:b.best&&bs.length>1,label:b===last||b===top?lbl(b):null};});
- return (last?'<p class="sm" style="margin:4px 0 6px">Best set '+esc(E.setText(id,last.kg,last.reps))+' · strength <b class="mono">'+last.e1rm+'</b> kg'+(E.pair(id)?' each hand':'')+' <span class="xs">(about what you could lift once)</span></p>':'')+lineChart(pts,{fmtX:fmtX,dec:0,months:true,empty:'complete a session with this lift.'})+
+ return (last?'<p class="sm" style="margin:4px 0 6px">Best set '+esc(E.setText(id,last.kg,last.reps))+' · strength <b class="mono">'+E.fmtNum(last.e1rm,0)+'</b> kg'+(E.pair(id)?' each hand':'')+' <span class="xs">(about what you could lift once)</span></p>':'')+lineChart(pts,{fmtX:fmtX,dec:0,months:true,empty:'complete a session with this lift.'})+
   (bs.length>1?'<p class="xs" style="margin-top:4px"><i class="lgd best"></i> new best · labels: kg × reps</p>':'');
 }
 function volumeChart(){
@@ -907,7 +907,7 @@ function volumeChart(){
   h+='<text x="'+(L-6)+'" y="'+(y+14)+'" text-anchor="end">'+esc(mw(m))+'</text>';
   h+='<rect class="band" x="'+X(band[0])+'" y="'+y+'" width="'+(X(band[1])-X(band[0]))+'" height="'+(rh-4)+'"/>';
   h+='<rect class="bar'+(isP?' prio':v<band[0]?' low':'')+'" x="'+L+'" y="'+(y+4)+'" width="'+Math.max(0,X(v)-L)+'" height="'+(rh-12)+'" rx="3"/>';
-  h+='<text x="'+(X(v)+4)+'" y="'+(y+14)+'">'+(Math.round(v*10)/10)+'</text>';
+  h+='<text x="'+(X(v)+4)+'" y="'+(y+14)+'">'+E.fmtNum(v)+'</text>';
  });
  return h+'</svg>';
 }

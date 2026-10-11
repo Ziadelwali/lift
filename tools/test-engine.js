@@ -327,5 +327,8 @@ eq('backup: some other JSON file', E.readBackup('{"name":"x","items":[]}'), null
 eq('backup: a section of the wrong kind', E.readBackup('{"sessions":[],"weight":{"2026-10-01":112}}'), null);
 eq('backup: nothing in it', E.readBackup('{"profile":{},"sessions":{},"weight":{}}'), null);
 
+eq('number style', [E.fmtNum(13125), E.fmtNum(112.45), E.fmtNum(112.04), E.fmtNum(165.8, 0), E.fmtNum(-0.25, 2), E.fmtNum(999), E.fmtNum(1234567.89), E.fmtNum(null), E.fmtNum(-0.01)],
+  ['13 125', '112.5', '112', '166', '−0.25', '999', '1 234 567.9', '–', '0']);
+
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);

@@ -243,6 +243,13 @@
     'Seated_Side_Lateral_Raise', 'Stiff-Legged_Dumbbell_Deadlift', 'Dumbbell_Incline_Row', 'Dumbbell_Bicep_Curl',
     'Hammer_Curls', 'Incline_Dumbbell_Curl', 'Reverse_Flyes'];
   function pair(id) { return PAIR.indexOf(id) !== -1; }
+  /* One number style everywhere: a point for decimals (at most `dec`, default 1, no trailing zeros)
+     and a thin space between thousands — never the phone's locale, where 13.125 could mean 13 thousand. */
+  function fmtNum(v, dec) {
+    if (v == null || !isFinite(v)) return '–';
+    var f = Math.pow(10, dec == null ? 1 : dec), r = Math.round(Math.abs(v) * f) / f, s = String(r).split('.');
+    return (v < 0 && r ? '−' : '') + s[0].replace(/\B(?=(\d{3})+$)/g, ' ') + (s[1] ? '.' + s[1] : '');
+  }
   function kgText(id, kg) { return (pair(id) ? '2 × ' : '') + kg + ' kg'; }
   function setText(id, kg, reps) { return pair(id) ? '2 × ' + kg + ' kg, ' + reps + ' reps' : kg + ' kg × ' + reps; }
   function liftedKg(id, kg) { return (kg || 0) * (pair(id) ? 2 : 1); }
@@ -883,7 +890,7 @@
 
 
   return {
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, PAIR: PAIR, pair: pair, kgText: kgText, setText: setText, liftedKg: liftedKg, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, proteinFor: proteinFor, handPlate: handPlate, palms: palms,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, PAIR: PAIR, pair: pair, fmtNum: fmtNum, kgText: kgText, setText: setText, liftedKg: liftedKg, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, proteinFor: proteinFor, handPlate: handPlate, palms: palms,
     sanitize: sanitize, readBackup: readBackup, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, roundHalf: roundHalf, lighter: lighter, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
