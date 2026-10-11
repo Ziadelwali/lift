@@ -30,6 +30,8 @@ var prof = { sex: 'm', age: 38, height: 186, weight: 112, activity: 'feet', phas
 var m = E.macros(prof);
 eq('bmr', m.bmr, 2098);
 eq('protein 2 g/kg', m.protein, 224);
+eq('protein from goal weight: 2.2 × 93 ≈ 200 g, rounded to 10', [E.macros(Object.assign({}, prof, { goal2: 93 })).protein, E.proteinFor({ weight: 112, goal2: 85 }), E.proteinFor({ weight: 112, goal2: 'x' })], [200, 190, 224]);
+eq('meals with 200 g: about 40 g each', E.mealTargets(E.macros(Object.assign({}, prof, { goal2: 93 })), {}).P, 40);
 console.log('macros', m);
 
 var st = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: {} };

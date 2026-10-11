@@ -20,7 +20,10 @@
     stallDrop: 0.9,             // cut load 10 % after two failed sessions
     sessionMinutes: 65,
     warmupMinutes: 10,          // 6–8 min uphill walk + ~2 min of moves
-    proteinPerKg: 2.0, // 2 g per kg body weight: the top of the useful range, for maximum muscle while losing fat
+    // Protein from the GOAL weight, not today's weight: 2.2 g × 93 kg ≈ 200 g ≈ 2.5 g per kg of lean mass,
+    // the top of what helps dieting lifters (Morton 2018: gains plateau near 1.6 g/kg; Helms 2014).
+    proteinPerGoalKg: 2.2,
+    proteinPerKg: 2.0, // fallback when no goal weight is set
     fatShare: 0.25,
     phase: { lean: 0.90, maintain: 1.0, bulk: 1.10 },  // lean = −10 %: small enough that muscle gain is barely slowed
     activity: { desk: 1.35, feet: 1.5, active: 1.65 },
@@ -548,13 +551,19 @@
 
   /* ---------- nutrition ---------- */
   function bmi(p) { return p.height ? p.weight / Math.pow(p.height / 100, 2) : 0; }
+  /* Daily protein in g: 2.2 × goal weight rounded to 10 (about 200 g), else 2 × body weight. */
+  function proteinFor(p) {
+    var g = +p.goal2;
+    if (g >= 40 && g <= 250) return Math.round(g * RULES.proteinPerGoalKg / 10) * 10;
+    return Math.round(p.weight * RULES.proteinPerKg);
+  }
   function macros(p) {
     if (!p || !p.weight || !p.height || !p.age) return null;
     var bmr = 10 * p.weight + 6.25 * p.height - 5 * p.age + (p.sex === 'f' ? -161 : 5);
     var tdee = bmr * (RULES.activity[p.activity] || 1.5);
     var phase = p.phase || 'lean';
     var kcal = Math.round(tdee * RULES.phase[phase] / 10) * 10;
-    var protein = Math.round(p.weight * RULES.proteinPerKg);
+    var protein = proteinFor(p);
     var fat = Math.round(kcal * RULES.fatShare / 9);
     var carbs = Math.max(0, Math.round((kcal - protein * 4 - fat * 9) / 4));
     return { bmr: Math.round(bmr), tdee: Math.round(tdee), kcal: kcal, protein: protein, fat: fat, carbs: carbs, phase: phase, bmi: bmi(p) };
@@ -784,7 +793,7 @@
 
 
   return {
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, proteinFor: proteinFor, handPlate: handPlate, palms: palms,
     sanitize: sanitize, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, roundHalf: roundHalf, lighter: lighter, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
