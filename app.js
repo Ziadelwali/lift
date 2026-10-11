@@ -23,20 +23,34 @@ var LS='lift.v1', PK='lift.pp', LSB='lift.base';
 var SYNC_SECTIONS=['profile','sessions','weight','daily','settings'];
 var state={profile:{},sessions:{},weight:{},daily:{},settings:{}};
 var saveT=null,lastSynced=null;   /* lastSynced = the state as the server last saw it from this device */
-var SYNC={url:null,ready:false,busy:false,updateTime:null,again:false,log:[]};
+var SYNC={url:null,ready:false,busy:false,updateTime:null,again:false,started:false,log:[]};
 function slog(t){var d=new Date();SYNC.log.push(d.toTimeString().slice(0,8)+' '+t);if(SYNC.log.length>8)SYNC.log.shift();var el=$('#synclog');if(el)el.textContent=SYNC.log.join(String.fromCharCode(10));}
-try{var raw=localStorage.getItem(LS);if(raw){var parsed=JSON.parse(raw);SYNC_SECTIONS.forEach(function(s){if(parsed[s])state[s]=parsed[s];});}}catch(e){}
+/* localBroken: this device's copy is missing or unreadable while it has synced before. Until the
+   server copy has been taken in, nothing may be pushed that would delete records. */
+var localBroken=false,lsErr=null;
+try{var raw=localStorage.getItem(LS);if(raw){var parsed=JSON.parse(raw);SYNC_SECTIONS.forEach(function(s){if(parsed[s])state[s]=parsed[s];});}}
+catch(e){localBroken=true;try{localStorage.setItem(LS+'.bad',raw);}catch(e2){}}
 try{var rawb=localStorage.getItem(LSB);if(rawb)lastSynced=JSON.parse(rawb);}catch(e){}
+if(!raw&&lastSynced&&SYNC_SECTIONS.some(function(s){return Object.keys(lastSynced[s]||{}).length;}))localBroken=true;
 function snapshotState(){return JSON.parse(JSON.stringify(state));}
-function setBase(b){lastSynced=b;try{localStorage.setItem(LSB,JSON.stringify(b));}catch(e){}}
+/* every localStorage write goes through here, so a full or blocked storage shows in the sync line */
+function writeLS(k,v){
+ try{localStorage.setItem(k,v);if(lsErr){lsErr=null;setSyncLine($('#syncline').textContent.replace(/^Not saved on this device.*? · /,''),null);}return true;}
+ catch(e){lsErr=(e&&e.name)||'error';slog('localStorage: '+lsErr);setSyncLine($('#syncline').textContent,false);return false;}
+}
+function setBase(b){lastSynced=b;writeLS(LSB,JSON.stringify(b));}
 function save(){
- try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}
+ writeLS(LS,JSON.stringify(state));
  clearTimeout(saveT);saveT=setTimeout(flush,600);
 }
 function setSyncLine(txt,live){
+ txt=txt.replace(/^Not saved on this device.*? · /,'');
+ if(lsErr){txt='Not saved on this device ('+lsErr+') · '+txt;live=false;}
  slog(txt);$('#syncline').textContent=txt;var d=$('#syncdot');d.className=live===true?'live':live===false?'off':'';
  var si=$('#syncinfo');if(si)si.textContent=txt;
 }
+/* records the patch would delete, per section */
+function patchDeletes(cur,base){var n={total:0};SYNC_SECTIONS.forEach(function(s){var c=cur[s]||{},k=Object.keys(base[s]||{}).filter(function(x){return !(x in c);}).length;n[s]=k;n.total+=k;});return n;}
 function fsFetch(method,qs,body){
  var ac=('AbortController' in window)?new AbortController():null,t=ac&&setTimeout(function(){ac.abort();},12000);
  return fetch(SYNC.url+qs,{method:method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined,signal:ac?ac.signal:undefined})
@@ -48,7 +62,13 @@ function flush(){
  if(SYNC.busy){SYNC.again=true;return;}
  var patch=E.restPatch(state,lastSynced||{},SYNC_SECTIONS);
  if(!patch){setSyncLine('Live sync on',true);return;}
-var snap=snapshotState();SYNC.busy=true;slog('PATCH '+patch.mask.length+' fields…');
+ // stopgap until sync v2: never let one push wipe out a lot of records
+ var del=patchDeletes(state,lastSynced||{});
+ if(del.total&&(localBroken||del.sessions>3||del.total>10)){
+  slog('push skipped: would delete '+del.total+' records ('+del.sessions+' sessions)'+(localBroken?', local copy was unreadable':''));
+  setSyncLine('Sync paused — saved here',false);return;
+ }
+ var snap=snapshotState();SYNC.busy=true;slog('PATCH '+patch.mask.length+' fields…');
  var qs='?key='+encodeURIComponent(SYNC.key)+patch.mask.map(function(m){return '&updateMask.fieldPaths='+encodeURIComponent(m);}).join('');
  fsFetch('PATCH',qs,{fields:patch.fields}).then(function(r){slog('PATCH '+r.status);
   if(r.ok)return r.json().then(function(doc){setBase(snap);SYNC.updateTime=doc.updateTime;setSyncLine('Live sync on',true);});
@@ -67,7 +87,7 @@ function adoptRemote(remote){
   if(k in (state[sec]||{}))fresh[sec][k]=state[sec][k];else delete fresh[sec][k];
  });
  state=fresh;migrate();
- try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}
+ writeLS(LS,JSON.stringify(state));
  var a=document.activeElement;
  if(a&&/^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName))a.addEventListener('blur',function(){render();},{once:true});else render();
 }
@@ -77,14 +97,15 @@ function pull(){
  if(!navigator.onLine){setSyncLine('Offline — syncs later',false);return;}
  SYNC.busy=true;slog('GET…');
  fsFetch('GET','?key='+encodeURIComponent(SYNC.key)).then(function(r){slog('GET '+r.status);
-  if(r.status===404){if(!lastSynced)setBase({});SYNC.updateTime=null;return;}
+  // no document (new, or removed on the server): push everything, never a diff against the old base
+  if(r.status===404){if(!lastSynced||Object.keys(lastSynced).length)setBase({});localBroken=false;SYNC.updateTime=null;return;}
   if(!r.ok)return r.text().then(function(t){setSyncLine('Sync rejected ('+r.status+') — saved here',false);console.warn('sync get',r.status,t.slice(0,300));});
   return r.json().then(function(doc){
    var remote=(doc.fields&&doc.fields.data)?E.fromFs(doc.fields.data)||{}:{};
-   if(!lastSynced){
+   if(!lastSynced||localBroken){
     var local=snapshotState(),merged={};
     SYNC_SECTIONS.forEach(function(sec){merged[sec]=Object.assign({},local[sec]||{},remote[sec]||{});});
-    setBase(remote);state=merged;migrate();try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}render();
+    setBase(remote);state=merged;localBroken=false;migrate();writeLS(LS,JSON.stringify(state));render();
    }else if(doc.updateTime!==SYNC.updateTime){adoptRemote(remote);setBase(remote);}
    SYNC.updateTime=doc.updateTime;setSyncLine('Live sync on',true);
   });
@@ -111,6 +132,7 @@ function freshSealed(){
 }
 function unsealFresh(pass){return unseal(pass).catch(function(){slog('config did not open — fetching the live copy');return freshSealed().then(function(){return unseal(pass);});});}
 function startSync(){
+ if(SYNC.started)return;SYNC.started=true;   // once per page load: a second call would double the polling
  var pass=null;try{pass=localStorage.getItem(PK);}catch(e){}
  if(!pass||pass==='-'||!(window.crypto&&crypto.subtle)){setSyncLine('Saved on this device only',null);return;}
  setSyncLine('Connecting…',null);slog('unsealing config…');
@@ -302,7 +324,8 @@ $$('nav.tabs button').forEach(function(b){b.addEventListener('click',function(){
    settings.schema counts the one-off migrations already applied to this data. */
 var SCHEMA=1;
 function migrate(){
- var st=state.settings,ch=false;
+ SYNC_SECTIONS.forEach(function(s){if(!state[s]||typeof state[s]!=='object'||Array.isArray(state[s]))state[s]={};});
+ var st=state.settings,ch=E.sanitize(state);
  if((st.schema||0)<1){
   // moves made before the week was pushed along automatically: push them now
   var mv=st.moves||{},au=st.autoMoves||{},mon=E.mondayOf(todayISO());
