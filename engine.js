@@ -243,6 +243,13 @@
     'Seated_Side_Lateral_Raise', 'Stiff-Legged_Dumbbell_Deadlift', 'Dumbbell_Incline_Row', 'Dumbbell_Bicep_Curl',
     'Hammer_Curls', 'Incline_Dumbbell_Curl', 'Reverse_Flyes'];
   function pair(id) { return PAIR.indexOf(id) !== -1; }
+  /* One number style everywhere: a point for decimals (at most `dec`, default 1, no trailing zeros)
+     and a thin space between thousands — never the phone's locale, where 13.125 could mean 13 thousand. */
+  function fmtNum(v, dec) {
+    if (v == null || !isFinite(v)) return '–';
+    var f = Math.pow(10, dec == null ? 1 : dec), r = Math.round(Math.abs(v) * f) / f, s = String(r).split('.');
+    return (v < 0 && r ? '−' : '') + s[0].replace(/\B(?=(\d{3})+$)/g, ' ') + (s[1] ? '.' + s[1] : '');
+  }
   function kgText(id, kg) { return (pair(id) ? '2 × ' : '') + kg + ' kg'; }
   function setText(id, kg, reps) { return pair(id) ? '2 × ' + kg + ' kg, ' + reps + ' reps' : kg + ' kg × ' + reps; }
   function liftedKg(id, kg) { return (kg || 0) * (pair(id) ? 2 : 1); }
@@ -659,6 +666,12 @@
     return slots;
   }
 
+  /* Protein from the ticked rows of a day's timeline (meals: {key: 1}). */
+  function proteinDone(slots, meals) {
+    meals = meals || {};
+    return slots.reduce(function (a, s) { return a + (meals[s.key] ? s.protein || 0 : 0); }, 0);
+  }
+
   /* ---------- calendar reminders ----------
      Repeating weekly events for the phone's calendar, so reminders work with the app closed.
      Same time on several weekdays = one event with BYDAY. Floating local times. */
@@ -759,6 +772,25 @@
     return ch;
   }
 
+  /* A backup file (Profile → Export) checked before it is used: an object holding the app's
+     sections, with at least a profile, a session or a weigh-in. Odd values are cleaned like synced
+     ones. Returns {state, sessions, weighins} or null when it isn't a Lift backup. */
+  function readBackup(text) {
+    var o; try { o = JSON.parse(text); } catch (e) { return null; }
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
+    var st = {}, any = false, bad = false;
+    ['profile', 'sessions', 'weight', 'daily', 'settings'].forEach(function (s) {
+      if (o[s] == null) st[s] = {};
+      else if (typeof o[s] !== 'object' || Array.isArray(o[s])) bad = true;
+      else { st[s] = o[s]; any = true; }
+    });
+    if (bad || !any) return null;
+    sanitize(st);
+    var n = Object.keys(st.sessions).length, w = Object.keys(st.weight).length;
+    if (!n && !w && !Object.keys(st.profile).length) return null;
+    return { state: st, sessions: n, weighins: w };
+  }
+
   /* ---------- progress ---------- */
   function weightSeries(state) {
     var w = state.weight || {};
@@ -825,16 +857,46 @@
       return { date: h.date, kg: best.kg, reps: best.reps, e1rm: Math.round(epley(best.kg, best.reps) * 10) / 10 };
     });
   }
+  /* Fix a past session: rows [{ei, si, kg, reps, del}] with kg/reps as typed. Everything is checked
+     first and nothing changes unless all of it is fine. Returns null when saved, otherwise
+     {ei, si, field} of the first problem (field 'kg', 'reps' or 'empty' when no set would be left). */
+  function editSets(ses, rows) {
+    function n(v) { v = String(v == null ? '' : v).trim().replace(',', '.'); return v === '' || isNaN(+v) ? null : +v; }
+    var plan = [], left = 0, bad = null;
+    rows.forEach(function (r) {
+      if (bad) return;
+      var e = ses.ex[r.ei], s = e && e.sets[r.si];
+      if (!s) return;
+      if (r.del) { plan.push({ s: s, del: true }); return; }
+      var kg = n(r.kg), reps = n(r.reps), bw = BODYWEIGHT.indexOf(e.id) !== -1;
+      if (kg == null || kg < 0 || kg > 500 || (kg === 0 && !bw) || Math.round(kg * 100) !== kg * 100) bad = { ei: r.ei, si: r.si, field: 'kg' };
+      else if (reps == null || reps < 1 || reps > 100 || reps % 1) bad = { ei: r.ei, si: r.si, field: 'reps' };
+      else { plan.push({ s: s, kg: kg, reps: reps }); left++; }
+    });
+    if (bad) return bad;
+    if (!left) return { ei: 0, si: 0, field: 'empty' };
+    plan.forEach(function (p) {
+      if (p.del) { p.s.gone = true; return; }
+      if (p.s.kg !== p.kg || p.s.reps !== p.reps) { p.s.kg = p.kg; p.s.reps = p.reps; delete p.s.pr; }
+    });
+    ses.ex.forEach(function (e) { e.sets = e.sets.filter(function (s) { return !s.gone; }); });
+    return null;
+  }
+  /* bestSets with best: true where the strength beat every earlier session (the first one counts) */
+  function liftPoints(state, exId) {
+    var top = 0;
+    return bestSets(state, exId).map(function (b) { var nb = b.e1rm > top; if (nb) top = b.e1rm; return Object.assign({ best: nb }, b); });
+  }
 
 
   return {
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, PAIR: PAIR, pair: pair, kgText: kgText, setText: setText, liftedKg: liftedKg, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, proteinFor: proteinFor, handPlate: handPlate, palms: palms,
-    sanitize: sanitize, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, PAIR: PAIR, pair: pair, fmtNum: fmtNum, kgText: kgText, setText: setText, liftedKg: liftedKg, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, proteinFor: proteinFor, handPlate: handPlate, palms: palms,
+    sanitize: sanitize, readBackup: readBackup, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, roundHalf: roundHalf, lighter: lighter, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
     exercisesFor: exercisesFor, idFor: idFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, suggestIn: suggestIn, feelOf: feelOf, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
-    macros: macros, timeline: timeline, weightSeries: weightSeries, weightTrend: weightTrend,
-    trendAdvice: trendAdvice, trendWeight: trendWeight, weightRate: weightRate, macrosFor: macrosFor, weeklyVolume: weeklyVolume, bestSets: bestSets
+    macros: macros, timeline: timeline, proteinDone: proteinDone, weightSeries: weightSeries, weightTrend: weightTrend,
+    trendAdvice: trendAdvice, trendWeight: trendWeight, weightRate: weightRate, macrosFor: macrosFor, weeklyVolume: weeklyVolume, bestSets: bestSets, liftPoints: liftPoints, editSets: editSets
   };
 });

@@ -33,6 +33,11 @@ eq('protein 2 g/kg', m.protein, 224);
 eq('protein from goal weight: 2.2 × 93 ≈ 200 g, rounded to 10', [E.macros(Object.assign({}, prof, { goal2: 93 })).protein, E.proteinFor({ weight: 112, goal2: 85 }), E.proteinFor({ weight: 112, goal2: 'x' })], [200, 190, 224]);
 eq('meals with 200 g: about 40 g each', E.mealTargets(E.macros(Object.assign({}, prof, { goal2: 93 })), {}).P, 40);
 console.log('macros', m);
+var tl200 = E.timeline(Object.assign({}, prof, { goal2: 93 }), { date: '2026-10-12', training: true, time: '16:00', day: 'A' }, E.macros(Object.assign({}, prof, { goal2: 93 })));
+eq('protein so far: nothing ticked', E.proteinDone(tl200, {}), 0);
+eq('protein so far: morning shake + lunch', E.proteinDone(tl200, { sh2: 1, m1: 1, train: 1 }), 35 + 40);
+eq('protein so far: all ticked ≈ the day target', E.proteinDone(tl200, { sh2: 1, m1: 1, sh1: 1, m2: 1, sh3: 1 }), 200);
+eq('protein so far: unticked (0) rows do not count', E.proteinDone(tl200, { sh2: 0, m1: 1 }), 40);
 
 var st = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: {} };
 var p = E.plan('2026-09-21', st); // Monday
@@ -290,6 +295,40 @@ eq('pair list is a subset of the dumbbell list', E.PAIR.every(function (id) { re
 eq('pair text', [E.kgText('Dumbbell_Bench_Press', 10), E.setText('Dumbbell_Bench_Press', 10, 8)], ['2 × 10 kg', '2 × 10 kg, 8 reps']);
 eq('one dumbbell / machine text', [E.kgText('One-Arm_Dumbbell_Row', 20), E.setText('Goblet_Squat', 20, 10), E.setText('Leg_Press', 100, 8)], ['20 kg', '20 kg × 10', '100 kg × 8']);
 eq('kg moved counts both hands', [E.liftedKg('Side_Lateral_Raise', 8), E.liftedKg('Goblet_Squat', 20), E.liftedKg('Plank', null)], [16, 20, 0]);
+
+// lift chart points: the top set of each session, bests marked
+function lp(d, sets) { return { done: true, ex: [{ id: 'Leg_Press', base: 'Leg_Press', sets: sets.map(function (s) { return { kg: s[0], reps: s[1], done: true }; }) }] }; }
+var lst = { sessions: { '2026-10-01': lp('', [[100, 8], [100, 7]]), '2026-10-03': lp('', [[100, 7]]), '2026-10-05': lp('', [[105, 8], [100, 10]]), '2026-10-07': lp('', [[105, 8]]) } };
+// top = the strongest set by estimated strength: 100×10 (133.3) beats 105×8 (133)
+eq('lift points: top set per session', E.liftPoints(lst, 'Leg_Press').map(function (p) { return p.kg + 'x' + p.reps; }), ['100x8', '100x7', '100x10', '105x8']);
+eq('lift points: bests marked (a tie is not a new best)', E.liftPoints(lst, 'Leg_Press').map(function (p) { return p.best; }), [true, false, true, false]);
+
+// editing a past session: all checked first, nothing changes on a mistake
+function eses() { return { done: true, ex: [{ id: 'Leg_Press', base: 'Leg_Press', sets: [{ kg: 100, reps: 8, done: true, pr: true }, { kg: 100, reps: 7, done: true }] }, { id: 'Plank', base: 'Plank', sets: [{ kg: 0, reps: 30, done: true }] }] }; }
+var es1 = eses();
+eq('edit: saved', E.editSets(es1, [{ ei: 0, si: 0, kg: '102,5', reps: '8' }, { ei: 0, si: 1, del: true }, { ei: 1, si: 0, kg: '0', reps: '45' }]), null);
+eq('edit: values, comma decimal, a changed best loses its star, deleted set gone', es1.ex.map(function (e) { return e.sets; }), [[{ kg: 102.5, reps: 8, done: true }], [{ kg: 0, reps: 45, done: true }]]);
+var es2 = eses();
+eq('edit: kg 0 on a machine is refused', E.editSets(es2, [{ ei: 0, si: 1, del: true }, { ei: 0, si: 0, kg: '0', reps: '8' }]), { ei: 0, si: 0, field: 'kg' });
+eq('edit: nothing changed after a refusal', es2.ex[0].sets.length, 2);
+eq('edit: reps must be whole', E.editSets(eses(), [{ ei: 0, si: 0, kg: '100', reps: '7.5' }]), { ei: 0, si: 0, field: 'reps' });
+eq('edit: empty kg refused', E.editSets(eses(), [{ ei: 0, si: 0, kg: '', reps: '8' }]), { ei: 0, si: 0, field: 'kg' });
+eq('edit: removing every set is refused', E.editSets(eses(), [{ ei: 0, si: 0, del: true }, { ei: 0, si: 1, del: true }, { ei: 1, si: 0, del: true }]), { ei: 0, si: 0, field: 'empty' });
+var es3 = eses(); E.editSets(es3, [{ ei: 0, si: 0, kg: '100', reps: '8' }]);
+eq('edit: an unchanged best keeps its star', es3.ex[0].sets[0].pr, true);
+
+// import: only a Lift backup is accepted, and it is cleaned like synced data
+var bk = E.readBackup(JSON.stringify({ profile: { age: '38' }, sessions: { '2026-10-01': lp('', [[100, 8]]), 'x': {} }, weight: { '2026-10-01': 112, '2026-10-02': '111.5' }, daily: {}, settings: {} }));
+eq('backup: read and cleaned', [bk.sessions, bk.weighins, bk.state.profile.age, bk.state.weight['2026-10-02']], [1, 2, 38, 111.5]);
+eq('backup: an old file without some sections is fine', E.readBackup('{"weight":{"2026-10-01":112}}').weighins, 1);
+eq('backup: not JSON', E.readBackup('hello'), null);
+eq('backup: not an object', [E.readBackup('[1,2]'), E.readBackup('5'), E.readBackup('null')], [null, null, null]);
+eq('backup: some other JSON file', E.readBackup('{"name":"x","items":[]}'), null);
+eq('backup: a section of the wrong kind', E.readBackup('{"sessions":[],"weight":{"2026-10-01":112}}'), null);
+eq('backup: nothing in it', E.readBackup('{"profile":{},"sessions":{},"weight":{}}'), null);
+
+eq('number style', [E.fmtNum(13125), E.fmtNum(112.45), E.fmtNum(112.04), E.fmtNum(165.8, 0), E.fmtNum(-0.25, 2), E.fmtNum(999), E.fmtNum(1234567.89), E.fmtNum(null), E.fmtNum(-0.01)],
+  ['13 125', '112.5', '112', '166', '−0.25', '999', '1 234 567.9', '–', '0']);
 
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);
