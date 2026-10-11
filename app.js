@@ -601,6 +601,7 @@ function renderTrain(){
  h+='<div class="row between exnav"><button class="btn small ghost" data-jump="'+pv+'"'+(pv>=0?'':' disabled')+'>‹ Back</button>'+
   (others.length?'<button class="btn small ghost" data-pickother="1">⇆ Busy? Pick another</button>':'')+
   '<button class="btn small ghost" data-jump="'+nx+'"'+(nx>=0?'':' disabled')+'>Next ›</button></div>'+
+  (nx>=0&&!swipeKnown()?'<p class="xs hint">Tip: swipe the card left or right to change exercise. <button class="linkbtn" data-act="hintoff">Got it</button></p>':'')+
   (others.length?'<div class="card" id="others" hidden><h2>What is free?</h2><p class="xs" style="margin:2px 0 8px">Order barely matters for growth — do whichever machine is free.</p><div class="swaps">'+others.map(function(i){var a=ses.ex[i].id;
    return '<button class="tile" data-jump="'+i+'"><img src="'+exOf(a).images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+esc(equipWord(a))+(ses.ex[i].sets.some(function(x){return x.done;})?' · started':'')+'</small></button>';}).join('')+'</div></div>':'');
  h+='<div class="card"><button class="btn wide" data-act="finish">Finish session</button>'+(ses.reopened?'':'<button class="btn wide ghost" data-act="abandon" style="margin-top:8px">Discard session</button>')+'</div>';
@@ -611,7 +612,9 @@ function renderTrain(){
 (function(){var x0=null,y0=null;
  document.addEventListener('touchstart',function(e){var c=e.target.closest('#v-train .card.ex');if(!c||e.target.closest('input,button,.strip,summary'))return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;},{passive:true});
  document.addEventListener('touchend',function(e){if(x0==null)return;var dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;x0=null;var ses=activeSession();
-  if(!ses||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx))return;var f=stepUndone(ses,focusOf(ses),dx<0?1:-1);if(f>=0)goEx(ses,f);},{passive:true});})();
+  if(!ses||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx))return;var f=stepUndone(ses,focusOf(ses),dx<0?1:-1);if(f>=0){swipeKnown(true);goEx(ses,f);}},{passive:true});})();
+/* One-time hint that swiping changes exercise; gone after the first swipe or "Got it". */
+function swipeKnown(set){try{if(set)localStorage.setItem('lift.swipe','1');return localStorage.getItem('lift.swipe')==='1';}catch(e){return true;}}
 /* Warm-up move: tick box + tap-to-open picture and plain steps. */
 var openWarm={};
 function warmItem(key,w,amount,wdone){
@@ -961,6 +964,7 @@ document.addEventListener('click',function(ev){
  if(act==='abandon'){if(!ses||ses.reopened)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[activeKey()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='ics'){downloadBlob(E.calendarICS(state.profile,E.macrosFor(state),todayISO(),b.dataset.meals==='1'),'text/calendar','lift-reminders.ics');toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
  if(act==='install'){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(c){if(c&&c.outcome==='accepted')installEvt=null;render();});}return;}
+ if(act==='hintoff'){swipeKnown(true);var hn=$('.hint');if(hn)hn.remove();return;}
  if(act==='noticeoff'){setNotice(null);render();return;}
  if(act==='wedit'){weighEdit=true;renderToday();var wi=$('.weigh input');if(wi)wi.focus();return;}
  if(act==='wskip'){try{localStorage.setItem('lift.wskip',todayISO());}catch(e){}renderToday();return;}
