@@ -592,9 +592,9 @@ function renderTrain(){
  clearInterval(renderTrain._t);renderTrain._t=setInterval(function(){var el=$('#elapsed');if(el&&activeSession())el.textContent=fmtSec((Date.now()-ses.started)/1000);else clearInterval(renderTrain._t);},1000);
 }
 (function(){var x0=null,y0=null;
- document.addEventListener('touchstart',function(e){var c=e.target.closest('#v-train .card.ex');if(!c||e.target.closest('input,button,.media'))return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;},{passive:true});
+ document.addEventListener('touchstart',function(e){var c=e.target.closest('#v-train .card.ex');if(!c||e.target.closest('input,button,.strip,summary'))return;x0=e.touches[0].clientX;y0=e.touches[0].clientY;},{passive:true});
  document.addEventListener('touchend',function(e){if(x0==null)return;var dx=e.changedTouches[0].clientX-x0,dy=e.changedTouches[0].clientY-y0;x0=null;var ses=activeSession();
-  if(!ses||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx))return;var f=stepUndone(ses,focusOf(ses),dx<0?1:-1);if(f>=0){ses.warmShut=true;trainFocus=f;renderTrain();scrollTo(0,0);}},{passive:true});})();
+  if(!ses||Math.abs(dx)<70||Math.abs(dy)>Math.abs(dx))return;var f=stepUndone(ses,focusOf(ses),dx<0?1:-1);if(f>=0)goEx(ses,f);},{passive:true});})();
 /* Warm-up move: tick box + tap-to-open picture and plain steps. */
 var openWarm={};
 function warmItem(key,w,amount,wdone){
@@ -611,6 +611,9 @@ function focusOf(ses){if(trainFocus==null||trainFocus<0||trainFocus>=ses.ex.leng
 function nextUndone(ses,from){for(var k=0;k<ses.ex.length;k++){var i=(from+k)%ses.ex.length;if(!exDone(ses.ex[i]))return i;}return -1;}
 /* Next/Back (and swipe) step through unfinished exercises only, wrapping round; -1 if none. Done ones: tap their picture up top. */
 function stepUndone(ses,f,dir){var n=ses.ex.length;for(var k=1;k<n;k++){var i=((f+dir*k)%n+n)%n;if(!exDone(ses.ex[i]))return i;}return -1;}
+/* Show exercise ei with its first set that isn't done in view (below the sticky bars). */
+function goEx(ses,ei){ses.warmShut=true;trainFocus=ei;renderTrain();var c=$('#ex-'+ei),r=c&&(c.querySelector('.setrow:not(.done)')||c.querySelector('.feel')||c);
+ if(!c)return;c.scrollIntoView({block:'start'});if(r!==c&&r.getBoundingClientRect().bottom>innerHeight-150)r.scrollIntoView({block:'center'});}
 function exDone(e){return e.sets.length>0&&e.sets.every(function(s){return s.done;});}
 function trackBar(ses){
  var n=ses.ex.filter(exDone).length,cur=focusOf(ses);   /* highlight the exercise on screen */
@@ -637,10 +640,22 @@ function exHead(e,ei,ses){
   (d?'<p class="exsum">'+e.sets.length+' sets · '+e.sets.map(function(s){return esc(s.kg)+'×'+esc(s.reps);}).join(', ')+' <span class="xs">· '+(E.pair(e.id)?'kg each hand · ':'')+(openCards[ei]?'tap to fold':'tap to open')+'</span></p>':'')+'</div>';
 }
 function exInner(e,ei,ses,collapsed){
- var ex=exOf(e.id);
- return exHead(e,ei,ses)+(collapsed?'':
-  '<div class="media"><img src="'+ex.images[0]+'" alt="" loading="lazy"><img class="f1" src="'+ex.images[1]+'" alt="" loading="lazy"><div class="map">'+bodyMap(ex.primary,ex.secondary)+'</div></div>'+
-  '<div class="body">'+exBody(e,ei,ses)+'</div>');
+ return exHead(e,ei,ses)+(collapsed?'':exStrip(e,ei)+'<div class="body">'+exBody(e,ei,ses)+'</div>');
+}
+/* Compact picture strip: the moving exercise picture, the muscles, and the machine at the gym.
+   Tap one to see it big. Keeps the set rows on the first screen. */
+function exStrip(e,ei){
+ var ex=exOf(e.id),g=GYM_PHOTO[e.id];
+ return '<div class="strip'+(g?'':' two')+'"><button class="sp pic" data-zoom="pic:'+ei+'" aria-label="Show the exercise bigger"><img src="'+ex.images[0]+'" alt="" loading="lazy"><img class="f1" src="'+ex.images[1]+'" alt="" loading="lazy"></button>'+
+  '<button class="sp map" data-zoom="map:'+ei+'" aria-label="Show the muscles bigger">'+bodyMap(ex.primary,ex.secondary)+'</button>'+
+  (g?'<button class="sp" data-zoom="gym:'+ei+'" aria-label="Show the machine at your gym bigger"><img src="'+g+'" alt="" loading="lazy"><span>At your gym</span></button>':'')+'</div>';
+}
+function zoom(kind,ei){
+ var ses=activeSession(),e=ses&&ses.ex[ei];if(!e)return;var ex=exOf(e.id),z=document.createElement('div');
+ z.className='zoom';z.setAttribute('role','dialog');z.setAttribute('aria-label','Picture, tap to close');
+ z.innerHTML=kind==='pic'?'<div class="zpic"><img src="'+ex.images[0]+'" alt=""><img class="f1" src="'+ex.images[1]+'" alt=""></div>':kind==='map'?'<div class="zmap">'+bodyMap(ex.primary,ex.secondary)+'</div>':'<img class="zgym" src="'+GYM_PHOTO[e.id]+'" alt="">';
+ z.innerHTML+='<p class="xs">'+esc(nm(e.id))+' · tap to close</p>';
+ z.addEventListener('click',function(){z.remove();});document.body.appendChild(z);
 }
 /* One question per exercise instead of reps-in-reserve per set: easy = 3+ left, about right = 2,
    hard = 0. The answer (e.feel) sets next time's weight and reps; it is also stored as rir on the sets. */
@@ -651,39 +666,41 @@ function setFeel(e,k){var o=FEEL.filter(function(x){return x[0]===k;})[0],done=e
 function exBody(e,ei,ses){
  var cfg=cfgOf(e),sg=e.suggest||{};
  var alts=(cfg.alts||[]).concat(e.id!==e.base?[e.base]:[]).filter(function(a){return a!==e.id&&EX[a];});
- var inf=E.info(e.id)||cfg;
- return (GYM_PHOTO[e.id]?'<button class="gymph" data-gymph="1" aria-label="Show the machine at your gym bigger"><img src="'+GYM_PHOTO[e.id]+'" alt="" loading="lazy"><span>At your gym</span></button>':'')+'<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+
-  (E.cue(e.id)?'<p class="sm cue" style="margin-top:4px"><b>Effort:</b> '+esc(E.cue(e.id))+'</p>':'')+
-  lastTime(e.id)+
-  '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?esc(E.setText(e.id,sg.kg,sg.reps)):'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
+ var inf=E.info(e.id)||cfg,lt=lastTxt(e.id);
+ return '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?esc(E.setText(e.id,sg.kg,sg.reps)):'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+
+   (E.cue(e.id)?'<br><span class="xs">'+esc(E.cue(e.id))+'</span>':'')+'</div>'+
   '<div class="sethead"><span></span><span>'+(E.pair(e.id)?'kg each hand':'kg')+'</span><span>reps</span><span></span></div>'+
   e.sets.map(function(s,si){
    return '<div class="setrow'+(s.done?' done':'')+'"><span class="sn mono">'+(si+1)+'</span>'+stepper('kg',ei,si,s.kg,cfg.inc||1)+stepper('reps',ei,si,s.reps,1)+
-    '<button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'" aria-label="Set done">'+(s.pr?'★':'✓')+'</button></div>'+
-    '';
+    '<button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'" aria-label="Set done">'+(s.pr?'★':'✓')+'</button></div>';
   }).join('')+
   (exDone(e)?'<div class="rirrow feel"><span>How was it?</span>'+feelButtons(ei,e)+'</div>':'')+
   '<div class="row between" style="margin-top:10px;flex-wrap:wrap;gap:8px"><span class="row" style="gap:8px">'+(e.sets.length>1&&!e.sets[e.sets.length-1].done?'<button class="btn small ghost" data-delset="'+ei+'">− set</button>':'')+'<button class="btn small ghost" data-addset="'+ei+'">+ set</button></span>'+(alts.length?'<button class="btn small ghost" data-swapopen="'+ei+'">⇄ Other options ('+alts.length+')</button>':'')+'</div>'+
-  (alts.length?'<div id="swaps-'+ei+'" hidden><div class="seg" style="margin-top:10px">'+[['today','Just today'],['always','From now on']].map(function(o){return '<button data-swapkeep="'+o[0]+'"'+(swapKeep===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div><p class="xs" style="margin-top:6px">'+(swapKeep==='always'?'Replaces it in every session.':'Only today. Good when a machine is busy.')+'</p><div class="swaps">'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div></div>':'');
+  (alts.length?'<div id="swaps-'+ei+'" hidden><div class="seg" style="margin-top:10px">'+[['today','Just today'],['always','From now on']].map(function(o){return '<button data-swapkeep="'+o[0]+'"'+(swapKeep===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div><p class="xs" style="margin-top:6px">'+(swapKeep==='always'?'Replaces it in every session.':'Only today. Good when a machine is busy.')+'</p><div class="swaps">'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div></div>':'')+
+  '<details class="how" data-how="'+esc(e.id)+'"'+(openHow[e.id]?' open':'')+'><summary><b>How to do it</b>'+(lt?'<span class="xs">Last: '+esc(lt.txt)+'</span>':'')+'</summary>'+
+   '<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+lastTime(e.id)+'</details>';
 }
+var openHow={};   /* "How to do it" folds the user opened, by exercise */
+document.addEventListener('toggle',function(ev){var d=ev.target;if(d.dataset&&d.dataset.how)openHow[d.dataset.how]=d.open;},true);
 /* Update one exercise card without redrawing the screen (keeps the photo running). */
 function refreshCard(ei){
  var ses=activeSession(),el=$('#ex-'+ei);if(!ses||!el)return;
- var e=ses.ex[ei],collapsed=exDone(e)&&!openCards[ei],media=el.querySelector('.media');
+ var e=ses.ex[ei],collapsed=exDone(e)&&!openCards[ei],media=el.querySelector('.strip');
  el.className='card ex'+(collapsed?' collapsed':'');
  if(!collapsed&&media){el.querySelector('.head').outerHTML=exHead(e,ei,ses);el.querySelector('.body').innerHTML=exBody(e,ei,ses);}
  else el.innerHTML=exInner(e,ei,ses,collapsed);
  updateTrack();
 }
 /* "Last time" line: what you did the previous time you did this exercise. */
-function lastTime(id){
+function lastTxt(id){
  var hs=E.history(state,id),l=hs[hs.length-1];
- if(!l)return '';
+ if(!l)return null;
  var same=l.sets.every(function(s){return s.kg===l.sets[0].kg;});
  var reps=l.sets.map(function(s){return s.reps;}).join(', '),p=E.pair(id);
  var txt=same?(p?E.kgText(id,l.sets[0].kg)+': '+reps+' reps':l.sets[0].kg+' kg × '+reps):l.sets.map(function(s){return s.kg+'×'+s.reps;}).join(' · ')+(p?' (kg each hand)':'');
- return '<p class="lasttime"><span>Last time · '+niceDate(l.date)+'</span><b class="mono">'+esc(txt)+'</b></p>';
+ return {date:l.date,txt:txt};
 }
+function lastTime(id){var l=lastTxt(id);return l?'<p class="lasttime"><span>Last time · '+niceDate(l.date)+'</span><b class="mono">'+esc(l.txt)+'</b></p>':'';}
 function num(v){v=String(v==null?'':v).trim().replace(',','.');return v===''||isNaN(+v)?null:+v;}
 function stepper(kind,ei,si,val,inc){
  return '<span class="step"><button data-step="'+kind+':'+ei+':'+si+':-'+inc+'" aria-label="less">−</button><input type="text" inputmode="'+(kind==='kg'?'decimal':'numeric')+'" autocomplete="off" data-val="'+kind+':'+ei+':'+si+'" value="'+esc(val==null?'':val)+'" placeholder="'+(kind==='kg'?'kg':'reps')+'"><button data-step="'+kind+':'+ei+':'+si+':'+inc+'" aria-label="more">+</button></span>';
@@ -855,15 +872,15 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-gymph]');if(!b)return;
- if(b.dataset.gymph){b.classList.toggle('big');return;}
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-zoom]');if(!b)return;
+ if(b.dataset.zoom){var zz=b.dataset.zoom.split(':');zoom(zz[0],+zz[1]);return;}
  if(b.dataset.wkday){wkv.sel=wkv.sel===b.dataset.wkday||b.dataset.wkday===todayISO()?null:b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
  if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
  if(b.dataset.mealdone){var di=todayISO();state.daily[di]=state.daily[di]||{};state.daily[di].meals=state.daily[di].meals||{};state.daily[di].meals[b.dataset.mealdone]=1;save();renderToday();toast('Nice — ticked off');return;}
  if(b.dataset.wuopen){var wk=b.dataset.wuopen;openWarm[wk]=!openWarm[wk];var wses=activeSession();if(!wses)return;var ww=wk==='gen'?E.WARMUP.general:E.WARMUP[wses.day].filter(function(x){return x.id===wk;})[0];var wel=$('#wu-'+wk);if(ww&&wel)wel.outerHTML=warmItem(wk,ww,wk==='gen'?ww.amount:ww.reps,wses.warm||{});return;}
  if(b.dataset.mealrow){if(ev.target.tagName==='INPUT')return;var mi=b.querySelector('input');if(mi&&!mi.disabled){mi.checked=!mi.checked;mi.dispatchEvent(new Event('change',{bubbles:true}));}return;}
  if(b.dataset.rest){rest.end+=(+b.dataset.rest)*1000;rest.total=Math.max(1,rest.total+(+b.dataset.rest));keepRest();if(rest.end>Date.now())$('#rest').classList.remove('over');tickRest();return;}
- if(b.dataset.jump){var jses=activeSession();if(jses&&!jses.warmShut){jses.warmShut=true;save();}trainFocus=+b.dataset.jump;renderTrain();scrollTo(0,0);return;}
+ if(b.dataset.jump){var jses=activeSession();if(jses){if(!jses.warmShut){jses.warmShut=true;save();}goEx(jses,+b.dataset.jump);}return;}
  if(b.dataset.pickother){var ob=$('#others');if(ob){ob.hidden=!ob.hidden;if(!ob.hidden)ob.scrollIntoView({behavior:SMOOTH,block:'start'});}return;}
  if(b.dataset.toggle){var tg=+b.dataset.toggle;openCards[tg]=!openCards[tg];refreshCard(tg);return;}
  if(b.dataset.move!=null){var mv=b.dataset.move.split('|'),moves=Object.assign({},state.settings.moves||{}),old=addDays(todayISO(),-21);
