@@ -18,8 +18,13 @@ eq('up', E.suggest(cfg, [h([[40, 12, 2], [40, 12, 1], [40, 12, 0]])]).kg, 42.5);
 eq('up reps', E.suggest(cfg, [h([[40, 12, 2], [40, 12, 1], [40, 12, 0]])]).reps, 8);
 eq('hold', E.suggest(cfg, [h([[42.5, 8, 1], [42.5, 7, 0], [42.5, 6, 0]])]).state, 'hold');
 eq('drop', E.suggest(cfg, [h([[42.5, 7, 0], [42.5, 7, 0]]), h([[42.5, 8, 1], [42.5, 7, 0]])]).kg, 37.5);
-eq('deload', E.suggest(cfg, [h([[40, 10, 2]])], { deload: true }), { kg: 35, reps: 8, sets: 2, state: 'deload', note: 'Deload week: lighter, fewer sets, 3–4 reps to spare.' });
+eq('deload', E.suggest(cfg, [h([[40, 10, 2]])], { deload: true }), { kg: 35, reps: 8, sets: 2, state: 'deload', note: 'Easy week: lighter, fewer sets, 3–4 reps to spare.' });
 eq('ramp', E.rampSets(80), [{ kg: 40, reps: 8 }, { kg: 55, reps: 5 }, { kg: 67.5, reps: 2 }]);
+eq('ramp on dumbbells uses real dumbbells (2 kg steps)', E.rampSets(27, 'Dumbbell_Bench_Press').map(function (r) { return r.kg; }), [14, 18, 22]);
+// weight steps: one step up from what was lifted, only rounded to 0.5 kg
+eq('25 + 2 = 27, not 28', E.suggest({ id: 'Incline_Dumbbell_Press', sets: 3, reps: [8, 12], inc: 2 }, [h([[25, 12, 2], [25, 12, 2], [25, 12, 2]])]).kg, 27);
+eq('lighter: whole steps down', [E.lighter(42.5, 0.9, 2.5), E.lighter(25, 0.9, 2), E.lighter(2, 0.9, 2), E.lighter(0, 0.9, 2)], [37.5, 23, 2, 0]);
+eq('bodyweight sets count with kg 0', E.history({ sessions: { '2026-10-01': { done: true, ex: [{ id: 'Plank', sets: [{ kg: 0, reps: 30, done: true }] }, { id: 'Leg_Press', sets: [{ kg: 0, reps: 10, done: true }] }] } } }, 'Plank').length, 1);
 
 var prof = { sex: 'm', age: 38, height: 186, weight: 112, activity: 'feet', phase: 'lean', priority: ['shoulders', 'back'], sched: { 1: '16:00', 3: '16:00', 5: '16:00' }, wake: '06:30', bed: '22:30' };
 var m = E.macros(prof);
@@ -31,9 +36,12 @@ var st = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: {} };
 var p = E.plan('2026-09-21', st); // Monday
 eq('plan monday A', [p.training, p.day, p.calibration, p.week], [true, 'A', true, 1]);
 eq('plan tuesday rest', E.plan('2026-09-22', st).training, false);
-eq('exercises A count', p.exercises.length, 9);
-eq('exercises A no prio', E.exercisesFor('A', { priority: [] }).length, 8);
-eq('exercises A default prio', E.exercisesFor('A', {}).length, 9);
+eq('exercises A count', p.exercises.length, 10);
+eq('exercises A no prio', E.exercisesFor('A', { priority: [] }).length, 9);
+eq('exercises A default prio', E.exercisesFor('A', {}).length, 10);
+eq('leg extension 2×10–15 right after the leg curl in A', (function () { var a = E.PROGRAM.A.map(function (c) { return c.id; }), i = a.indexOf('Leg_Extensions'); return [a[i - 1], E.PROGRAM.A[i].sets, E.PROGRAM.A[i].reps]; })(), ['Seated_Leg_Curl', 2, [10, 15]]);
+var quads = function (d) { return E.exercisesFor(d, prof).filter(function (c) { return ['Leg_Press', 'Smith_Machine_Squat', 'Leg_Extensions'].indexOf(c.id) >= 0; }).reduce(function (a, c) { return a + c.sets; }, 0); };
+eq('front of thigh: 11–13 hard sets a week (A-B-A / B-A-B)', [2 * quads('A') + quads('B'), quads('A') + 2 * quads('B')], [13, 11]);
 var ses = E.buildSession(p, st);
 eq('session sets calib', ses.ex[0].sets.length, 2);
 // complete 3 sessions → week 2, day B next
@@ -46,13 +54,80 @@ var p4 = E.plan('2026-09-28', st);
 eq('week 2 day B', [p4.day, p4.week, p4.calibration], ['B', 2, false]);
 var s4 = E.buildSession(p4, st);
 eq('after calibration: weight set from the best set', s4.ex[0].suggest.state, 'set');
-eq('week 2 hack squat kg', s4.ex[0].suggest.kg, 45);
+eq('week 2 squat kg (40×12 +1 in the tank, Epley capped at 12)', s4.ex[0].suggest.kg, 40);
 
 // calibration estimate from real week-1 numbers (bench 50×14, no tank logged → 2)
 var cb = { id: 'Machine_Bench_Press', sets: 3, reps: [6, 10], inc: 2 };
-eq('calibration estimate bench', E.suggest(cb, [{ date: 'x', calib: true, sets: [{ kg: 44, reps: 10, rir: 2, done: true }, { kg: 50, reps: 14, done: true }] }]).kg, 58);
+eq('calibration estimate bench (50×14 counts as 12 reps)', E.suggest(cb, [{ date: 'x', calib: true, sets: [{ kg: 44, reps: 10, rir: 2, done: true }, { kg: 50, reps: 14, done: true }] }]).kg, 52);
 eq('calibration estimate capped at 30 kg dumbbells', E.suggest({ id: 'Dumbbell_Shoulder_Press', sets: 3, reps: [8, 12], inc: 2 }, [{ date: 'x', calib: true, sets: [{ kg: 30, reps: 15, done: true }] }]).kg, 30);
 eq('normal progression after a normal session', E.suggest(cfg, [h([[40, 12, 2], [40, 12, 1]])]).state, 'up');
+// "How was it?" drives progression (Easy / About right / Hard)
+function hf(sets, feel) { var x = h(sets); x.feel = feel; return x; }
+var top = [[40, 12], [40, 12], [40, 12]], mid = [[40, 10], [40, 10], [40, 9]], low = [[40, 7], [40, 8], [40, 8]];
+function kr(sg) { return [sg.kg, sg.reps, sg.state]; }
+eq('top + easy: up 2 steps', kr(E.suggest(cfg, [hf(top, 'easy')])), [45, 10, 'up']);
+eq('top + about right: up 1 step', kr(E.suggest(cfg, [hf(top, 'right')])), [42.5, 10, 'up']);
+eq('top + hard: up 1 step, bottom of the range', kr(E.suggest(cfg, [hf(top, 'hard')])), [42.5, 8, 'up']);
+eq('top + easy on dumbbells: 1 step only', E.suggest(E.findCfg('Incline_Dumbbell_Press'), [hf([[20, 12], [20, 12], [20, 12]], 'easy')]).kg, 22);
+eq('in range + easy: +2 reps', kr(E.suggest(cfg, [hf(mid, 'easy')])), [40, 11, 'push']);
+eq('in range + about right: +1 rep', kr(E.suggest(cfg, [hf(mid, 'right')])), [40, 10, 'push']);
+eq('in range + hard: same reps again', kr(E.suggest(cfg, [hf(mid, 'hard')])), [40, 9, 'again']);
+eq('+2 reps stops at the top', E.suggest(cfg, [hf([[40, 11], [40, 11], [40, 12]], 'easy')]).reps, 12);
+['easy', 'right', 'hard'].forEach(function (f) { eq('below range + ' + f + ': hold', E.suggest(cfg, [hf(low, f)]).state, 'hold'); });
+eq('below range twice: drop, whatever the feel', E.suggest(cfg, [hf(low, 'easy'), hf(low, 'easy')]).state, 'drop');
+eq('no answer: the last set rir (3 = easy)', E.suggest(cfg, [h([[40, 10, null], [40, 10, null], [40, 9, 3]])]).reps, 11);
+eq('feel is read from the session', E.history({ sessions: { '2026-10-01': { done: true, ex: [{ id: 'X', feel: 'easy', suggest: { state: 'push' }, sets: [{ kg: 40, reps: 10, done: true }] }] } } }, 'X')[0].feel, 'easy');
+// bodyweight (plank): kg stays 0, progress by reps
+eq('plank first time: kg 0', E.suggest({ id: 'Plank', sets: 2, reps: [10, 15], inc: 2.5 }, []).kg, 0);
+eq('plank: never adds weight', kr(E.suggest({ id: 'Plank', sets: 2, reps: [10, 15], inc: 2.5 }, [hf([[0, 30], [0, 30]], 'right')])), [0, 31, 'push']);
+
+// finding weights is per exercise, not "the first 3 sessions"
+eq('first time on an exercise: 2 sets', E.suggest(cfg, []).sets, 2);
+var fst = { profile: prof, sessions: {}, settings: {} };
+['2026-09-21', '2026-09-23'].forEach(function (d) {
+  var s = E.buildSession(E.plan(d, fst), fst);
+  s.ex.forEach(function (e) { e.sets.forEach(function (x) { x.kg = 30; x.reps = 12; x.done = true; }); });
+  s.done = true; fst.sessions[d] = s;
+});
+var p3 = E.plan('2026-09-25', fst), s3 = E.buildSession(p3, fst);
+eq('3rd session (A again): not a finding session', p3.calibration, false);
+eq('3rd session: weights set from the finding sets, all sets', [s3.ex[0].suggest.state, s3.ex[0].sets.length], ['set', 3]);
+fst.settings.swaps = { Leg_Press: 'Smith_Machine_Squat' };
+fst.sessions['2026-09-23'].ex[0].id = 'Goblet_Squat';   // B's squat was swapped that day: Smith squat is still new
+var s3b = E.buildSession(E.plan('2026-09-25', fst), fst);
+eq('a swap to a new exercise finds its weight (2 sets)', [s3b.ex[0].id, s3b.ex[0].suggest.state, s3b.ex[0].sets.length], ['Smith_Machine_Squat', 'calibrate', 2]);
+s3b.ex[0].sets.forEach(function (x) { x.kg = 60; x.reps = 12; x.done = true; }); s3b.done = true; fst.sessions['2026-09-25'] = s3b;
+eq('next time, the swapped exercise gets its weight from those sets', E.suggest(E.findCfg('Smith_Machine_Squat'), E.history(fst, 'Smith_Machine_Squat')).state, 'set');
+
+// easy week (deload): only after stalls or on request; afterwards back to the pre-deload weights
+function hs(sets, state, feel) { var x = { id: 'X', feel: feel, suggest: { state: state }, sets: sets.map(function (s) { return { kg: s[0], reps: s[1], done: true }; }) }; return x; }
+function sesOn(d, x, extra) { return Object.assign({ day: 'A', done: true, ex: [x] }, extra || {}); }
+var dl = { sessions: {
+  '2026-10-05': sesOn('', hs([[50, 10], [50, 10], [50, 10]], 'push', 'right')),
+  '2026-10-07': sesOn('', hs([[45, 8], [45, 8]], 'deload', 'easy'), { deload: true }),
+  '2026-10-09': sesOn('', hs([[45, 8], [45, 8]], 'deload', 'easy'), { deload: true }) } };
+eq('after an easy week: from the last normal session (50 kg), not the easy-week 45', kr(E.suggest(cfg, E.history(dl, 'X'))), [50, 11, 'push']);
+eq('old data: a session flagged deload counts as light', E.history({ sessions: { '2026-10-07': { done: true, deload: true, ex: [{ id: 'X', sets: [{ kg: 45, reps: 8, done: true }] }] } } }, 'X')[0].light, true);
+var dst = { profile: prof, sessions: {}, settings: {} }, dd = '2026-09-07';
+var allEx = E.PROGRAM.A.concat(E.PROGRAM.B).map(function (c) { return { id: c.id, base: c.id, suggest: { state: 'push' }, sets: [{ kg: 20, reps: 10, done: true }] }; });
+for (var di2 = 0; di2 < 18; di2++) { dst.sessions[dd] = { day: di2 % 2 ? 'B' : 'A', done: true, ex: allEx }; dd = E.addDaysISO(dd, di2 % 3 === 2 ? 3 : 2); }
+eq('no fixed easy week every 6th week', E.plan(dd, dst).deload, false);
+dst.settings.deloadUntil = 18 + 3;
+eq('stall/asked easy week: the next 3 sessions', E.plan(dd, dst).deload, true);
+// coming back after a break
+var brk = { profile: prof, settings: {}, sessions: { '2026-09-02': sesOn('', hs([[50, 10], [50, 10], [50, 10]], 'push', 'right')) } };
+eq('13 days off: normal', E.plan('2026-09-15', brk).back, null);
+eq('14 days off: light first session', E.plan('2026-09-16', brk).back, 'light');
+eq('42 days off: find weights again', E.plan('2026-10-14', brk).back, 'refind');
+var bs = E.suggest(cfg, E.history(brk, 'X'), { back: 'light' });
+eq('first session back: 10 % lighter, same sets', [bs.kg, bs.sets, bs.state], [45, 3, 'back']);
+var rf = E.suggest(cfg, E.history(brk, 'X'), { back: 'refind' });
+eq('6+ weeks off: 2 finding sets', [rf.state, rf.sets], ['calibrate', 2]);
+brk.sessions['2026-09-16'] = sesOn('', hs([[45, 10], [45, 10], [45, 10]], 'back', 'easy'), { back: 'light' });
+eq('after the light session: back to the old weight', E.suggest(cfg, E.history(brk, 'X')).kg, 50);
+var bses = E.buildSession(E.plan('2026-09-30', { profile: prof, settings: {}, sessions: { '2026-09-02': { day: 'B', done: true, ex: [{ id: 'Smith_Machine_Squat', base: 'Smith_Machine_Squat', suggest: { state: 'push' }, sets: [{ kg: 100, reps: 8, done: true }, { kg: 100, reps: 8, done: true }] }] } } }), { profile: prof, settings: {}, sessions: { '2026-09-02': { day: 'B', done: true, ex: [{ id: 'Smith_Machine_Squat', base: 'Smith_Machine_Squat', suggest: { state: 'push' }, sets: [{ kg: 100, reps: 8, done: true }, { kg: 100, reps: 8, done: true }] }] } } });
+eq('a session after a break remembers it', [bses.back, bses.ex[0].suggest.kg], ['light', 90]);
+
 // moved and skipped sessions
 var mst = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: { moves: { '2026-09-25': '2026-09-26', '2026-09-28': '' } } };
 eq('moved away: Friday rests', E.plan('2026-09-25', mst).training, false);
@@ -126,6 +201,10 @@ E.PROGRAM.A.concat(E.PROGRAM.B).forEach(function (c) { allIds.push(c.id); (c.alt
 eq('all have where/form', allIds.filter(function (id) { var i = E.info(id); return !(i && i.where && i.tip); }), []);
 eq('all have plain names', allIds.filter(function (id) { return !E.LABEL[id]; }), []);
 
+eq('effort: machines to no clean rep on the last set, big lifts 1–2 left', [E.cue('Leg_Extensions'), E.cue('Leg_Press')], ['Last set: until no clean rep is left.', 'Stop with 1–2 reps left in the tank.']);
+eq('stretch cue on the leg curl', E.cue('Seated_Leg_Curl'), 'Slow down, pause 1 s in the stretch. Last set: until no clean rep is left.');
+eq('calves: half reps at the bottom', /half reps/.test(E.cue('Calf_Press_On_The_Leg_Press_Machine')), true);
+eq('effort lines stay short', allIds.filter(function (id) { return E.cue(id).length > 80; }), []);
 var warm = [E.WARMUP.general].concat(E.WARMUP.A, E.WARMUP.B);
 eq('warm-ups explain how', warm.filter(function (w) { return !(w.how && w.how.length); }).map(function (w) { return w.id; }), []);
 

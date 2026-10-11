@@ -336,7 +336,7 @@ function migrate(){
  Object.keys(st.swaps||{}).forEach(function(k){if(!EX[st.swaps[k]]||!EX[k]){delete st.swaps[k];ch=true;}});
  var ses=activeSession();
  if(ses)ses.ex.forEach(function(e){if(!EX[e.id]&&EX[e.base]&&!e.sets.some(function(x){return x.done;})){
-  e.id=e.base;e.suggest=E.suggest(cfgOf(e),E.history(state,e.base),{calibration:ses.calibration,deload:ses.deload});e.sets=E.freshSets(e.suggest);ch=true;}});
+  e.id=e.base;e.suggest=E.suggestIn(state,ses,cfgOf(e));e.sets=E.freshSets(e.suggest);ch=true;}});
  // forgot Finish: a past session with ticked sets counts (for progression and the streak) as it was left
  var act=activeKey(),saved=[];
  Object.keys(state.sessions).sort().forEach(function(k){var s=state.sessions[k];
@@ -370,9 +370,9 @@ function renderToday(){
   var exs=(ses?ses.ex.map(function(e){var c=E.findCfg(e.base)||{};return {id:e.id,prio:c.prio};}):p.exercises);
   sesCard='<div class="card t-train"><div class="hero"><span class="restico'+(ses&&ses.done?' done':'')+'">'+(ses&&ses.done?ICON_CHECK:ICON_LIFT)+'</span><div class="cap"><b>'+(ses&&ses.done?'Session '+p.day+' done':'Training · '+esc(p.time||'—'))+'</b><span>Session '+p.day+' · '+exs.length+' exercises · ~'+E.RULES.sessionMinutes+' min</span></div></div><div class="sunline"></div>'+
    '<div class="row between" style="margin-top:8px"><span class="eyebrow">Today\'s plan</span>'+
-   (p.calibration?'<span class="badge calib">calibration week</span>':p.deload?'<span class="badge deload">deload week</span>':'<span class="badge">week '+p.week+'</span>')+'</div>'+
-   '<p class="sm" style="margin:6px 0 10px">'+(p.calibration?'This week is about finding your weights: 2 sets per exercise, stop with 3 reps in the tank, log honestly. Next week the app starts pushing.':p.deload?'Lighter loads, half the sets. You grow while you recover; skipping this week is how people get hurt.':'Full body. Compounds first, 1–3 reps in reserve on every working set.')+'</p>'+
-   moveNote(iso,p,ses)+
+   (p.calibration?'<span class="badge calib">calibration week</span>':p.deload?'<span class="badge deload">easy week</span>':'<span class="badge">week '+p.week+'</span>')+'</div>'+
+   '<p class="sm" style="margin:6px 0 10px">'+(p.calibration?'All new: 2 sets each to find your weights. Stop with 3 reps in the tank and log honestly. Next time the app sets the weights.':p.back==='refind'?'Long break: 2 sets each to find your weights again. Stop with 3 reps in the tank.':p.back?'First time back after a break: 10 % lighter, same sets. Normal weights next time.':p.deload?'Easy week: lighter loads, fewer sets. Afterwards you pick up where you left off.':'Full body, big lifts first. “How was it?” after each exercise sets the next weights.')+'</p>'+
+   moveNote(iso,p,ses)+easyLink(p,ses)+
    (ses&&ses.done?'':'<details class="fold"><summary><span class="eyebrow">'+exs.length+' exercises</span></summary><div class="exlist" style="margin-top:6px">'+exs.map(function(c){return exRow(c.id,'',c.prio?'prio':'');}).join('')+'</div></details>')+
    (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>'+FIXLINK:'<button class="btn wide" data-act="start" style="margin-top:14px">'+(ses?'Continue session':'Start session')+'</button>')+
    '</div>';
@@ -460,6 +460,11 @@ function restNote(iso,p){
 function nextSessionLine(iso){
  var d=E.parseISO(iso);for(var i=1;i<=7;i++){d.setDate(d.getDate()+1);var n=E.isoDate(d),pp=planFor(n);if(pp.training)return '<p class="xs" style="margin-top:8px">Next: session '+pp.day+' · '+niceDate(n)+' '+esc(pp.time)+'</p>';}
  return '';
+}
+/* An easy week (lighter, fewer sets) when you ask for one; undo while today's session is untouched. */
+function easyLink(p,ses){
+ if(p.calibration||(ses&&(ses.done||ses.ex.some(function(e){return e.sets.some(function(x){return x.done;});}))))return '';
+ return '<p class="xs" style="margin:-4px 0 8px">'+(p.deload?'Easy week. <button class="linkbtn" data-act="easyoff">Back to normal weights</button>':'Feeling run down? <button class="linkbtn" data-act="easy">Take an easy week</button>')+'</p>';
 }
 var ANYWAY='<p class="xs" style="margin-top:10px">Want to train anyway? <button class="linkbtn" data-act="start">Start a session</button></p>';
 var FIXLINK='<p class="xs" style="margin-top:6px">Wrong number or a forgotten set? <button class="linkbtn" data-act="reopen">Fix a mistake</button></p>';
@@ -561,11 +566,11 @@ function renderTrain(){
  var wl=E.WARMUP,firstRamp=null;
  for(var i=0;i<ses.ex.length;i++){var c=E.findCfg(ses.ex[i].base);if(c&&c.ramp&&ses.ex[i].sets[0]&&ses.ex[i].sets[0].kg){firstRamp=ses.ex[i];break;}}
  var wdone=ses.warm||{},anySet=ses.ex.some(function(e){return e.sets.some(function(x){return x.done;});});
- h+='<details class="card fold" id="warmup"'+(anySet||ses.warmShut?'':' open')+'><summary><h2>Warm-up</h2><span class="xs">≤ '+E.RULES.warmupMinutes+' min</span></summary>'+
+ h+='<details class="card fold" id="warmup"'+(anySet||ses.warmShut?'':' open')+'><summary><h2>Warm-up</h2><span class="xs">about '+E.RULES.warmupMinutes+' min</span></summary>'+
   '<p class="xs" style="margin-top:2px">Tap a move to see how it\'s done. Tick the box when you\'ve done it.</p>'+
   warmItem('gen',wl.general,wl.general.amount,wdone)+
   wl[ses.day].map(function(w){return warmItem(w.id,w,w.reps,wdone);}).join('')+
-  (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(nm(firstRamp.id))+': '+E.rampSets(firstRamp.sets[0].kg).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
+  (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(nm(firstRamp.id))+': '+E.rampSets(firstRamp.sets[0].kg,firstRamp.id).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
   '</details>';
  /* one exercise at a time; the others are a tap away */
  var f=focusOf(ses),others=ses.ex.map(function(e,i){return i;}).filter(function(i){return i!==f&&!exDone(ses.ex[i]);});
@@ -605,7 +610,7 @@ function stepUndone(ses,f,dir){var n=ses.ex.length;for(var k=1;k<n;k++){var i=((
 function exDone(e){return e.sets.length>0&&e.sets.every(function(s){return s.done;});}
 function trackBar(ses){
  var n=ses.ex.filter(exDone).length,cur=focusOf(ses);   /* highlight the exercise on screen */
- return '<div class="trackbar" id="trackbar"><div class="row between"><span class="eyebrow">Session '+ses.day+(ses.calibration?' · calibration':ses.deload?' · deload':' · week '+ses.week)+'</span><span class="xs mono"><b>'+n+'</b>/'+ses.ex.length+' done · <span id="elapsed">'+fmtSec((Date.now()-ses.started)/1000)+'</span></span></div>'+
+ return '<div class="trackbar" id="trackbar"><div class="row between"><span class="eyebrow">Session '+ses.day+(ses.calibration?' · calibration':ses.deload?' · easy week':' · week '+ses.week)+'</span><span class="xs mono"><b>'+n+'</b>/'+ses.ex.length+' done · <span id="elapsed">'+fmtSec((Date.now()-ses.started)/1000)+'</span></span></div>'+
   '<div class="track"><i style="width:'+Math.round(n/ses.ex.length*100)+'%"></i></div>'+
   '<div class="dots">'+ses.ex.map(function(e,ei){return '<button class="dot'+(exDone(e)?' done':e.sets.some(function(s){return s.done;})?' part':'')+(ei===cur?' cur':'')+'" data-jump="'+ei+'" aria-label="'+esc(nm(e.id))+'">'+thumb(e.id)+'</button>';}).join('')+'</div></div>';
 }
@@ -633,8 +638,8 @@ function exInner(e,ei,ses,collapsed){
   '<div class="media"><img src="'+ex.images[0]+'" alt="" loading="lazy"><img class="f1" src="'+ex.images[1]+'" alt="" loading="lazy"><div class="map">'+bodyMap(ex.primary,ex.secondary)+'</div></div>'+
   '<div class="body">'+exBody(e,ei,ses)+'</div>');
 }
-/* One question per exercise instead of reps-in-reserve per set. Stored as rir on the sets
-   (easy = 3+ left, about right = 2, hard = 0) so the weight suggestions use it. */
+/* One question per exercise instead of reps-in-reserve per set: easy = 3+ left, about right = 2,
+   hard = 0. The answer (e.feel) sets next time's weight and reps; it is also stored as rir on the sets. */
 var FEEL=[['easy','Easy',3],['right','About right',2],['hard','Hard',0]];
 function feelButtons(ei,e){return FEEL.map(function(o){return '<button data-feel="'+ei+':'+o[0]+'"'+(e.feel===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('');}
 function setFeel(e,k){var o=FEEL.filter(function(x){return x[0]===k;})[0],done=e.sets.filter(function(x){return x.done;});if(!o||!done.length)return;
@@ -644,11 +649,12 @@ function exBody(e,ei,ses){
  var alts=(cfg.alts||[]).concat(e.id!==e.base?[e.base]:[]).filter(function(a){return a!==e.id&&EX[a];});
  var inf=E.info(e.id)||cfg;
  return (GYM_PHOTO[e.id]?'<button class="gymph" data-gymph="1" aria-label="Show the machine at your gym bigger"><img src="'+GYM_PHOTO[e.id]+'" alt="" loading="lazy"><span>At your gym</span></button>':'')+'<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+
+  (E.cue(e.id)?'<p class="sm cue" style="margin-top:4px"><b>Effort:</b> '+esc(E.cue(e.id))+'</p>':'')+
   lastTime(e.id)+
   '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?sg.kg+' kg × '+sg.reps:'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
   '<div class="sethead"><span></span><span>kg</span><span>reps</span><span></span></div>'+
   e.sets.map(function(s,si){
-   return '<div class="setrow'+(s.done?' done':'')+'"><span class="sn mono">'+(si+1)+'</span>'+stepper('kg',ei,si,s.kg,1)+stepper('reps',ei,si,s.reps,1)+
+   return '<div class="setrow'+(s.done?' done':'')+'"><span class="sn mono">'+(si+1)+'</span>'+stepper('kg',ei,si,s.kg,cfg.inc||1)+stepper('reps',ei,si,s.reps,1)+
     '<button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'" aria-label="Set done">'+(s.pr?'★':'✓')+'</button></div>'+
     '';
   }).join('')+
@@ -679,7 +685,7 @@ function stepper(kind,ei,si,val,inc){
 }
 function programCard(){
  var pr=state.profile;
- return '<div class="card"><h2>The program</h2><p class="sm" style="margin:6px 0 10px">Full body, A/B alternating, 3 days a week. Every muscle 3× a week at 10–20 hard sets. Compounds 6–10 reps, isolation 10–15, all with 1–3 reps in reserve. Progress by reps first, then weight (double progression). Every 6th week is a deload.</p>'+
+ return '<div class="card"><h2>The program</h2><p class="sm" style="margin:6px 0 10px">Full body, A/B alternating, 3 days a week. Every muscle 2–3× a week, about '+E.RULES.volumeBand.normal.join('–')+' hard sets (more for priority muscles). Compounds 6–10 reps, isolation 10–15. Reps first, then weight; “How was it?” sets the pace. An easy week only when lifts stall, or when you ask for one.</p>'+
   ['A','B'].map(function(d){return '<p class="eyebrow" style="margin-top:8px">Session '+d+'</p><div class="exlist">'+E.exercisesFor(d,pr).map(function(c){return exRow(c.id,'<span class="mono xs">'+c.sets+'×'+c.reps[0]+'–'+c.reps[1]+'</span>',c.prio?'prio':'');}).join('')+'</div>';}).join('')+'</div>';
 }
 
@@ -733,7 +739,7 @@ function renderProgress(){
  var withHist=ids.filter(function(id){return E.history(state,id).length;});
  var sel=renderProgress.sel||withHist[0]||ids[0];renderProgress.sel=sel;
  h+='<div class="card"><div class="row between"><h2>Lifts</h2><select class="rir" style="width:auto;max-width:200px;padding:0 10px" data-act="pick">'+ids.map(function(id){return '<option value="'+esc(id)+'"'+(id===sel?' selected':'')+'>'+esc(nm(id))+'</option>';}).join('')+'</select></div>'+liftChart(sel)+'</div>';
- h+='<div class="card"><h2>Hard sets per muscle, last 7 days</h2><p class="xs" style="margin:4px 0 8px">Target band 10–16 (priority muscles 14–20). Secondary muscles count half.</p>'+volumeChart()+'</div>';
+ h+='<div class="card"><h2>Hard sets per muscle, last 7 days</h2><p class="xs" style="margin:4px 0 8px">Target about '+E.RULES.volumeBand.normal.join('–')+' (priority muscles '+E.RULES.volumeBand.priority.join('–')+'). Secondary muscles count half.</p>'+volumeChart()+'</div>';
  $('#v-progress').innerHTML=h;
 }
 function weekBests(){var m=E.mondayOf(todayISO()),out=[];Object.keys(state.sessions).filter(function(k){return k>=m;}).sort().forEach(function(k){(state.sessions[k].ex||[]).forEach(function(e){e.sets.forEach(function(x){if(x.pr&&x.done)out.push({id:e.id,kg:x.kg,reps:x.reps,date:k});});});});return out;}
@@ -872,7 +878,7 @@ document.addEventListener('click',function(ev){
   if(a[0]==='kg'&&!s.done)e.sets.forEach(function(x,i){if(i>si&&!x.done&&(x.kg==null||x.kg===cur)){x.kg=s.kg;var q=$('[data-val="kg:'+a[1]+':'+i+'"]');if(q)q.value=x.kg;}});
   save();return;}
  if(b.dataset.tick){unlockAudio();var t=b.dataset.tick.split(':'),ex=ses.ex[+t[0]],st=ex.sets[+t[1]];
-  if(!st.done){if(!(st.kg>0)||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;st.at=Date.now();
+  if(!st.done){if(!(st.kg>0||(st.kg===0&&E.BODYWEIGHT.indexOf(ex.id)>=0))||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;st.at=Date.now();
    var prev=E.bestSets(state,ex.id).reduce(function(m,x){return Math.max(m,x.e1rm);},0),mine=E.epley(st.kg,st.reps);
    var beat=ex.sets.some(function(x){return x!==st&&x.pr;});
    if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+st.kg+' kg × '+st.reps+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
@@ -891,8 +897,14 @@ document.addEventListener('click',function(ev){
   if(!confirm('Finish session with '+n+' sets logged?'))return;
   var again=!!ses.reopened;delete ses.reopened;
   ses.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});});ses.done=true;if(!again||!ses.finished)ses.finished=Date.now();
-  if(!again&&E.recentStalls(state,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;toast('Two lifts stalled — next 3 sessions are a deload');}
+  if(!again&&E.recentStalls(state,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;toast('Two lifts stalled — the next 3 sessions are an easy week');}
   save();stopRest();keepAwake(false);show('today');return;}
+ if(act==='easy'||act==='easyoff'){var on=act==='easy',es=activeSession()||state.sessions[todayISO()];
+  state.settings.deloadUntil=on?E.completedSessions(state).length+3:0;
+  // today's session not started yet: redo its weights now
+  if(es&&!es.done&&!es.ex.some(function(e){return e.sets.some(function(x){return x.done;});})){es.deload=on;
+   es.ex.forEach(function(e){e.suggest=E.suggestIn(state,es,Object.assign({},cfgOf(e),{id:e.id}));e.sets=E.freshSets(e.suggest);});}
+  save();renderToday();toast(on?'Easy week: the next 3 sessions are lighter':'Back to normal weights');return;}
  if(act==='reopen'){var rk=sessionKey(true),rs=rk&&state.sessions[rk];if(!rs||!rs.done)return;rs.done=false;rs.reopened=true;trainFocus=0;save();show('train');toast('Change what was wrong, then Finish again');return;}
  if(act==='abandon'){if(!ses||ses.reopened)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[activeKey()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='ics'){downloadBlob(E.calendarICS(state.profile,E.macros(state.profile),todayISO(),b.dataset.meals==='1'),'text/calendar','lift-reminders.ics');toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
@@ -913,7 +925,7 @@ function downloadBlob(text,type,name){var u=URL.createObjectURL(new Blob([text],
 var swapKeep='today';
 function doSwap(ei,id){
  var ses=activeSession();if(!ses)return;var e=ses.ex[ei],cfg=Object.assign({},cfgOf(e),{id:id});
- e.id=id;e.suggest=E.suggest(cfg,E.history(state,id),{calibration:ses.calibration,deload:ses.deload});
+ e.id=id;e.suggest=E.suggestIn(state,ses,cfg);
  var fresh=E.freshSets(e.suggest);e.sets=e.sets.map(function(x,i){return x.done?x:fresh[i]||fresh[0];});
  if(swapKeep==='always'){state.settings.swaps=state.settings.swaps||{};if(id===e.base)delete state.settings.swaps[e.base];else state.settings.swaps[e.base]=id;}
  save();renderTrain();toast((id===e.base?'Back to ':'Swapped to ')+nm(id)+(swapKeep==='always'?' from now on':' for today'));
