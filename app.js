@@ -440,14 +440,15 @@ function weekCard(mac){
  var DN=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
  var strip=days.map(function(di){var dp=dayPlan(di),d=E.parseISO(di);
   return '<button class="wkday'+(di===sel?' on':'')+(di<today?' past':'')+(di===today?' today':'')+'" data-wkday="'+di+'"><span class="dn">'+DN[d.getDay()]+'</span><b>'+d.getDate()+'</b>'+
-   '<span class="tags">'+(dp.p.training&&(dp.done||di>=today)?'<i class="tg train" title="training">'+(dp.done?'✓':dp.p.day)+'</i>':dp.p.training?'':'<i class="tg rest" title="rest day">'+ICON_MOON+'</i>')+'</span></button>';}).join('');
+   '<span class="tags">'+(dp.p.training&&(dp.done||di>=today)?'<i class="tg train" title="training">'+(dp.done?'✓':dp.p.day)+'</i>':dp.p.training?'<i class="tg miss" title="not trained"></i>':'<i class="tg rest" title="rest day">'+ICON_MOON+'</i>')+'</span></button>';}).join('');
+ var missed=days.some(function(di){var dp=dayPlan(di);return di<today&&dp.p.training&&!dp.done;});
  var ws=niceDate(days[0])+' – '+niceDate(days[6]),detail='<p class="xs" style="margin-top:10px">Tap a day to see its plan.</p>';
  if(sel&&sel!==today){var dp=dayPlan(sel),slots=E.timeline(state.profile,dp.p,mac).filter(function(s){return s.key!=='cr';});
  var head=dp.p.training?(dp.done?'Session done ✓':'Training at '+esc(dp.p.time))+' <small class="ab">session '+dp.p.day+'</small>':'Rest day';
  detail='<div class="wkdetail"><p class="eyebrow">'+niceDate(sel)+(sel===today?' · today':'')+'</p><h3 style="margin-top:4px">'+head+'</h3>'+
   '<ul class="wklist">'+slots.map(function(s){return '<li><span class="mono">'+s.time+'</span><span>'+esc(s.what||s.label)+'</span></li>';}).join('')+'</ul></div>';}
  return '<div class="card weekcard"><div class="row between"><h2>Week ahead</h2><div class="row" style="gap:4px"><button class="wknav" data-wknav="-1"'+(wkv.off<=0?' disabled':'')+' aria-label="Previous week">‹</button><span class="xs mono">'+(wkv.off===0?'this week':wkv.off===1?'next week':'in '+wkv.off+' weeks')+'</span><button class="wknav" data-wknav="1"'+(wkv.off>=3?' disabled':'')+' aria-label="Next week">›</button></div></div>'+
-  '<p class="xs" style="margin:2px 0 8px">'+ws+' · <i class="tg train">A</i> training</p>'+
+  '<p class="xs" style="margin:2px 0 8px">'+ws+' · <i class="tg train">A</i> training'+(missed?' · <i class="tg miss"></i> not trained':'')+'</p>'+
   '<div class="wkstrip">'+strip+'</div>'+detail+'</div>';
 }
 /* Life moves a day: rest after yesterday's session, move to tomorrow, or catch up a missed one. */
