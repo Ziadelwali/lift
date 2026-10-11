@@ -330,6 +330,23 @@ function activeSession(){var k=activeKey();return k?state.sessions[k]:null;}
 function planFor(iso){return E.plan(iso,state,todayISO());}
 function addDays(iso,n){var d=E.parseISO(iso);d.setDate(d.getDate()+n);return E.isoDate(d);}
 function trainedOn(iso){var s=state.sessions[iso];return !!(s&&s.done);}
+/* Move a session (to '' = skip) and push the rest of the week along; old moves are tidied away.
+   Returns how many later sessions were pushed. The caller saves. */
+function moveSession(from,to){
+ var moves=Object.assign({},state.settings.moves||{}),old=addDays(todayISO(),-21);
+ Object.keys(moves).forEach(function(k){if(k<old)delete moves[k];});state.settings.moves=moves;
+ var sh=E.shiftWeek(state,from,to);state.settings.moves=sh.moves;state.settings.autoMoves=sh.auto;
+ return Object.keys(sh.auto).filter(function(k){return sh.auto[k]===from;}).length;
+}
+/* Start (or continue) today's session. short = the main lifts only, for this session. */
+function startSession(short){
+ trainFocus=null;var iso=activeKey()||todayISO();
+ if(!state.sessions[iso]){var p=planFor(iso);
+  if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}
+  if(short)p.exercises=E.shortExercises(p.exercises);
+  var s2=E.buildSession(p,state);if(short)s2.short=true;s2.started=Date.now();state.sessions[iso]=s2;save();}
+ show('train');
+}
 function profileReady(){var p=state.profile;return p.weight&&p.height&&p.age;}
 
 /* ---------------- rendering ---------------- */
@@ -401,11 +418,11 @@ function render(){
 function renderToday(){
  var iso=todayISO(),p=planFor(iso),mac=E.macrosFor(state),ses=state.sessions[iso]||activeSession();
  var h='<p class="eyebrow" style="margin-top:6px">'+niceDate(iso)+' · week '+p.week+'</p>';
- h+=noticeCard()+weighCard(iso);
+ h+=noticeCard()+welcomeCard(iso,p,ses)+weighCard(iso);
  var sesCard='';
  if(p.training){
   var exs=(ses?ses.ex.map(function(e){var c=E.findCfg(e.base)||{};return {id:e.id,prio:c.prio};}):p.exercises);
-  sesCard='<div class="card t-train"><div class="hero"><span class="restico'+(ses&&ses.done?' done':'')+'">'+(ses&&ses.done?ICON_CHECK:ICON_LIFT)+'</span><div class="cap"><b>'+(ses&&ses.done?'Session done':'Training · '+esc(p.time||'—'))+'</b><span>'+exs.length+' exercises · ~'+E.RULES.sessionMinutes+' min <small class="ab">session '+p.day+'</small></span></div></div><div class="sunline"></div>'+
+  sesCard='<div class="card t-train"><div class="hero"><span class="restico'+(ses&&ses.done?' done':'')+'">'+(ses&&ses.done?ICON_CHECK:ICON_LIFT)+'</span><div class="cap"><b>'+(ses&&ses.done?'Session done':'Training · '+esc(p.time||'—'))+'</b><span>'+exs.length+' exercises · ~'+(ses&&ses.short?E.estMinutes(E.shortExercises(p.exercises))+' min · short version':E.RULES.sessionMinutes+' min')+' <small class="ab">session '+p.day+'</small></span></div></div><div class="sunline"></div>'+
    '<div class="row between" style="margin-top:8px"><span class="eyebrow">Today\'s plan</span>'+
    (p.calibration?'<span class="badge calib">finding your weights</span>':p.deload?'<span class="badge deload">easy week</span>':'<span class="badge">week '+p.week+'</span>')+'</div>'+
    '<p class="sm" style="margin:6px 0 10px">'+(p.calibration?'All new: 2 sets each to find your weights. Stop with 3 reps in the tank and log honestly. Next time the app sets the weights.':p.back==='refind'?'Long break: 2 sets each to find your weights again. Stop with 3 reps in the tank.':p.back?'First time back after a break: 10 % lighter, same sets. Normal weights next time.':p.deload?'Easy week: lighter loads, fewer sets. Afterwards you pick up where you left off.':'Full body, big lifts first. “How was it?” after each exercise sets the next weights.')+'</p>'+
@@ -497,8 +514,23 @@ function moveNote(iso,p,ses){
 function restNote(iso,p){
  if(p.movedAway!=null)return '<p class="xs" style="margin-top:8px">'+(trainedOn(addDays(iso,-1))?'You trained yesterday, so t':'T')+(p.movedAway?'Today\'s session moved to '+niceDate(p.movedAway):'Today\'s session skipped')+' · <button class="linkbtn" data-unmove="'+iso+'">undo</button></p>';
  var y=addDays(iso,-1),yp=planFor(y);
- if(yp.training&&!trainedOn(y)&&!state.sessions[iso])return '<div class="movebox"><b>Missed yesterday\'s session?</b> Do it today instead — the plan shifts with you.<div class="row" style="margin-top:8px"><button class="btn small" data-move="'+y+'|'+iso+'">Train today</button></div></div>';
+ if(yp.training&&!trainedOn(y)&&!state.sessions[iso]&&!E.missedSessions(state,iso))return '<div class="movebox"><b>Missed yesterday\'s session?</b> Do it today instead — the plan shifts with you.<div class="row" style="margin-top:8px"><button class="btn small" data-move="'+y+'|'+iso+'">Train today</button></div></div>';
  return '';
+}
+/* Welcome back after a miss: calm, no streak lost, and a way back in today. The best-working nudge
+   in a 61 000-member gym study rewarded coming back after a missed workout (Milkman 2021); one
+   missed day doesn't undo a habit (Lally 2010). The short version is the main lifts only, opt-in. */
+var DAYNAME=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function welcomeCard(iso,p,ses){
+ if(ses)return '';var mi=E.missedSessions(state,iso);if(!mi)return '';
+ var hid=null;try{hid=localStorage.getItem('lift.wbhide');}catch(e){}if(hid===iso)return '';
+ var y=addDays(iso,-1),from=!p.training&&mi.dates[mi.dates.length-1]===y?y:'';   // yesterday's session moves to today, the week moves along
+ var exs=p.training?p.exercises:E.exercisesFor(p.n%2===0?'A':'B',state.profile),wks=Math.round(mi.gap/7),n=mi.dates.length,head,txt;
+ if(mi.back){head='Welcome back';txt=wks+' weeks away. '+(mi.back==='refind'?'Today: 2 sets each to find your weights again. They come back fast.':'Strength mostly stays for about 3 weeks, so today is 10 % lighter with the same sets. Normal weights next time.');}
+ else{head=n===1?'Missed '+DAYNAME[E.parseISO(mi.dates[0]).getDay()]:'Missed '+n+' sessions';txt=(n===1?'One miss changes nothing.':'A few misses change nothing.')+' Coming back is what counts.';}
+ return '<div class="card welcome" role="status"><h2>'+head+'</h2><p class="sm" style="margin-top:4px">'+txt+'</p>'+
+  '<div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn small" data-act="welcome" data-from="'+from+'">Train today</button><button class="btn small ghost" data-act="welcome" data-short="1" data-from="'+from+'">Short version (~'+E.estMinutes(E.shortExercises(exs))+' min)</button></div>'+
+  '<p class="xs" style="margin-top:8px">Short: the main lifts with all their sets; the extras wait until next time. <button class="linkbtn" data-act="wbhide">Not today</button></p></div>';
 }
 function nextSessionLine(iso){
  var d=E.parseISO(iso);for(var i=1;i<=7;i++){d.setDate(d.getDate()+1);var n=E.isoDate(d),pp=planFor(n);if(pp.training)return '<p class="xs" style="margin-top:8px">Next session: '+niceDate(n)+' '+esc(pp.time)+'</p>';}
@@ -637,7 +669,7 @@ function renderTrain(){
    (done?finishBody(ds,dk)+FIXLINK:p.training?'<button class="btn wide" data-act="start" style="margin-top:14px">Start session</button>':ANYWAY)+'</div>'+programCard();
   $('#v-train').innerHTML=h;return;
  }
- h+=trackBar(ses)+noticeCard()+(ses.reopened?'<div class="card notice"><p class="sm"><b>Fixing a mistake.</b> Change what was wrong, then tap Finish session again.</p></div>':'');
+ h+=trackBar(ses)+noticeCard()+(ses.short?'<p class="xs" style="margin:10px 2px 0">Short version: the main lifts only. The extras are back next time.</p>':'')+(ses.reopened?'<div class="card notice"><p class="sm"><b>Fixing a mistake.</b> Change what was wrong, then tap Finish session again.</p></div>':'');
  /* warm-up */
  var wl=E.WARMUP,firstRamp=null;
  for(var i=0;i<ses.ex.length;i++){var c=E.findCfg(ses.ex[i].base);if(c&&c.ramp&&ses.ex[i].sets[0]&&ses.ex[i].sets[0].kg){firstRamp=ses.ex[i];break;}}
@@ -1004,9 +1036,7 @@ document.addEventListener('click',function(ev){
  if(b.dataset.jump){var jses=activeSession();if(jses){if(!jses.warmShut){jses.warmShut=true;save();}goEx(jses,+b.dataset.jump);}return;}
  if(b.dataset.pickother){var ob=$('#others');if(ob){ob.hidden=!ob.hidden;if(!ob.hidden)ob.scrollIntoView({behavior:SMOOTH,block:'start'});}return;}
  if(b.dataset.toggle){var tg=+b.dataset.toggle;openCards[tg]=!openCards[tg];refreshCard(tg);return;}
- if(b.dataset.move!=null){var mv=b.dataset.move.split('|'),moves=Object.assign({},state.settings.moves||{}),old=addDays(todayISO(),-21);
-  Object.keys(moves).forEach(function(k){if(k<old)delete moves[k];});state.settings.moves=moves;var sh=E.shiftWeek(state,mv[0],mv[1]);state.settings.moves=sh.moves;state.settings.autoMoves=sh.auto;save();wkv.sel=null;renderToday();
-  var pushed=Object.keys(sh.auto).filter(function(k){return sh.auto[k]===mv[0];}).length;
+ if(b.dataset.move!=null){var mv=b.dataset.move.split('|'),pushed=moveSession(mv[0],mv[1]);save();wkv.sel=null;renderToday();
   toast(mv[1]===todayISO()?'Today is a training day now'+(pushed?' — the rest of the week moved along':''):mv[1]?'Moved to '+niceDate(mv[1])+(pushed?' — the rest of the week moved along':''):'Rest today — the order just continues');return;}
  if(b.dataset.unmove){var au=state.settings.autoMoves||{},uk=au[b.dataset.unmove]||b.dataset.unmove,un=E.unshiftWeek(state,uk);
   if(E.parseISO(uk).getDay()===1){var km=state.settings.keepMon||{},old2=addDays(todayISO(),-21);Object.keys(km).forEach(function(k){if(k<old2)delete km[k];});km[uk]=1;state.settings.keepMon=km;}state.settings.moves=un.moves;state.settings.autoMoves=un.auto;save();renderToday();return;}
@@ -1042,7 +1072,9 @@ document.addEventListener('click',function(ev){
  if(b.dataset.delset){var dei=+b.dataset.delset,dex=ses.ex[dei],dl=dex.sets.length-1;if(dl<1||dex.sets[dl].done)return;dex.sets.pop();save();refreshCard(dei);return;}
  if(b.dataset.addset){var exx=ses.ex[+b.dataset.addset],lastS=exx.sets[exx.sets.length-1];exx.sets.push({kg:lastS?lastS.kg:null,reps:lastS?lastS.reps:null,rir:null,done:false});save();refreshCard(+b.dataset.addset);return;}
  var act=b.dataset.act;
- if(act==='start'){trainFocus=null;var iso=activeKey()||todayISO();if(!state.sessions[iso]){var p=planFor(iso);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
+ if(act==='start'){startSession(false);return;}
+ if(act==='welcome'){if(b.dataset.from)moveSession(b.dataset.from,todayISO());startSession(b.dataset.short==='1');return;}
+ if(act==='wbhide'){try{localStorage.setItem('lift.wbhide',todayISO());}catch(e){}renderToday();return;}
  if(act==='sheetclose'){closeSheet();return;}
  if(act==='histall'){histAll=!histAll;renderProgress();return;}
  if(act==='finish'){if(!ses)return;var n=0;ses.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done)n++;});});if(!n){toast('No sets logged yet');return;}
