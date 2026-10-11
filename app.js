@@ -336,7 +336,7 @@ function migrate(){
  Object.keys(st.swaps||{}).forEach(function(k){if(!EX[st.swaps[k]]||!EX[k]){delete st.swaps[k];ch=true;}});
  var ses=activeSession();
  if(ses)ses.ex.forEach(function(e){if(!EX[e.id]&&EX[e.base]&&!e.sets.some(function(x){return x.done;})){
-  e.id=e.base;e.suggest=E.suggest(cfgOf(e),E.history(state,e.base),{calibration:ses.calibration,deload:ses.deload});e.sets=E.freshSets(e.suggest);ch=true;}});
+  e.id=e.base;e.suggest=E.suggestIn(state,ses,cfgOf(e));e.sets=E.freshSets(e.suggest);ch=true;}});
  // forgot Finish: a past session with ticked sets counts (for progression and the streak) as it was left
  var act=activeKey(),saved=[];
  Object.keys(state.sessions).sort().forEach(function(k){var s=state.sessions[k];
@@ -371,7 +371,7 @@ function renderToday(){
   sesCard='<div class="card t-train"><div class="hero"><span class="restico'+(ses&&ses.done?' done':'')+'">'+(ses&&ses.done?ICON_CHECK:ICON_LIFT)+'</span><div class="cap"><b>'+(ses&&ses.done?'Session '+p.day+' done':'Training · '+esc(p.time||'—'))+'</b><span>Session '+p.day+' · '+exs.length+' exercises · ~'+E.RULES.sessionMinutes+' min</span></div></div><div class="sunline"></div>'+
    '<div class="row between" style="margin-top:8px"><span class="eyebrow">Today\'s plan</span>'+
    (p.calibration?'<span class="badge calib">calibration week</span>':p.deload?'<span class="badge deload">deload week</span>':'<span class="badge">week '+p.week+'</span>')+'</div>'+
-   '<p class="sm" style="margin:6px 0 10px">'+(p.calibration?'This week is about finding your weights: 2 sets per exercise, stop with 3 reps in the tank, log honestly. Next week the app starts pushing.':p.deload?'Lighter loads, half the sets. You grow while you recover; skipping this week is how people get hurt.':'Full body. Compounds first, 1–3 reps in reserve on every working set.')+'</p>'+
+   '<p class="sm" style="margin:6px 0 10px">'+(p.calibration?'All new: 2 sets each to find your weights. Stop with 3 reps in the tank and log honestly. Next time the app sets the weights.':p.deload?'Lighter loads, half the sets. You grow while you recover; skipping this week is how people get hurt.':'Full body, big lifts first. “How was it?” after each exercise sets the next weights.')+'</p>'+
    moveNote(iso,p,ses)+
    (ses&&ses.done?'':'<details class="fold"><summary><span class="eyebrow">'+exs.length+' exercises</span></summary><div class="exlist" style="margin-top:6px">'+exs.map(function(c){return exRow(c.id,'',c.prio?'prio':'');}).join('')+'</div></details>')+
    (ses&&ses.done?'<p class="sm" style="margin-top:10px">'+sessionSummary(ses)+'</p>'+FIXLINK:'<button class="btn wide" data-act="start" style="margin-top:14px">'+(ses?'Continue session':'Start session')+'</button>')+
@@ -633,8 +633,8 @@ function exInner(e,ei,ses,collapsed){
   '<div class="media"><img src="'+ex.images[0]+'" alt="" loading="lazy"><img class="f1" src="'+ex.images[1]+'" alt="" loading="lazy"><div class="map">'+bodyMap(ex.primary,ex.secondary)+'</div></div>'+
   '<div class="body">'+exBody(e,ei,ses)+'</div>');
 }
-/* One question per exercise instead of reps-in-reserve per set. Stored as rir on the sets
-   (easy = 3+ left, about right = 2, hard = 0) so the weight suggestions use it. */
+/* One question per exercise instead of reps-in-reserve per set: easy = 3+ left, about right = 2,
+   hard = 0. The answer (e.feel) sets next time's weight and reps; it is also stored as rir on the sets. */
 var FEEL=[['easy','Easy',3],['right','About right',2],['hard','Hard',0]];
 function feelButtons(ei,e){return FEEL.map(function(o){return '<button data-feel="'+ei+':'+o[0]+'"'+(e.feel===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('');}
 function setFeel(e,k){var o=FEEL.filter(function(x){return x[0]===k;})[0],done=e.sets.filter(function(x){return x.done;});if(!o||!done.length)return;
@@ -913,7 +913,7 @@ function downloadBlob(text,type,name){var u=URL.createObjectURL(new Blob([text],
 var swapKeep='today';
 function doSwap(ei,id){
  var ses=activeSession();if(!ses)return;var e=ses.ex[ei],cfg=Object.assign({},cfgOf(e),{id:id});
- e.id=id;e.suggest=E.suggest(cfg,E.history(state,id),{calibration:ses.calibration,deload:ses.deload});
+ e.id=id;e.suggest=E.suggestIn(state,ses,cfg);
  var fresh=E.freshSets(e.suggest);e.sets=e.sets.map(function(x,i){return x.done?x:fresh[i]||fresh[0];});
  if(swapKeep==='always'){state.settings.swaps=state.settings.swaps||{};if(id===e.base)delete state.settings.swaps[e.base];else state.settings.swaps[e.base]=id;}
  save();renderTrain();toast((id===e.base?'Back to ':'Swapped to ')+nm(id)+(swapKeep==='always'?' from now on':' for today'));

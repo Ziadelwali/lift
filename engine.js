@@ -10,7 +10,8 @@
   'use strict';
 
   var RULES = {
-    calibrationSessions: 3,     // first week: 2 sets, find loads
+    findSets: 2,                // first time on an exercise: 2 sets to find the weight
+    epleyMaxReps: 12,           // Epley guesses badly above ~12 reps
     deloadEvery: 6,             // every 6th training week
     deloadLoad: 0.9, deloadSets: 0.5,
     stallDrop: 0.9,             // cut load 10 % after two failed sessions
@@ -267,6 +268,11 @@
     var prio = (profile && profile.priority) || ['shoulders', 'back'];
     return PROGRAM[day].filter(function (e) { return !e.prio || prio.indexOf(e.prio) !== -1; });
   }
+  /* The exercise done for a program slot: the saved swap ("from now on") if it is still an option. */
+  function idFor(state, cfg) {
+    var swap = state.settings && state.settings.swaps && state.settings.swaps[cfg.id];
+    return swap && (cfg.alts || []).indexOf(swap) !== -1 ? swap : cfg.id;
+  }
   function findCfg(id) {
     var all = PROGRAM.A.concat(PROGRAM.B);
     for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
@@ -286,44 +292,64 @@
       (ses.ex || []).forEach(function (e) {
         if (e.id !== exId) return;
         var sets = (e.sets || []).filter(function (s) { return s.done && s.reps > 0 && (s.kg > 0 || (bw && s.kg === 0)); });
-        if (sets.length) out.push({ date: k, sets: sets, calib: !!ses.calibration });
+        // calib = these sets were finding the weight (the exercise's first time; older data: the first sessions)
+        var st = e.suggest && e.suggest.state;
+        if (sets.length) out.push({ date: k, sets: sets, feel: e.feel || null, calib: st ? st === 'calibrate' : !!ses.calibration });
       });
     });
     return out;
   }
 
-  /* Double progression. Returns {kg, reps, sets, note, state:'calibrate'|'up'|'hold'|'push'|'drop'} */
+  /* "How was it?" as reps left in the tank. Not answered: the last set's logged rir, else about right. */
+  function feelOf(h) {
+    if (h.feel) return h.feel;
+    var s = h.sets[h.sets.length - 1], r = s && s.rir;
+    return r >= 3 ? 'easy' : r === 0 ? 'hard' : 'right';
+  }
+
+  /* Double progression, steered by "How was it?" (Easy / About right / Hard = 3 / 2 / 0 reps left).
+     People guess about one rep too few left (Halperin 2021), so Easy is a safe sign to move faster.
+     All sets at the top of the range: up 2 steps when easy (1 for dumbbells), else 1 step.
+     In the range: +2 reps when easy, +1 about right, same again when hard. Below: hold, then drop.
+     Returns {kg, reps, sets, note, state}: 'calibrate' (find the weight), 'set' (weight from the
+     finding sets), 'up', 'push', 'again', 'hold', 'drop', 'maxed', 'deload'. */
   function suggest(cfg, hist, opts) {
     opts = opts || {};
-    var lo = cfg.reps[0], hi = cfg.reps[1], sets = cfg.sets;
-    if (opts.calibration) sets = Math.max(2, Math.round(sets * 0.67));
-    if (!hist || !hist.length) {
-      return { kg: null, reps: hi, sets: sets, state: 'calibrate',
-        note: 'First time: a weight you can lift ' + hi + ' times with 3 to spare.' };
+    hist = hist || [];
+    var lo = cfg.reps[0], hi = cfg.reps[1], sets = cfg.sets, inc = cfg.inc;
+    var bw = BODYWEIGHT.indexOf(cfg.id) !== -1, cap = DUMBBELL.indexOf(cfg.id) !== -1 ? RULES.dumbbellMaxKg : null;
+    if (!hist.length) {
+      // first time on this exercise (also after a swap): 2 sets to find the weight
+      return { kg: bw ? 0 : null, reps: hi, sets: Math.min(sets, RULES.findSets), state: 'calibrate',
+        note: 'First time: ' + (bw ? hi + ' reps' : 'a weight you can lift ' + hi + ' times') + ' with 3 to spare.' };
     }
-    var last = hist[hist.length - 1].sets;
+    var lastH = hist[hist.length - 1], last = lastH.sets, feel = feelOf(lastH);
     var kg = Math.max.apply(null, last.map(function (s) { return s.kg; }));
     var atKg = last.filter(function (s) { return s.kg === kg; });
     var minReps = Math.min.apply(null, atKg.map(function (s) { return s.reps; }));
-    var maxRir = Math.max.apply(null, atKg.map(function (s) { return s.rir == null ? 2 : s.rir; }));
-    var allTop = atKg.length >= Math.min(sets, 2) && atKg.every(function (s) { return s.reps >= hi && (s.rir == null || s.rir <= 3); });
+    var allTop = atKg.length >= Math.min(sets, 2) && atKg.every(function (s) { return s.reps >= hi; });
     var anyBelow = atKg.some(function (s) { return s.reps < lo; });
+    var addReps = feel === 'easy' ? 2 : feel === 'hard' ? 0 : 1;
 
+    if (bw) {
+      var r = Math.max(lo, minReps + addReps);
+      return addReps ? { kg: 0, reps: r, sets: sets, state: 'push', note: r + ' reps on every set.' }
+        : { kg: 0, reps: minReps, sets: sets, state: 'again', note: 'Same again. Make it feel easier.' };
+    }
     if (opts.deload) {
-      return { kg: lighter(kg, RULES.deloadLoad, cfg.inc), reps: lo, sets: Math.max(1, Math.round(sets * RULES.deloadSets)),
+      return { kg: lighter(kg, RULES.deloadLoad, inc), reps: lo, sets: Math.max(1, Math.round(sets * RULES.deloadSets)),
         state: 'deload', note: 'Deload week: lighter, fewer sets, 3–4 reps to spare.' };
     }
-    var cap = DUMBBELL.indexOf(cfg.id) !== -1 ? RULES.dumbbellMaxKg : null;
-    if (hist[hist.length - 1].calib) {
-      // Calibration weights are guesses. Estimate the weight for the middle of the rep range
-      // with 2 reps in the tank from the best calibration set (Epley; no tank logged = 2).
-      var e1 = Math.max.apply(null, last.map(function (s) { return epley(s.kg, s.reps + Math.min(3, s.rir == null ? 2 : s.rir)); }));
-      var mid = Math.round((lo + hi) / 2), est = roundTo(e1 / (1 + (mid + 2) / 30), cfg.inc);
+    if (lastH.calib) {
+      // Finding weights are guesses. Estimate the weight for the middle of the rep range with
+      // 2 reps in the tank from the best finding set (Epley, at most 12 reps: it guesses badly above).
+      var e1 = Math.max.apply(null, last.map(function (s) { return epley(s.kg, Math.min(RULES.epleyMaxReps, s.reps + Math.min(3, s.rir == null ? 2 : s.rir))); }));
+      var mid = Math.round((lo + hi) / 2), est = roundTo(e1 / (1 + (mid + 2) / 30), inc);
       if (cap) est = Math.min(cap, est);
       if (est > 0) return { kg: est, reps: mid, sets: sets, state: 'set',
         note: 'From your test sets. Too easy? Go heavier next set.' };
     }
-    if (allTop && cap && kg + cfg.inc > cap) {
+    if (allTop && cap && kg + inc > cap) {
       // Out of heavier dumbbells: keep the heaviest pair, earn progress with reps, then move to a machine.
       var alt = (cfg.alts || []).filter(function (a) { return DUMBBELL.indexOf(a) === -1; })[0];
       var swapTo = alt ? ' Next: swap to the ' + (LABEL[alt] || alt).toLowerCase() + '.' : '';
@@ -336,21 +362,28 @@
         note: cap + ' kg is the top dumbbell: go for ' + more + ' reps, lower in 3 s.' + swapTo };
     }
     if (allTop) {
-      // the next weight is one step up from what you lifted: 25 + 2 = 27, not 28
-      return { kg: roundHalf(kg + cfg.inc), reps: lo, sets: sets, state: 'up',
-        note: 'Up ' + cfg.inc + ' kg. Aim for ' + lo + '+ reps.' };
+      // one step up from what you lifted (25 + 2 = 27, not 28); two when it was easy, except dumbbells
+      var up = roundHalf(kg + (feel === 'easy' && !cap ? 2 : 1) * inc);
+      if (cap) up = Math.min(cap, up);
+      var aim = feel === 'hard' ? lo : Math.max(lo, hi - 2);
+      return { kg: up, reps: aim, sets: sets, state: 'up',
+        note: 'Up ' + roundHalf(up - kg) + ' kg. ' + (feel === 'hard' ? 'Aim for ' + lo + ' reps; the bottom of the range is fine.' : 'Aim for ' + aim + ' reps.') };
     }
     if (anyBelow) {
       var prev = hist.length > 1 ? hist[hist.length - 2].sets : null;
       var prevBelow = prev && prev.some(function (s) { return s.kg >= kg && s.reps < lo; });
       if (prevBelow) {
-        return { kg: lighter(kg, RULES.stallDrop, cfg.inc), reps: lo, sets: sets, state: 'drop',
+        return { kg: lighter(kg, RULES.stallDrop, inc), reps: lo, sets: sets, state: 'drop',
           note: 'Two sessions under ' + lo + ' reps: 10 % lighter and rebuild. Normal.' };
       }
       return { kg: kg, reps: lo, sets: sets, state: 'hold',
         note: 'Same weight, get every set to ' + lo + '.' };
     }
-    var target = Math.min(hi, minReps + 1);
+    if (!addReps) {
+      return { kg: kg, reps: minReps, sets: sets, state: 'again',
+        note: 'Hard last time: same weight, ' + minReps + ' reps again. Make them cleaner.' };
+    }
+    var target = Math.min(hi, minReps + addReps);
     return { kg: kg, reps: target, sets: sets, state: 'push',
       note: 'Same weight, ' + target + ' reps on every set.' };
   }
@@ -428,12 +461,15 @@
     var n = done.length;                       // sessions completed before today (if today not done)
     if (existing && existing.done) n = done.indexOf(dateISO);
     var week = Math.floor(n / 3) + 1;          // training week number, 1-based
-    var calibration = n < RULES.calibrationSessions;
     var deloadUntil = (state.settings && state.settings.deloadUntil) || 0;
-    var deload = !calibration && (week % RULES.deloadEvery === 0 || n < deloadUntil);
+    var deload = week % RULES.deloadEvery === 0 || n < deloadUntil;
     var day = existing ? existing.day : (n % 2 === 0 ? 'A' : 'B');
     var movedAway = dateISO in mv, fromTime = from ? sched[parseISO(from).getDay()] || '16:00' : null;
     var training = !!existing || (sched[wd] != null && !movedAway) || !!from;
+    // weights are found per exercise; the session is a "finding" one when every exercise is new
+    var calibration = existing ? !!existing.calibration
+      : training && exercisesFor(day, profile).every(function (c) { return !history(state, idFor(state, c)).length; });
+    if (calibration) deload = false;
     return {
       date: dateISO, training: training, movedAway: movedAway && !existing ? mv[dateISO] : null, movedFrom: from,
       time: existing && existing.time || (sched[wd] != null && !movedAway ? sched[wd] : fromTime),
@@ -442,14 +478,15 @@
     };
   }
 
+  /* The suggestion for cfg (cfg.id = the exercise done) inside a session or plan. */
+  function suggestIn(state, ses, cfg) {
+    return suggest(cfg, history(state, cfg.id), { deload: !!ses.deload });
+  }
   /* Build the session object for a plan (suggestions filled in). */
   function buildSession(p, state) {
     var ex = p.exercises.map(function (cfg) {
-      var swap = state.settings && state.settings.swaps && state.settings.swaps[cfg.id];
-      if (swap && (cfg.alts || []).indexOf(swap) === -1) swap = null; // alt removed from the program
-      var id = swap || cfg.id;
-      var useCfg = Object.assign({}, cfg, { id: id });
-      var sg = suggest(useCfg, history(state, id), { calibration: p.calibration, deload: p.deload });
+      var id = idFor(state, cfg);
+      var sg = suggestIn(state, p, Object.assign({}, cfg, { id: id }));
       return { id: id, base: cfg.id, suggest: sg, sets: freshSets(sg) };
     });
     return { date: p.date, day: p.day, time: p.time, week: p.week, calibration: p.calibration, deload: p.deload,
@@ -704,8 +741,8 @@
     sanitize: sanitize, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, roundHalf: roundHalf, lighter: lighter, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
-    exercisesFor: exercisesFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
-    suggest: suggest, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
+    exercisesFor: exercisesFor, idFor: idFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
+    suggest: suggest, suggestIn: suggestIn, feelOf: feelOf, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
     macros: macros, timeline: timeline, weightSeries: weightSeries, weightTrend: weightTrend,
     trendAdvice: trendAdvice, weeklyVolume: weeklyVolume, bestSets: bestSets
   };
