@@ -149,7 +149,8 @@ function isDark(){return document.documentElement.getAttribute('data-theme')==='
 function applyTheme(){
  var m=themeMode(),dark=m==='dark'||(m==='auto'&&!!window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches);
  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
- var mc=$('meta[name=theme-color]');if(mc)mc.content=dark?'#0A1322':'#4F9FE0';
+ // both media variants get the chosen colour, so a forced light/dark wins over the phone setting
+ $$('meta[name=theme-color]').forEach(function(mc){mc.content=dark?'#0A1322':'#4F9FE0';});
  $('#themebtn').innerHTML=dark?ICON_SUN:ICON_MOON;
 }
 function setTheme(m){try{localStorage.setItem('lift.theme',m);}catch(e){}applyTheme();if(view==='profile')renderProfile();}
@@ -943,7 +944,7 @@ function renderProfile(){
  var tm=themeMode();
  h+='<div class="card"><h2>Appearance</h2><p class="xs" style="margin:4px 0 10px">Auto follows your phone\'s light/dark setting.</p><div class="seg">'+[['auto','Auto'],['light','Light'],['dark','Dark']].map(function(o){return '<button data-themeset="'+o[0]+'"'+(tm===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div></div>';
  h+=installCard('profile')+remindersCard();
- h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+esc($('#syncline').textContent)+'</p><p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+(SYNC.eng?' · v2'+(syncStore.get('mig')==='done'?' · migrated':' · moving from v1'):'')+'</p><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button>'+(SYNC.eng?'<button class="btn small ghost" data-act="pwopen">Change password</button>':'<button class="btn small ghost" data-act="forget">Sync with a password</button>')+'</div>'+
+ h+='<div class="card"><h2>Sync</h2><p class="sm" style="margin-top:6px" id="syncinfo">'+esc($('#syncline').textContent)+'</p>'+(storeKept===false?'<p class="xs" style="margin-top:4px">The browser may clear this data when the phone is low on space. Installing Lift as an app (and exporting a backup now and then) keeps it safe.</p>':'')+'<p class="xs mono" style="margin-top:4px">build '+esc((document.querySelector('meta[name=build]')||{}).content||'?')+' · online '+navigator.onLine+(SYNC.eng?' · v2'+(syncStore.get('mig')==='done'?' · migrated':' · moving from v1'):'')+'</p><div class="row" style="margin-top:10px;flex-wrap:wrap"><button class="btn small ghost" data-act="update">Check for update</button>'+(SYNC.eng?'<button class="btn small ghost" data-act="pwopen">Change password</button>':'<button class="btn small ghost" data-act="forget">Sync with a password</button>')+'</div>'+
   '<details class="fold" style="margin-top:10px"><summary><span class="xs">Details</span></summary><pre id="synclog" class="xs mono" style="white-space:pre-wrap;margin:6px 0 0;color:var(--ink3)">'+esc(SYNC.log.join(String.fromCharCode(10)))+'</pre></details>'+
   '<form id="pwform" hidden style="margin-top:12px"><label class="field"><span class="l">Current password</span><input type="password" name="cur" autocomplete="current-password"></label>'+
   '<label class="field"><span class="l">New password</span><input type="password" name="nw" autocomplete="new-password"></label><label class="field"><span class="l">New password again</span><input type="password" name="nw2" autocomplete="new-password"></label>'+
@@ -1105,11 +1106,20 @@ function boot(){
   if(!rec&&!pp){showGate('');return;}
   $('#gate').classList.add('hidden');$('#app').classList.remove('hidden');
   migrate();
-  startSync(rec,pp);
-  var ses=activeSession();
-  show(ses?'train':(profileReady()?'today':'profile'));
+  startSync(rec,pp);keepStorage();
+  // the home-screen shortcut "Start session" opens ./?go=train
+  var ses=activeSession(),go=/[?&]go=train(&|$)/.test(location.search);
+  if(go)try{history.replaceState(null,'',location.pathname);}catch(e){}
+  show(ses||(go&&profileReady())?'train':(profileReady()?'today':'profile'));
   restoreRest();
  });
+}
+/* Ask the browser to keep Lift's data even when the phone runs low on space (every start, also
+   device-only; the answer can change, e.g. after installing). Shown on Profile → Sync. */
+var storeKept=null;
+function keepStorage(){
+ try{var s=navigator.storage;if(!s||!s.persisted)return;
+  s.persisted().then(function(p){return p||(s.persist?s.persist():false);}).then(function(p){storeKept=!!p;},function(){});}catch(e){}
 }
 function showGate(msg){$('#app').classList.add('hidden');$('#gate').classList.remove('hidden');$('#gatemsg').textContent=msg||'';try{$('#gatep').focus();}catch(e){}}
 $('#gateform').addEventListener('submit',function(e){e.preventDefault();var v=$('#gatep').value;if(!SYNC2.norm(v)){toast('Type your password');return;}
@@ -1121,7 +1131,6 @@ $('#gateform').addEventListener('submit',function(e){e.preventDefault();var v=$(
   // never synced with v2 on this device: take in the old v1 copy too; otherwise a normal sync against the last agreed copy
   if(!syncStore.get('mig'))syncStore.set('mig','M2');syncStore.del('ut');
   try{localStorage.removeItem(PK);}catch(e2){}
-  try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(function(){});}catch(e3){}
   $('#gatep').value='';boot();});});
 $('#gateskip').addEventListener('click',function(){try{localStorage.setItem(PK,'-');}catch(e){}boot();});
 boot();
