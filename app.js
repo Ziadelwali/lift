@@ -207,7 +207,9 @@ function equipWord(id){var x=EX[id];if(GYM_EQUIP[id])return GYM_EQUIP[id];return
 function exOf(id){return EX[id]||{name:String(id),images:['icon-192.png','icon-192.png'],primary:[],secondary:[],equipment:''};}
 var CFG0={sets:3,reps:[8,12],inc:2.5,rest:90,alts:[]};
 function cfgOf(e){return E.findCfg(e.base)||E.findCfg(e.id)||Object.assign({},CFG0,{id:e.base});}
-function thumb(id){var x=EX[id];return x?'<img class="th" src="'+x.images[0]+'" alt="" loading="lazy">':'';}
+/* small picture (img/ex/<id>/t.jpg, tools/make-thumbs.ps1) for thumbnails and tiles; the big photos stay for the strip and zoom */
+function thumbSrc(id){var x=EX[id];return x?x.images[0].replace(/0.jpg$/,'t.jpg'):'icon-192.png';}
+function thumb(id){return EX[id]?'<img class="th" src="'+thumbSrc(id)+'" alt="" loading="lazy" decoding="async">':'';}
 function exRow(id,extra,cls){return '<div class="exrow'+(cls?' '+cls:'')+'">'+thumb(id)+'<span style="flex:1;min-width:0">'+esc(nm(id))+'</span>'+(extra||'')+'</div>';}
 function bodyMap(primary,secondary){
  var P={},S={};(primary||[]).forEach(function(m){P[m]=1;});(secondary||[]).forEach(function(m){if(!P[m])S[m]=1;});
@@ -618,7 +620,7 @@ function renderTrain(){
   '<button class="btn small ghost" data-jump="'+nx+'"'+(nx>=0?'':' disabled')+'>Next ›</button></div>'+
   (nx>=0&&!swipeKnown()?'<p class="xs hint">Tip: swipe the card left or right to change exercise. <button class="linkbtn" data-act="hintoff">Got it</button></p>':'')+
   (others.length?'<div class="card" id="others" hidden><h2>What is free?</h2><p class="xs" style="margin:2px 0 8px">Order barely matters for growth — do whichever machine is free.</p><div class="swaps">'+others.map(function(i){var a=ses.ex[i].id;
-   return '<button class="tile" data-jump="'+i+'"><img src="'+exOf(a).images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+esc(equipWord(a))+(ses.ex[i].sets.some(function(x){return x.done;})?' · started':'')+'</small></button>';}).join('')+'</div></div>':'');
+   return '<button class="tile" data-jump="'+i+'"><img src="'+thumbSrc(a)+'" alt="" loading="lazy" decoding="async"><span>'+esc(nm(a))+'</span><small>'+esc(equipWord(a))+(ses.ex[i].sets.some(function(x){return x.done;})?' · started':'')+'</small></button>';}).join('')+'</div></div>':'');
  h+='<div class="card"><button class="btn wide" data-act="finish">Finish session</button>'+(ses.reopened?'':'<button class="btn wide ghost" data-act="abandon" style="margin-top:8px">Discard session</button>')+'</div>';
  $('#v-train').innerHTML=h;
  measureBars();restRir();
@@ -635,8 +637,8 @@ var openWarm={};
 function warmItem(key,w,amount,wdone){
  var ex=EX[w.id],open=!!openWarm[key],pics=w.photo?[w.photo]:ex?ex.images:null;
  return '<div class="wuwrap" id="wu-'+key+'"><div class="wu'+(open?' open':'')+'"><label class="wubox"><input type="checkbox" data-warm="'+key+'"'+(wdone[key]?' checked':'')+' aria-label="Done"></label>'+
-  '<button class="wuhead" data-wuopen="'+key+'">'+(w.photo?'<img class="th" src="'+w.photo+'" alt="" loading="lazy">':thumb(w.id))+'<span class="wut"><b>'+esc(w.label)+'</b><span class="xs">'+esc(amount)+(open?'':' · how?')+'</span></span><i class="chev"></i></button></div>'+
-  (open&&pics?'<div class="wuhow"><div class="wumedia">'+(pics.length>1?'<img src="'+pics[0]+'" alt=""><img class="f1" src="'+pics[1]+'" alt="">':'<img class="still" src="'+pics[0]+'" alt="">')+'</div>'+
+  '<button class="wuhead" data-wuopen="'+key+'">'+(w.photo?'<img class="th" src="'+w.photo+'" alt="" loading="lazy" decoding="async">':thumb(w.id))+'<span class="wut"><b>'+esc(w.label)+'</b><span class="xs">'+esc(amount)+(open?'':' · how?')+'</span></span><i class="chev"></i></button></div>'+
+  (open&&pics?'<div class="wuhow"><div class="wumedia">'+(pics.length>1?'<img src="'+pics[0]+'" alt="" decoding="async"><img class="f1" src="'+pics[1]+'" alt="">':'<img class="still" src="'+pics[0]+'" alt="">')+'</div>'+
    '<ol>'+(w.how||[]).map(function(t){return '<li>'+esc(t)+'</li>';}).join('')+'</ol>'+(w.note?'<p class="xs" style="margin-top:4px">'+esc(w.note)+'</p>':'')+'</div>':'')+'</div>';
 }
 /* Sticky session progress: picture per exercise, tap to jump. */
@@ -682,9 +684,9 @@ function exInner(e,ei,ses,collapsed){
    Tap one to see it big. Keeps the set rows on the first screen. */
 function exStrip(e,ei){
  var ex=exOf(e.id),g=GYM_PHOTO[e.id];
- return '<div class="strip'+(g?'':' two')+'"><button class="sp pic" data-zoom="pic:'+ei+'" aria-label="Show the exercise bigger"><img src="'+ex.images[0]+'" alt="" loading="lazy"><img class="f1" src="'+ex.images[1]+'" alt="" loading="lazy"></button>'+
+ return '<div class="strip'+(g?'':' two')+'"><button class="sp pic" data-zoom="pic:'+ei+'" aria-label="Show the exercise bigger"><img src="'+ex.images[0]+'" alt="" loading="lazy" decoding="async"><img class="f1" src="'+ex.images[1]+'" alt="" loading="lazy" decoding="async"></button>'+
   '<button class="sp map" data-zoom="map:'+ei+'" aria-label="Show the muscles bigger">'+bodyMap(ex.primary,ex.secondary)+'</button>'+
-  (g?'<button class="sp" data-zoom="gym:'+ei+'" aria-label="Show the machine at your gym bigger"><img src="'+g+'" alt="" loading="lazy"><span>At your gym</span></button>':'')+'</div>';
+  (g?'<button class="sp" data-zoom="gym:'+ei+'" aria-label="Show the machine at your gym bigger"><img src="'+g+'" alt="" loading="lazy" decoding="async"><span>At your gym</span></button>':'')+'</div>';
 }
 function zoom(kind,ei){
  var ses=activeSession(),e=ses&&ses.ex[ei];if(!e)return;var ex=exOf(e.id),z=document.createElement('div');
@@ -712,7 +714,7 @@ function exBody(e,ei,ses){
   }).join('')+
   (exDone(e)?'<div class="rirrow feel'+(e.feel?'':' ask')+'"><span>How was it?</span>'+feelButtons(ei,e)+'</div>'+(e.feel?'':'<p class="xs" style="margin-top:6px">Your answer sets the weight for next time. Ticked by mistake? <button class="linkbtn" data-undo="'+ei+'">Undo last set</button></p>'):'')+
   '<div class="row between" style="margin-top:10px;flex-wrap:wrap;gap:8px"><span class="row" style="gap:8px">'+(e.sets.length>1&&!e.sets[e.sets.length-1].done?'<button class="btn small ghost" data-delset="'+ei+'">− set</button>':'')+'<button class="btn small ghost" data-addset="'+ei+'">+ set</button></span>'+(alts.length?'<button class="btn small ghost" data-swapopen="'+ei+'">⇄ Other options ('+alts.length+')</button>':'')+'</div>'+
-  (alts.length?'<div id="swaps-'+ei+'" hidden><div class="seg" style="margin-top:10px">'+[['today','Just today'],['always','From now on']].map(function(o){return '<button data-swapkeep="'+o[0]+'"'+(swapKeep===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div><p class="xs" style="margin-top:6px">'+(swapKeep==='always'?'Replaces it in every session.':'Only today. Good when a machine is busy.')+'</p><div class="swaps">'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+EX[a].images[0]+'" alt="" loading="lazy"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div></div>':'')+
+  (alts.length?'<div id="swaps-'+ei+'" hidden><div class="seg" style="margin-top:10px">'+[['today','Just today'],['always','From now on']].map(function(o){return '<button data-swapkeep="'+o[0]+'"'+(swapKeep===o[0]?' class="on"':'')+'>'+o[1]+'</button>';}).join('')+'</div><p class="xs" style="margin-top:6px">'+(swapKeep==='always'?'Replaces it in every session.':'Only today. Good when a machine is busy.')+'</p><div class="swaps">'+alts.map(function(a){return '<button class="tile'+(a===e.base?' back':'')+'" data-swapto="'+ei+':'+a+'"><img src="'+thumbSrc(a)+'" alt="" loading="lazy" decoding="async"><span>'+esc(nm(a))+'</span><small>'+(a===e.base?'back to the plan · ':'')+esc(equipWord(a))+'</small></button>';}).join('')+'</div></div>':'')+
   '<details class="how" data-how="'+esc(e.id)+'"'+(openHow[e.id]?' open':'')+'><summary><b>How to do it</b>'+(lt?'<span class="xs">Last: '+esc(lt.txt)+'</span>':'')+'</summary>'+
    '<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+lastTime(e.id)+'</details>';
 }
@@ -798,7 +800,7 @@ function renderProgress(){
  var withHist=ids.filter(function(id){return E.history(state,id).length;});
  var sel=withHist.indexOf(renderProgress.sel)>=0?renderProgress.sel:withHist[0];renderProgress.sel=sel;
  // pick a lift by its picture
- h+='<div class="card"><h2>Lifts</h2>'+(sel?'<div class="lifts" role="list">'+withHist.map(function(id){return '<button class="lift'+(id===sel?' on':'')+'" data-lift="'+esc(id)+'" aria-pressed="'+(id===sel)+'"><img src="'+exOf(id).images[0]+'" alt="" loading="lazy"><span>'+esc(nm(id))+'</span></button>';}).join('')+'</div>'+
+ h+='<div class="card"><h2>Lifts</h2>'+(sel?'<div class="lifts" role="list">'+withHist.map(function(id){return '<button class="lift'+(id===sel?' on':'')+'" data-lift="'+esc(id)+'" aria-pressed="'+(id===sel)+'"><img src="'+thumbSrc(id)+'" alt="" loading="lazy" decoding="async"><span>'+esc(nm(id))+'</span></button>';}).join('')+'</div>'+
   '<h3 style="margin-top:10px">'+esc(nm(sel))+'</h3>'+liftChart(sel):'<p class="xs" style="margin-top:6px">Finish a session to see your lifts here.</p>')+'</div>';
  h+=historyCard();
  h+='<div class="card"><h2>Hard sets per muscle, last 7 days</h2><p class="xs" style="margin:4px 0 8px">Target about '+E.RULES.volumeBand.normal.join('–')+' (priority muscles '+E.RULES.volumeBand.priority.join('–')+'). Secondary muscles count half.</p>'+volumeChart()+'</div>';
