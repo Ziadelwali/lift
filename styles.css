@@ -355,3 +355,5 @@ ul.bests li>span:nth-child(2){flex:1;min-width:0;font-size:14px}
 .wdots{display:flex;align-items:center;gap:6px;margin-top:6px}.wdots .xs{margin-left:6px}
 .wdot{width:14px;height:14px;border-radius:50%;background:var(--line)}.wdot.on{background:var(--ok)}
 .hint{margin:-4px 0 12px;text-align:center}
+/* the A/B session letter: small print */
+small.ab{font-family:var(--mono);font-size:12px;font-weight:400;color:var(--ink3);letter-spacing:.04em;text-transform:none;margin-left:4px}
