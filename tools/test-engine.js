@@ -296,5 +296,12 @@ eq('pair text', [E.kgText('Dumbbell_Bench_Press', 10), E.setText('Dumbbell_Bench
 eq('one dumbbell / machine text', [E.kgText('One-Arm_Dumbbell_Row', 20), E.setText('Goblet_Squat', 20, 10), E.setText('Leg_Press', 100, 8)], ['20 kg', '20 kg × 10', '100 kg × 8']);
 eq('kg moved counts both hands', [E.liftedKg('Side_Lateral_Raise', 8), E.liftedKg('Goblet_Squat', 20), E.liftedKg('Plank', null)], [16, 20, 0]);
 
+// lift chart points: the top set of each session, bests marked
+function lp(d, sets) { return { done: true, ex: [{ id: 'Leg_Press', base: 'Leg_Press', sets: sets.map(function (s) { return { kg: s[0], reps: s[1], done: true }; }) }] }; }
+var lst = { sessions: { '2026-10-01': lp('', [[100, 8], [100, 7]]), '2026-10-03': lp('', [[100, 7]]), '2026-10-05': lp('', [[105, 8], [100, 10]]), '2026-10-07': lp('', [[105, 8]]) } };
+// top = the strongest set by estimated strength: 100×10 (133.3) beats 105×8 (133)
+eq('lift points: top set per session', E.liftPoints(lst, 'Leg_Press').map(function (p) { return p.kg + 'x' + p.reps; }), ['100x8', '100x7', '100x10', '105x8']);
+eq('lift points: bests marked (a tie is not a new best)', E.liftPoints(lst, 'Leg_Press').map(function (p) { return p.best; }), [true, false, true, false]);
+
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);

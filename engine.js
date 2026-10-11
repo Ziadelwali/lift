@@ -831,6 +831,11 @@
       return { date: h.date, kg: best.kg, reps: best.reps, e1rm: Math.round(epley(best.kg, best.reps) * 10) / 10 };
     });
   }
+  /* bestSets with best: true where the strength beat every earlier session (the first one counts) */
+  function liftPoints(state, exId) {
+    var top = 0;
+    return bestSets(state, exId).map(function (b) { var nb = b.e1rm > top; if (nb) top = b.e1rm; return Object.assign({ best: nb }, b); });
+  }
 
 
   return {
@@ -841,6 +846,6 @@
     exercisesFor: exercisesFor, idFor: idFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, suggestIn: suggestIn, feelOf: feelOf, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
     macros: macros, timeline: timeline, proteinDone: proteinDone, weightSeries: weightSeries, weightTrend: weightTrend,
-    trendAdvice: trendAdvice, trendWeight: trendWeight, weightRate: weightRate, macrosFor: macrosFor, weeklyVolume: weeklyVolume, bestSets: bestSets
+    trendAdvice: trendAdvice, trendWeight: trendWeight, weightRate: weightRate, macrosFor: macrosFor, weeklyVolume: weeklyVolume, bestSets: bestSets, liftPoints: liftPoints
   };
 });

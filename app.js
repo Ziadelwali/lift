@@ -787,8 +787,10 @@ function renderProgress(){
  var ids=[];E.PROGRAM.A.concat(E.PROGRAM.B).forEach(function(c){if(ids.indexOf(c.id)<0)ids.push(c.id);});
  Object.keys(state.sessions).forEach(function(k){(state.sessions[k].ex||[]).forEach(function(e){if(ids.indexOf(e.id)<0)ids.push(e.id);});});
  var withHist=ids.filter(function(id){return E.history(state,id).length;});
- var sel=renderProgress.sel||withHist[0]||ids[0];renderProgress.sel=sel;
- h+='<div class="card"><div class="row between"><h2>Lifts</h2><select class="rir" style="width:auto;max-width:200px;padding:0 10px" data-act="pick">'+ids.map(function(id){return '<option value="'+esc(id)+'"'+(id===sel?' selected':'')+'>'+esc(nm(id))+'</option>';}).join('')+'</select></div>'+liftChart(sel)+'</div>';
+ var sel=withHist.indexOf(renderProgress.sel)>=0?renderProgress.sel:withHist[0];renderProgress.sel=sel;
+ // pick a lift by its picture
+ h+='<div class="card"><h2>Lifts</h2>'+(sel?'<div class="lifts" role="list">'+withHist.map(function(id){return '<button class="lift'+(id===sel?' on':'')+'" data-lift="'+esc(id)+'" aria-pressed="'+(id===sel)+'"><img src="'+exOf(id).images[0]+'" alt="" loading="lazy"><span>'+esc(nm(id))+'</span></button>';}).join('')+'</div>'+
+  '<h3 style="margin-top:10px">'+esc(nm(sel))+'</h3>'+liftChart(sel):'<p class="xs" style="margin-top:6px">Finish a session to see your lifts here.</p>')+'</div>';
  h+='<div class="card"><h2>Hard sets per muscle, last 7 days</h2><p class="xs" style="margin:4px 0 8px">Target about '+E.RULES.volumeBand.normal.join('–')+' (priority muscles '+E.RULES.volumeBand.priority.join('–')+'). Secondary muscles count half.</p>'+volumeChart()+'</div>';
  $('#v-progress').innerHTML=h;
 }
@@ -817,11 +819,17 @@ function lineChart(pts,opts){
  var h='<svg class="chart" viewBox="0 0 '+W+' '+H+'">';
  ticks.forEach(function(yv){h+='<line class="grid" x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(yv)+'" y2="'+Y(yv)+'"/><text x="0" y="'+(Y(yv)+3)+'">'+yv.toFixed(st?0:opts.dec==null?1:opts.dec)+'</text>';});
  (opts.goals||[]).forEach(function(g){h+='<line class="goal" x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(g.y)+'" y2="'+Y(g.y)+'"/><text class="goaltext" x="'+(W-R)+'" y="'+(Y(g.y)-4)+'" text-anchor="end">'+esc(g.label)+'</text>';});
- h+='<text x="'+L+'" y="'+(H-6)+'">'+opts.fmtX(x0)+'</text><text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end">'+opts.fmtX(x1)+'</text>';
- pts.forEach(function(p){h+='<circle class="dot" cx="'+X(p.x)+'" cy="'+Y(p.y)+'" r="2.2"/>';});
+ // x labels: month names at month starts once the chart spans a few weeks, otherwise the first and last date
+ var ms=[];if(opts.months&&x1-x0>40*864e5){var md=new Date(x0);md=new Date(md.getFullYear(),md.getMonth()+1,1);for(;md.getTime()<=x1;md.setMonth(md.getMonth()+1))ms.push(md.getTime());}
+ if(ms.length){var lx=-99;ms.forEach(function(t){var xx=X(t);h+='<line class="grid" x1="'+xx+'" x2="'+xx+'" y1="'+T+'" y2="'+(H-B)+'"/>';if(xx-lx>=30&&xx<=W-R-12){lx=xx;h+='<text x="'+xx+'" y="'+(H-6)+'" text-anchor="middle">'+MON[new Date(t).getMonth()]+'</text>';}});}
+ else h+='<text x="'+L+'" y="'+(H-6)+'">'+opts.fmtX(x0)+'</text><text x="'+(W-R)+'" y="'+(H-6)+'" text-anchor="end">'+opts.fmtX(x1)+'</text>';
+ pts.forEach(function(p){h+='<circle class="dot'+(p.best?' best':'')+'" cx="'+X(p.x)+'" cy="'+Y(p.y)+'" r="'+(p.best?3.6:2.2)+'"/>';});
  var line=pts.filter(function(p){return p.y2!=null;});
  if(line.length>1)h+='<path class="line" d="'+line.map(function(p,i){return (i?'L':'M')+X(p.x).toFixed(1)+' '+Y(p.y2).toFixed(1);}).join(' ')+'"/>';
  else h+='<path class="line" d="'+pts.map(function(p,i){return (i?'L':'M')+X(p.x).toFixed(1)+' '+Y(p.y).toFixed(1);}).join(' ')+'"/>';
+ // p.label: a short text over the point (e.g. the top set "105 kg × 8"), kept inside the chart
+ pts.forEach(function(p){if(!p.label)return;var px=X(p.x),py=Y(p.y),an=px>W-R-50?'end':px<L+50?'start':'middle';
+  h+='<text class="plabel" x="'+px.toFixed(1)+'" y="'+(py-9<T+10?py+18:py-9).toFixed(1)+'" text-anchor="'+an+'">'+esc(p.label)+'</text>';});
  return h+'</svg>';
 }
 function fmtX(ms){var d=new Date(ms);return d.getDate()+' '+MON[d.getMonth()];}
@@ -842,11 +850,15 @@ function waistCard(){
  return '<div class="card"><h2>Waist</h2><p class="xs" style="margin:4px 0 8px">Once a week, same morning — Today asks for it. Better than the scale when you are also building muscle.</p>'+
   '<p class="sm" style="margin:4px 0 6px">'+info+'</p>'+lineChart(pts,{fmtX:fmtX,dec:0,empty:'measure again next week to see the line.',goals:[{y:g.waist,label:'goal '+g.waist}]})+'</div>';
 }
+/* Strength over time; the dots are each session's top set. Bests are marked; the latest top set and
+   the best one carry their kg × reps. */
 function liftChart(id){
- var bs=E.bestSets(state,id);
- var pts=bs.map(function(b){return {x:E.parseISO(b.date).getTime(),y:b.e1rm};});
- var last=bs[bs.length-1];
- return (last?'<p class="sm" style="margin:4px 0 6px">Best set '+esc(E.setText(id,last.kg,last.reps))+' · strength <b class="mono">'+last.e1rm+'</b> kg'+(E.pair(id)?' each hand':'')+' <span class="xs">(about what you could lift once)</span></p>':'')+lineChart(pts,{fmtX:fmtX,dec:0,empty:'complete a session with this lift.'});
+ var bs=E.liftPoints(state,id),last=bs[bs.length-1],top=null;
+ bs.forEach(function(b){if(b.best)top=b;});
+ function lbl(b){return E.pair(id)?'2×'+b.kg+'×'+b.reps:b.kg+'×'+b.reps;}
+ var pts=bs.map(function(b){return {x:E.parseISO(b.date).getTime(),y:b.e1rm,best:b.best&&bs.length>1,label:b===last||b===top?lbl(b):null};});
+ return (last?'<p class="sm" style="margin:4px 0 6px">Best set '+esc(E.setText(id,last.kg,last.reps))+' · strength <b class="mono">'+last.e1rm+'</b> kg'+(E.pair(id)?' each hand':'')+' <span class="xs">(about what you could lift once)</span></p>':'')+lineChart(pts,{fmtX:fmtX,dec:0,months:true,empty:'complete a session with this lift.'})+
+  (bs.length>1?'<p class="xs" style="margin-top:4px"><i class="lgd best"></i> new best · labels: kg × reps</p>':'');
 }
 function volumeChart(){
  var vol=E.weeklyVolume(state,EX),prio=[];(state.profile.priority||[]).forEach(function(k){prio=prio.concat(E.PRIORITY[k].muscles);});
@@ -900,7 +912,8 @@ function renderProfile(){
 
 /* ---------------- events (delegated) ---------------- */
 document.addEventListener('click',function(ev){
- var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-zoom],[data-undo]');if(!b)return;
+ var b=ev.target.closest('[data-act],[data-step],[data-tick],[data-addset],[data-delset],[data-swapopen],[data-swapto],[data-themeset],[data-toggle],[data-jump],[data-feel],[data-swapkeep],[data-rest],[data-mealrow],[data-wuopen],[data-mealdone],[data-wkday],[data-wknav],[data-move],[data-unmove],[data-pickother],[data-zoom],[data-undo],[data-lift]');if(!b)return;
+ if(b.dataset.lift){var lr=$('.lifts'),sl=lr?lr.scrollLeft:0,py=scrollY;renderProgress.sel=b.dataset.lift;renderProgress();scrollTo(0,py);lr=$('.lifts');if(lr)lr.scrollLeft=sl;return;}
  if(b.dataset.zoom){var zz=b.dataset.zoom.split(':');zoom(zz[0],+zz[1]);return;}
  if(b.dataset.wkday){wkv.sel=wkv.sel===b.dataset.wkday||b.dataset.wkday===todayISO()?null:b.dataset.wkday;var wy=scrollY;renderToday();scrollTo(0,wy);return;}
  if(b.dataset.wknav){wkv.off=Math.max(0,Math.min(3,wkv.off+(+b.dataset.wknav)));wkv.sel=null;var wy2=scrollY;renderToday();scrollTo(0,wy2);return;}
@@ -1014,7 +1027,6 @@ document.addEventListener('change',function(ev){
  if(t.dataset.prio){var list=(state.profile.priority||['shoulders','back']).slice();if(t.checked){if(list.length>=2){t.checked=false;toast('Two at most');return;}list.push(t.dataset.prio);}else list=list.filter(function(x){return x!==t.dataset.prio;});state.profile.priority=list;save();return;}
  if(t.dataset.time==='all'){if(!t.value)return;var sched=Object.assign({},E.schedOf(state.profile));Object.keys(sched).forEach(function(d){sched[d]=t.value;});
   state.profile.sched=sched;save();renderProfile();return;}
- if(t.dataset.act==='pick'){renderProgress.sel=t.value;renderProgress();return;}
 });
 
 /* ---------------- boot ---------------- */
