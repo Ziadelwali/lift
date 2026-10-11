@@ -304,7 +304,17 @@ function keepAwake(on){
 document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&view==='train'&&activeSession())keepAwake(true);});
 
 /* ---------------- sessions ---------------- */
-function activeSession(){var s=state.sessions[todayISO()];return s&&!s.done?s:null;}
+/* The session being trained: today's, or one started under 6 h ago (training past midnight).
+   withDone: also a finished one, for "Fix a mistake". */
+var ACTIVE_MS=6*3600e3;
+function sessionKey(withDone){
+ var today=todayISO(),now=Date.now(),best=null;
+ Object.keys(state.sessions).forEach(function(k){var s=state.sessions[k];if(!s||(s.done&&!withDone))return;
+  if((k===today||(s.started>now-ACTIVE_MS&&k<today))&&(!best||k>best))best=k;});
+ return best;
+}
+function activeKey(){return sessionKey(false);}
+function activeSession(){var k=activeKey();return k?state.sessions[k]:null;}
 function planFor(iso){return E.plan(iso,state,todayISO());}
 function addDays(iso,n){var d=E.parseISO(iso);d.setDate(d.getDate()+n);return E.isoDate(d);}
 function trainedOn(iso){var s=state.sessions[iso];return !!(s&&s.done);}
@@ -338,8 +348,16 @@ function migrate(){
  var ses=activeSession();
  if(ses)ses.ex.forEach(function(e){if(!EX[e.id]&&EX[e.base]&&!e.sets.some(function(x){return x.done;})){
   e.id=e.base;e.suggest=E.suggest(E.findCfg(e.base),E.history(state,e.base),{calibration:ses.calibration,deload:ses.deload});e.sets=E.freshSets(e.suggest);ch=true;}});
+ // forgot Finish: a past session with ticked sets counts (for progression and the streak) as it was left
+ var act=activeKey(),saved=[];
+ Object.keys(state.sessions).sort().forEach(function(k){var s=state.sessions[k];
+  if(k>=todayISO()||k===act||s.done||!s.ex.some(function(e){return e.sets.some(function(x){return x.done;});}))return;
+  var last=0;s.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});e.sets.forEach(function(x){if(x.at>last)last=x.at;});});
+  s.done=true;delete s.reopened;if(!s.finished)s.finished=last||s.started||null;saved.push(k);ch=true;});
+ if(saved.length)setTimeout(function(){toast(saved.length>1?saved.length+' unfinished sessions saved':DAYNAME[E.parseISO(saved[0]).getDay()]+'’s session saved');},300);
  if(ch)save();
 }
+var DAYNAME=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 /* Trained on Sunday: Monday rests and the week moves along by itself (undo keeps Monday). */
 function fixSunday(){
  var st=state.settings;if(!st)return;var sh=E.sundayShift(state,todayISO());if(!sh)return;
@@ -353,7 +371,7 @@ function render(){
 
 /* ---- Today ---- */
 function renderToday(){
- var iso=todayISO(),p=planFor(iso),mac=E.macros(state.profile),ses=state.sessions[iso];
+ var iso=todayISO(),p=planFor(iso),mac=E.macros(state.profile),ses=state.sessions[iso]||activeSession();
  var h='<p class="eyebrow" style="margin-top:6px">'+niceDate(iso)+' · week '+p.week+'</p>';
  h+=weighCard(iso);
  var sesCard='';
@@ -508,9 +526,9 @@ function renderTrain(){
  var iso=todayISO(),ses=activeSession(),p=planFor(iso);
  var h='';
  if(!ses){
-  var done=state.sessions[iso]&&state.sessions[iso].done;
-  h='<div class="card" style="margin-top:14px"><h2>'+(done?'Session '+state.sessions[iso].day+' done':p.training?'Session '+p.day+' today':'Rest day')+'</h2>'+
-   '<p class="sm" style="margin-top:6px">'+(done?sessionSummary(state.sessions[iso]):p.training?'Warm-up, then '+p.exercises.length+' exercises. Phone stays awake while you train.':'No session planned. You can still train if life moved a day — it becomes the next session in the rotation.')+'</p>'+
+  var dk=sessionKey(true),ds=dk&&state.sessions[dk],done=!!(ds&&ds.done);
+  h='<div class="card" style="margin-top:14px"><h2>'+(done?'Session '+ds.day+' done':p.training?'Session '+p.day+' today':'Rest day')+'</h2>'+
+   '<p class="sm" style="margin-top:6px">'+(done?sessionSummary(ds):p.training?'Warm-up, then '+p.exercises.length+' exercises. Phone stays awake while you train.':'No session planned. You can still train if life moved a day — it becomes the next session in the rotation.')+'</p>'+
    (done?FIXLINK:p.training?'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+p.day+'</button>':ANYWAY)+'</div>'+programCard();
   $('#v-train').innerHTML=h;return;
  }
@@ -827,7 +845,7 @@ document.addEventListener('click',function(ev){
   if(a[0]==='kg'&&!s.done)e.sets.forEach(function(x,i){if(i>si&&!x.done&&(x.kg==null||x.kg===cur)){x.kg=s.kg;var q=$('[data-val="kg:'+a[1]+':'+i+'"]');if(q)q.value=x.kg;}});
   save();return;}
  if(b.dataset.tick){unlockAudio();var t=b.dataset.tick.split(':'),ex=ses.ex[+t[0]],st=ex.sets[+t[1]];
-  if(!st.done){if(!(st.kg>0)||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;
+  if(!st.done){if(!(st.kg>0)||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;st.at=Date.now();
    var prev=E.bestSets(state,ex.id).reduce(function(m,x){return Math.max(m,x.e1rm);},0),mine=E.epley(st.kg,st.reps);
    var beat=ex.sets.some(function(x){return x!==st&&x.pr;});
    if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+st.kg+' kg × '+st.reps+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
@@ -836,20 +854,20 @@ document.addEventListener('click',function(ev){
    var ei=+t[0];if(lastSet)delete openCards[ei];save();refreshCard(ei);
    if(lastSet){var nx=nextUndone(ses,ei+1);if(nx>=0)setTimeout(function(){ses.warmShut=true;trainFocus=nx;renderTrain();scrollTo(0,0);toast('Next: '+nm(ses.ex[nx].id));},700);}
    return;}
-  else{st.done=false;delete st.pr;}
+  else{st.done=false;delete st.pr;delete st.at;}
   save();refreshCard(+t[0]);return;}
  if(b.dataset.delset){var dei=+b.dataset.delset,dex=ses.ex[dei],dl=dex.sets.length-1;if(dl<1||dex.sets[dl].done)return;dex.sets.pop();save();refreshCard(dei);return;}
  if(b.dataset.addset){var exx=ses.ex[+b.dataset.addset],lastS=exx.sets[exx.sets.length-1];exx.sets.push({kg:lastS?lastS.kg:null,reps:lastS?lastS.reps:null,rir:null,done:false});save();refreshCard(+b.dataset.addset);return;}
  var act=b.dataset.act;
- if(act==='start'){trainFocus=null;var iso=todayISO();if(!state.sessions[iso]){var p=planFor(iso);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
+ if(act==='start'){trainFocus=null;var iso=activeKey()||todayISO();if(!state.sessions[iso]){var p=planFor(iso);if(!p.training){p.training=true;p.day=p.n%2===0?'A':'B';p.exercises=E.exercisesFor(p.day,state.profile);p.time=E.fmtHM(nowMin());}var s2=E.buildSession(p,state);s2.started=Date.now();state.sessions[iso]=s2;save();}show('train');return;}
  if(act==='finish'){if(!ses)return;var n=0;ses.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done)n++;});});if(!n){toast('No sets logged yet');return;}
   if(!confirm('Finish session with '+n+' sets logged?'))return;
   var again=!!ses.reopened;delete ses.reopened;
   ses.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});});ses.done=true;if(!again||!ses.finished)ses.finished=Date.now();
   if(!again&&E.recentStalls(state,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;toast('Two lifts stalled — next 3 sessions are a deload');}
   save();stopRest();keepAwake(false);show('today');return;}
- if(act==='reopen'){var rs=state.sessions[todayISO()];if(!rs||!rs.done)return;rs.done=false;rs.reopened=true;trainFocus=0;save();show('train');toast('Change what was wrong, then Finish again');return;}
- if(act==='abandon'){if(!ses||ses.reopened)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[todayISO()];save();stopRest();keepAwake(false);renderTrain();return;}
+ if(act==='reopen'){var rk=sessionKey(true),rs=rk&&state.sessions[rk];if(!rs||!rs.done)return;rs.done=false;rs.reopened=true;trainFocus=0;save();show('train');toast('Change what was wrong, then Finish again');return;}
+ if(act==='abandon'){if(!ses||ses.reopened)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[activeKey()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='ics'){downloadBlob(E.calendarICS(state.profile,E.macros(state.profile),todayISO(),b.dataset.meals==='1'),'text/calendar','lift-reminders.ics');toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
  if(act==='install'){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(c){if(c&&c.outcome==='accepted')installEvt=null;render();});}return;}
  if(act==='wskip'){try{localStorage.setItem('lift.wskip',todayISO());}catch(e){}renderToday();return;}
