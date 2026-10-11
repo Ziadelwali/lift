@@ -208,7 +208,7 @@ function exOf(id){return EX[id]||{name:String(id),images:['icon-192.png','icon-1
 var CFG0={sets:3,reps:[8,12],inc:2.5,rest:90,alts:[]};
 function cfgOf(e){return E.findCfg(e.base)||E.findCfg(e.id)||Object.assign({},CFG0,{id:e.base});}
 /* small picture (img/ex/<id>/t.jpg, tools/make-thumbs.ps1) for thumbnails and tiles; the big photos stay for the strip and zoom */
-function thumbSrc(id){var x=EX[id];return x?x.images[0].replace(/0.jpg$/,'t.jpg'):'icon-192.png';}
+function thumbSrc(id){var x=EX[id];return x?x.images[0].replace(/0\.jpg$/,'t.jpg'):'icon-192.png';}
 function thumb(id){return EX[id]?'<img class="th" src="'+thumbSrc(id)+'" alt="" loading="lazy" decoding="async">':'';}
 function exRow(id,extra,cls){return '<div class="exrow'+(cls?' '+cls:'')+'">'+thumb(id)+'<span style="flex:1;min-width:0">'+esc(nm(id))+'</span>'+(extra||'')+'</div>';}
 function bodyMap(primary,secondary){

@@ -3,7 +3,8 @@
       in any file that would be committed. The repo is public.
    2. fbconfig.js must hold the v2 sealed config (node tools/seal-config.js).
    3. tools/test-engine.js and tools/test-sync.js must pass.
-   4. sw.js gets a fresh random cache version so phones pick up the new build. */
+   4. sw.js gets a fresh random cache version so phones pick up the new build, and the list of
+      photos to keep offline (everything under img/ that is committed). */
 const fs=require('fs'),p=require('path'),c=require('crypto'),cp=require('child_process');
 const root=p.join(__dirname,'..');
 const files=cp.execSync('git ls-files --cached --others --exclude-standard',{cwd:root}).toString().split(/\r?\n/).filter(Boolean);
@@ -19,6 +20,8 @@ if(!fs.existsSync(fbc)||!/FB_SEALED2=/.test(fs.readFileSync(fbc,'utf8'))){consol
 const f=p.join(root,'sw.js');
 const ver='v-'+c.randomBytes(5).toString('hex');
 fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(/const VERSION = '[^']*';/,"const VERSION = '"+ver+"';"));
+const photos=files.filter(x=>/^img\/.+\.(jpg|png)$/.test(x)).sort().map(x=>'./'+x);
+fs.writeFileSync(f,fs.readFileSync(f,'utf8').replace(/const PHOTOS = \[[^\]]*\];/,'const PHOTOS = '+JSON.stringify(photos)+';'));
 const ix=p.join(root,'index.html');
 fs.writeFileSync(ix,fs.readFileSync(ix,'utf8').replace(/<meta name="build" content="[^"]*">/,'<meta name="build" content="'+ver.slice(2)+'">'));
-console.log('leak scan OK, fbconfig.js present, tests pass, build '+ver.slice(2));
+console.log('leak scan OK, fbconfig.js present, tests pass, '+photos.length+' photos, build '+ver.slice(2));
