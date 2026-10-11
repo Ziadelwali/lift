@@ -4,8 +4,9 @@ const VERSION = 'v-bde7dadfe2';
 /* Other pages share this github.io origin (and its caches), so Lift's caches carry a lift- prefix
    and only those are ever cleaned up. */
 const CACHE = 'lift-' + VERSION;
-const SHELL = ['./', './index.html', './theme.js', './styles.css', './app.js', './exercises.js', './sync.js', './engine.js', './fbconfig.js', './manifest.webmanifest', './icon-192.png', './icon-180.png'];
-const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];
+const SHELL = ['./', './index.html', './theme.js', './styles.css', './app.js', './exercises.js', './sync.js', './engine.js', './fbconfig.js', './manifest.webmanifest', './icon-192.png', './icon-180.png',
+  './fonts/dm-sans.woff2', './fonts/dm-mono-400.woff2', './fonts/dm-mono-500.woff2'];
+const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com'];   // older versions loaded fonts from Google
 /* Photos (exercises, thumbnails, your gym) live in their own cache that outlasts versions, so a
    publish doesn't download them again. tools/prepublish.js writes the list. */
 const IMG_CACHE = 'lift-img';
@@ -58,8 +59,7 @@ self.addEventListener('fetch', function (e) {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   const same = url.origin === self.location.origin;
-  const font = FONT_HOSTS.indexOf(url.hostname) >= 0;
-  if (!same && !font) return;
+  if (!same) return;
   if (same && url.searchParams.has('fresh')) { e.respondWith(fetch(req.url, { cache: 'no-store' })); return; }   // explicit "get the live file"
   if (same && /\/img\/.+\.(jpg|png)$/.test(url.pathname)) {   // photos: from the photo cache, else the network (and keep it)
     e.respondWith(caches.open(IMG_CACHE).then(function (c) {

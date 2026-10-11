@@ -1,3 +1,7 @@
+/* fonts are served from here (fonts/, OFL): no call to Google, nothing blocks the first paint */
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:400 700;font-display:swap;src:url(fonts/dm-sans.woff2) format("woff2")}
+@font-face{font-family:"DM Mono";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/dm-mono-400.woff2) format("woff2")}
+@font-face{font-family:"DM Mono";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/dm-mono-500.woff2) format("woff2")}
 :root{--bg:#0A1322;--card:rgba(20,31,48,.66);--card2:rgba(255,255,255,.06);--ink:#E8EDF1;--ink2:#B3BFC8;--ink3:#8D9BA8;
  --train:#8E9CFF;--train-bg:rgba(142,156,255,.16);--food:#5FCB93;--food-bg:rgba(95,203,147,.15);--sel:rgba(255,255,255,.14);
  --r-s:8px;--r-m:12px;--r-l:18px;--line:rgba(255,255,255,.08);
