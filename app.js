@@ -9,7 +9,11 @@ function todayISO(){return E.isoDate(new Date());}
 function nowMin(){var d=new Date();return d.getHours()*60+d.getMinutes();}
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 function niceDate(iso){var d=E.parseISO(iso);return DOW[d.getDay()]+' '+d.getDate()+' '+MON[d.getMonth()];}
-function toast(t){var el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){el.classList.remove('on');},1800);}
+function toast(t){var el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(toast._t);toast._t=setTimeout(function(){el.classList.remove('on');},3000);}
+/* Important news (easy week, stalls) stays as a card on Today and Train until dismissed, instead of a toast. */
+function notice(){try{return JSON.parse(localStorage.getItem('lift.notice')||'null');}catch(e){return null;}}
+function setNotice(t){try{if(t)localStorage.setItem('lift.notice',JSON.stringify({text:t,at:Date.now()}));else localStorage.removeItem('lift.notice');}catch(e){}}
+function noticeCard(){var n=notice();return n&&n.text?'<div class="card notice" role="status"><p class="sm">'+esc(n.text)+'</p><button class="btn small ghost" data-act="noticeoff">OK</button></div>':'';}
 function fmtSec(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+(s%60<10?'0':'')+(s%60);}
 
 /* ---------------- persistent state ----------------
@@ -364,7 +368,7 @@ function render(){
 function renderToday(){
  var iso=todayISO(),p=planFor(iso),mac=E.macrosFor(state),ses=state.sessions[iso]||activeSession();
  var h='<p class="eyebrow" style="margin-top:6px">'+niceDate(iso)+' · week '+p.week+'</p>';
- h+=weighCard(iso);
+ h+=noticeCard()+weighCard(iso);
  var sesCard='';
  if(p.training){
   var exs=(ses?ses.ex.map(function(e){var c=E.findCfg(e.base)||{};return {id:e.id,prio:c.prio};}):p.exercises);
@@ -561,7 +565,7 @@ function renderTrain(){
    (done?FIXLINK:p.training?'<button class="btn wide" data-act="start" style="margin-top:14px">Start session '+p.day+'</button>':ANYWAY)+'</div>'+programCard();
   $('#v-train').innerHTML=h;return;
  }
- h+=trackBar(ses);
+ h+=trackBar(ses)+noticeCard()+(ses.reopened?'<div class="card notice"><p class="sm"><b>Fixing a mistake.</b> Change what was wrong, then tap Finish session again.</p></div>':'');
  /* warm-up */
  var wl=E.WARMUP,firstRamp=null;
  for(var i=0;i<ses.ex.length;i++){var c=E.findCfg(ses.ex[i].base);if(c&&c.ramp&&ses.ex[i].sets[0]&&ses.ex[i].sets[0].kg){firstRamp=ses.ex[i];break;}}
@@ -898,7 +902,7 @@ document.addEventListener('click',function(ev){
   if(!confirm('Finish session with '+n+' sets logged?'))return;
   var again=!!ses.reopened;delete ses.reopened;
   ses.ex.forEach(function(e){e.sets=e.sets.filter(function(x){return x.done;});});ses.done=true;if(!again||!ses.finished)ses.finished=Date.now();
-  if(!again&&E.recentStalls(state,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;toast('Two lifts stalled — the next 3 sessions are an easy week');}
+  if(!again&&E.recentStalls(state,3)>=2&&!ses.deload){state.settings.deloadUntil=E.completedSessions(state).length+3;setNotice('Two lifts stalled, so the next 3 sessions are an easy week: lighter weights, fewer sets. After that the weights go back up.');}
   save();stopRest();keepAwake(false);show('today');return;}
  if(act==='easy'||act==='easyoff'){var on=act==='easy',es=activeSession()||state.sessions[todayISO()];
   state.settings.deloadUntil=on?E.completedSessions(state).length+3:0;
@@ -906,10 +910,11 @@ document.addEventListener('click',function(ev){
   if(es&&!es.done&&!es.ex.some(function(e){return e.sets.some(function(x){return x.done;});})){es.deload=on;
    es.ex.forEach(function(e){e.suggest=E.suggestIn(state,es,Object.assign({},cfgOf(e),{id:e.id}));e.sets=E.freshSets(e.suggest);});}
   save();renderToday();toast(on?'Easy week: the next 3 sessions are lighter':'Back to normal weights');return;}
- if(act==='reopen'){var rk=sessionKey(true),rs=rk&&state.sessions[rk];if(!rs||!rs.done)return;rs.done=false;rs.reopened=true;trainFocus=0;save();show('train');toast('Change what was wrong, then Finish again');return;}
+ if(act==='reopen'){var rk=sessionKey(true),rs=rk&&state.sessions[rk];if(!rs||!rs.done)return;rs.done=false;rs.reopened=true;trainFocus=0;save();show('train');return;}
  if(act==='abandon'){if(!ses||ses.reopened)return;if(!confirm('Discard this session? Nothing will be saved.'))return;delete state.sessions[activeKey()];save();stopRest();keepAwake(false);renderTrain();return;}
  if(act==='ics'){downloadBlob(E.calendarICS(state.profile,E.macrosFor(state),todayISO(),b.dataset.meals==='1'),'text/calendar','lift-reminders.ics');toast('Saved lift-reminders.ics — open it to add to your calendar');return;}
  if(act==='install'){if(installEvt){installEvt.prompt();installEvt.userChoice.then(function(c){if(c&&c.outcome==='accepted')installEvt=null;render();});}return;}
+ if(act==='noticeoff'){setNotice(null);render();return;}
  if(act==='wedit'){weighEdit=true;renderToday();var wi=$('.weigh input');if(wi)wi.focus();return;}
  if(act==='wskip'){try{localStorage.setItem('lift.wskip',todayISO());}catch(e){}renderToday();return;}
  if(act==='installlater'){try{localStorage.setItem('lift.installLater',todayISO().slice(0,7));}catch(e){}renderToday();return;}

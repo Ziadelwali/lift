@@ -329,5 +329,6 @@ svg.bm .m.p{fill:var(--train)}svg.bm .m.s{fill:var(--train);opacity:.45}
 /* ---------- gate ---------- */
 #gate{min-height:100dvh;display:grid;place-items:center;padding:24px}
 #gate .card{width:100%;max-width:380px}
-.toast{position:fixed;top:calc(var(--sat) + 10px);left:50%;transform:translateX(-50%);background:var(--bar-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--shadow);border:1px solid var(--glass-edge);padding:8px 14px;border-radius:10px;font-size:13px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast{position:fixed;bottom:calc(var(--sab) + 74px + var(--rh,0px));max-width:calc(100% - 32px);text-align:center;left:50%;transform:translateX(-50%);background:var(--bar-bg);-webkit-backdrop-filter:var(--blur);backdrop-filter:var(--blur);box-shadow:var(--shadow);border:1px solid var(--glass-edge);padding:8px 14px;border-radius:10px;font-size:13px;z-index:9;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
+.card.notice{display:flex;align-items:center;gap:12px;border-left:3px solid var(--warn)}.card.notice p{flex:1}
