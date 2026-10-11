@@ -231,6 +231,16 @@
     'Seated_Side_Lateral_Raise', 'Stiff-Legged_Dumbbell_Deadlift', 'One-Arm_Dumbbell_Row', 'Dumbbell_Incline_Row',
     'Dumbbell_Bicep_Curl', 'Hammer_Curls', 'Incline_Dumbbell_Curl', 'Standing_Dumbbell_Triceps_Extension', 'Goblet_Squat', 'Reverse_Flyes', 'Standing_Dumbbell_Calf_Raise'];
 
+  /* Dumbbell exercises with one dumbbell in each hand. The kg you log is ONE dumbbell (per hand),
+     like the 30 kg cap; the app shows it as "2 × 10 kg" and counts both for "kg moved". */
+  var PAIR = ['Dumbbell_Bench_Press', 'Incline_Dumbbell_Press', 'Dumbbell_Shoulder_Press', 'Side_Lateral_Raise',
+    'Seated_Side_Lateral_Raise', 'Stiff-Legged_Dumbbell_Deadlift', 'Dumbbell_Incline_Row', 'Dumbbell_Bicep_Curl',
+    'Hammer_Curls', 'Incline_Dumbbell_Curl', 'Reverse_Flyes'];
+  function pair(id) { return PAIR.indexOf(id) !== -1; }
+  function kgText(id, kg) { return (pair(id) ? '2 × ' : '') + kg + ' kg'; }
+  function setText(id, kg, reps) { return pair(id) ? '2 × ' + kg + ' kg, ' + reps + ' reps' : kg + ' kg × ' + reps; }
+  function liftedKg(id, kg) { return (kg || 0) * (pair(id) ? 2 : 1); }
+
   /* Exercises done with body weight only: ticked with kg = 0, progressed by reps. */
   var BODYWEIGHT = ['Plank'];
 
@@ -784,7 +794,7 @@
 
 
   return {
-    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
+    RULES: RULES, PROGRAM: PROGRAM, DUMBBELL: DUMBBELL, PAIR: PAIR, pair: pair, kgText: kgText, setText: setText, liftedKg: liftedKg, BODYWEIGHT: BODYWEIGHT, LABEL: LABEL, ALT_INFO: ALT_INFO, info: info, cue: cue, PRIORITY: PRIORITY, WARMUP: WARMUP, SHAKES: SHAKES, reminderEvents: reminderEvents, calendarICS: calendarICS, googleCalLink: googleCalLink, LATTE: LATTE, lattes: lattes, MORNING: MORNING, morningFor: morningFor, mealTargets: mealTargets, handPlate: handPlate, palms: palms,
     sanitize: sanitize, wrapDay: wrapDay, icsText: icsText, addDaysISO: addDaysISO, daysBetween: daysBetween,
     roundTo: roundTo, roundHalf: roundHalf, lighter: lighter, isoDate: isoDate, parseISO: parseISO, hm: hm, fmtHM: fmtHM, epley: epley,
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,

@@ -264,5 +264,11 @@ eq('sanitize session', [ds.day, ds.ex.length, ds.ex[0].feel, ds.ex[0].sets[0].kg
 eq('sanitize swaps', dirty.settings.swaps, { Leg_Press: 'Smith_Machine_Squat' });
 eq('sanitize leaves clean data alone', E.sanitize(dirty), false);
 
+// dumbbells: the logged kg is one dumbbell; two-dumbbell moves show "2 × kg" and count both hands
+eq('pair list is a subset of the dumbbell list', E.PAIR.every(function (id) { return E.DUMBBELL.indexOf(id) !== -1; }), true);
+eq('pair text', [E.kgText('Dumbbell_Bench_Press', 10), E.setText('Dumbbell_Bench_Press', 10, 8)], ['2 × 10 kg', '2 × 10 kg, 8 reps']);
+eq('one dumbbell / machine text', [E.kgText('One-Arm_Dumbbell_Row', 20), E.setText('Goblet_Squat', 20, 10), E.setText('Leg_Press', 100, 8)], ['20 kg', '20 kg × 10', '100 kg × 8']);
+eq('kg moved counts both hands', [E.liftedKg('Side_Lateral_Raise', 8), E.liftedKg('Goblet_Squat', 20), E.liftedKg('Plank', null)], [16, 20, 0]);
+
 console.log(fails ? fails + ' FAILED' : 'all ok');
 process.exit(fails ? 1 : 0);

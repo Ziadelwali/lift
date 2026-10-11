@@ -469,7 +469,7 @@ function easyLink(p,ses){
 var ANYWAY='<p class="xs" style="margin-top:10px">Want to train anyway? <button class="linkbtn" data-act="start">Start a session</button></p>';
 var FIXLINK='<p class="xs" style="margin-top:6px">Wrong number or a forgotten set? <button class="linkbtn" data-act="reopen">Fix a mistake</button></p>';
 function sessionSummary(s){
- var sets=0,vol=0,up=0,pr=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=(x.kg||0)*(x.reps||0);}if(x.pr)pr++;});if(e.suggest&&e.suggest.state==='up')up++;});
+ var sets=0,vol=0,up=0,pr=0;s.ex.forEach(function(e){e.sets.forEach(function(x){if(x.done){sets++;vol+=E.liftedKg(e.id,x.kg)*(x.reps||0);}if(x.pr)pr++;});if(e.suggest&&e.suggest.state==='up')up++;});
  var mins=s.started&&s.finished?Math.round((s.finished-s.started)/60000):null;
  return sets+(sets===1?' set · ':' sets · ')+Math.round(vol).toLocaleString()+' kg moved'+(mins?' · '+mins+' min':'')+(up?' · '+up+' exercises went up':'')+(pr?' · ★ '+pr+' new best'+(pr>1?'s':''):'');
 }
@@ -570,7 +570,7 @@ function renderTrain(){
   '<p class="xs" style="margin-top:2px">Tap a move to see how it\'s done. Tick the box when you\'ve done it.</p>'+
   warmItem('gen',wl.general,wl.general.amount,wdone)+
   wl[ses.day].map(function(w){return warmItem(w.id,w,w.reps,wdone);}).join('')+
-  (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(nm(firstRamp.id))+': '+E.rampSets(firstRamp.sets[0].kg,firstRamp.id).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
+  (firstRamp?'<p class="ramp" style="margin-top:8px">Ramp on '+esc(nm(firstRamp.id))+': '+E.rampSets(firstRamp.sets[0].kg,firstRamp.id).map(function(r){return '<b>'+r.kg+'</b>×'+r.reps;}).join(' → ')+(E.pair(firstRamp.id)?' (kg each hand)':'')+' — then working sets.</p>':'<p class="xs" style="margin-top:8px">First exercise: do 1–2 light feeler sets before the working weight. No static stretching.</p>')+
   '</details>';
  /* one exercise at a time; the others are a tap away */
  var f=focusOf(ses),others=ses.ex.map(function(e,i){return i;}).filter(function(i){return i!==f&&!exDone(ses.ex[i]);});
@@ -630,7 +630,7 @@ function exHead(e,ei,ses){
  return '<div class="head"'+(d?' data-toggle="'+ei+'"':'')+'><div class="row between"><h2>'+(d?'<span style="color:var(--ok)">✓</span> ':(ei+1)+'. ')+esc(nm(e.id))+'</h2>'+(cfg.prio?'<span class="chip prio">priority</span>':'')+'</div>'+
   '<p class="official">'+esc(ex.name)+' · '+esc(equipWord(e.id))+'</p>'+
   '<p class="muscles">Works: '+ex.primary.map(function(m){return '<b>'+mw(m)+'</b>';}).join(', ')+(ex.secondary.length?' · also '+ex.secondary.map(mw).join(', '):'')+'</p>'+
-  (d?'<p class="exsum">'+e.sets.length+' sets · '+e.sets.map(function(s){return esc(s.kg)+'×'+esc(s.reps);}).join(', ')+' <span class="xs">· '+(openCards[ei]?'tap to fold':'tap to open')+'</span></p>':'')+'</div>';
+  (d?'<p class="exsum">'+e.sets.length+' sets · '+e.sets.map(function(s){return esc(s.kg)+'×'+esc(s.reps);}).join(', ')+' <span class="xs">· '+(E.pair(e.id)?'kg each hand · ':'')+(openCards[ei]?'tap to fold':'tap to open')+'</span></p>':'')+'</div>';
 }
 function exInner(e,ei,ses,collapsed){
  var ex=exOf(e.id);
@@ -651,8 +651,8 @@ function exBody(e,ei,ses){
  return (GYM_PHOTO[e.id]?'<button class="gymph" data-gymph="1" aria-label="Show the machine at your gym bigger"><img src="'+GYM_PHOTO[e.id]+'" alt="" loading="lazy"><span>At your gym</span></button>':'')+'<p class="sm"><b>Where:</b> '+esc(inf.where)+'</p><p class="sm" style="margin-top:4px"><b>Form:</b> '+esc(inf.tip)+'</p>'+
   (E.cue(e.id)?'<p class="sm cue" style="margin-top:4px"><b>Effort:</b> '+esc(E.cue(e.id))+'</p>':'')+
   lastTime(e.id)+
-  '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?sg.kg+' kg × '+sg.reps:'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
-  '<div class="sethead"><span></span><span>kg</span><span>reps</span><span></span></div>'+
+  '<div class="note '+(sg.state||'')+'"><b>'+(sg.kg?esc(E.setText(e.id,sg.kg,sg.reps)):'reps '+cfg.reps[0]+'–'+cfg.reps[1])+'</b> · '+sg.sets+' sets · rest '+fmtSec(cfg.rest)+'<br>'+esc(sg.note||'')+'</div>'+
+  '<div class="sethead"><span></span><span>'+(E.pair(e.id)?'kg each hand':'kg')+'</span><span>reps</span><span></span></div>'+
   e.sets.map(function(s,si){
    return '<div class="setrow'+(s.done?' done':'')+'"><span class="sn mono">'+(si+1)+'</span>'+stepper('kg',ei,si,s.kg,cfg.inc||1)+stepper('reps',ei,si,s.reps,1)+
     '<button class="tick'+(s.done?' on':'')+'" data-tick="'+ei+':'+si+'" aria-label="Set done">'+(s.pr?'★':'✓')+'</button></div>'+
@@ -676,7 +676,8 @@ function lastTime(id){
  var hs=E.history(state,id),l=hs[hs.length-1];
  if(!l)return '';
  var same=l.sets.every(function(s){return s.kg===l.sets[0].kg;});
- var txt=same?l.sets[0].kg+' kg × '+l.sets.map(function(s){return s.reps;}).join(', '):l.sets.map(function(s){return s.kg+'×'+s.reps;}).join(' · ');
+ var reps=l.sets.map(function(s){return s.reps;}).join(', '),p=E.pair(id);
+ var txt=same?(p?E.kgText(id,l.sets[0].kg)+': '+reps+' reps':l.sets[0].kg+' kg × '+reps):l.sets.map(function(s){return s.kg+'×'+s.reps;}).join(' · ')+(p?' (kg each hand)':'');
  return '<p class="lasttime"><span>Last time · '+niceDate(l.date)+'</span><b class="mono">'+esc(txt)+'</b></p>';
 }
 function num(v){v=String(v==null?'':v).trim().replace(',','.');return v===''||isNaN(+v)?null:+v;}
@@ -732,7 +733,7 @@ function renderProgress(){
  var wk=weekSessions(),streak=streakWeeks();
  var wb=weekBests();
  h+='<div class="grid3" style="margin-top:14px"><div class="stat"><div class="v">'+wk+'/3</div><div class="l">sessions this week</div></div><div class="stat"><div class="v">'+streak+'</div><div class="l">weeks streak</div></div><div class="stat"><div class="v">'+done.length+'</div><div class="l">sessions in total</div></div></div>'+
-  (wb.length?'<div class="card"><h2>★ '+wb.length+' new best'+(wb.length>1?'s':'')+' this week</h2><ul class="shop" style="margin-top:6px">'+wb.map(function(b){return '<li>★ <b>'+esc(nm(b.id))+'</b> <span class="mono">'+b.kg+' kg × '+b.reps+'</span> <span class="xs">'+niceDate(b.date)+'</span></li>';}).join('')+'</ul></div>':'');
+  (wb.length?'<div class="card"><h2>★ '+wb.length+' new best'+(wb.length>1?'s':'')+' this week</h2><ul class="shop" style="margin-top:6px">'+wb.map(function(b){return '<li>★ <b>'+esc(nm(b.id))+'</b> <span class="mono">'+esc(E.setText(b.id,b.kg,b.reps))+'</span> <span class="xs">'+niceDate(b.date)+'</span></li>';}).join('')+'</ul></div>':'');
  h+='<div class="card"><h2>Bodyweight</h2>'+weightChart()+'</div>'+waistCard();
  var ids=[];E.PROGRAM.A.concat(E.PROGRAM.B).forEach(function(c){if(ids.indexOf(c.id)<0)ids.push(c.id);});
  Object.keys(state.sessions).forEach(function(k){(state.sessions[k].ex||[]).forEach(function(e){if(ids.indexOf(e.id)<0)ids.push(e.id);});});
@@ -796,7 +797,7 @@ function liftChart(id){
  var bs=E.bestSets(state,id);
  var pts=bs.map(function(b){return {x:E.parseISO(b.date).getTime(),y:b.e1rm};});
  var last=bs[bs.length-1];
- return (last?'<p class="sm" style="margin:4px 0 6px">Best set '+last.kg+' kg × '+last.reps+' → est. 1RM <b class="mono">'+last.e1rm+'</b> kg</p>':'')+lineChart(pts,{fmtX:fmtX,dec:0,empty:'complete a session with this lift.'});
+ return (last?'<p class="sm" style="margin:4px 0 6px">Best set '+esc(E.setText(id,last.kg,last.reps))+' → est. 1RM <b class="mono">'+last.e1rm+'</b> kg'+(E.pair(id)?' each hand':'')+'</p>':'')+lineChart(pts,{fmtX:fmtX,dec:0,empty:'complete a session with this lift.'});
 }
 function volumeChart(){
  var vol=E.weeklyVolume(state,EX),prio=[];(state.profile.priority||[]).forEach(function(k){prio=prio.concat(E.PRIORITY[k].muscles);});
@@ -881,7 +882,7 @@ document.addEventListener('click',function(ev){
   if(!st.done){if(!(st.kg>0||(st.kg===0&&E.BODYWEIGHT.indexOf(ex.id)>=0))||!(st.reps>0)){toast('Enter kg and reps first');return;}st.done=true;st.at=Date.now();
    var prev=E.bestSets(state,ex.id).reduce(function(m,x){return Math.max(m,x.e1rm);},0),mine=E.epley(st.kg,st.reps);
    var beat=ex.sets.some(function(x){return x!==st&&x.pr;});
-   if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+st.kg+' kg × '+st.reps+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
+   if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+E.setText(ex.id,st.kg,st.reps)+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
    var cfg=cfgOf(ex);var lastSet=exDone(ex);// last set: no timer over the next exercise (walking to the next machine is the rest), only the question
    if(lastSet){clearInterval(rest.t);rest.end=0;keepRest();if(!ex.feel)rest.ask=+t[0];}else startRest(cfg.rest);restRir();
    var ei=+t[0];if(lastSet)delete openCards[ei];save();refreshCard(ei);
