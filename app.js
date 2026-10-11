@@ -528,7 +528,7 @@ function welcomeCard(iso,p,ses){
  var hid=null;try{hid=localStorage.getItem('lift.wbhide');}catch(e){}if(hid===iso)return '';
  var y=addDays(iso,-1),from=!p.training&&mi.dates[mi.dates.length-1]===y?y:'';   // yesterday's session moves to today, the week moves along
  var exs=p.training?p.exercises:E.exercisesFor(p.n%2===0?'A':'B',state.profile),wks=Math.round(mi.gap/7),n=mi.dates.length,head,txt;
- if(mi.back){head='Welcome back';txt=wks+' weeks away. '+(mi.back==='refind'?'Today: 2 sets each to find your weights again. They come back fast.':'Strength mostly stays for about 3 weeks, so today is 10 % lighter with the same sets. Normal weights next time.');}
+ if(mi.back){head='Welcome back';txt=wks+' weeks away. '+(mi.back==='refind'?'Today: 2 sets each to find your weights again. They come back fast.':'Strength mostly stays, so today is 10 % lighter with the same sets. Normal weights next time.');}
  else{head=n===1?'Missed '+DAYNAME[E.parseISO(mi.dates[0]).getDay()]:'Missed '+n+' sessions';txt=(n===1?'One miss changes nothing.':'A few misses change nothing.')+' Coming back is what counts.';}
  return '<div class="card welcome" role="status"><h2>'+head+'</h2><p class="sm" style="margin-top:4px">'+txt+'</p>'+
   '<div class="row" style="gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn small" data-act="welcome" data-from="'+from+'">Train today</button><button class="btn small ghost" data-act="welcome" data-short="1" data-from="'+from+'">Short version (~'+E.estMinutes(E.shortExercises(exs))+' min)</button></div>'+
