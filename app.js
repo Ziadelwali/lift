@@ -749,7 +749,7 @@ function renderEat(){
  if(!mac){$('#v-eat').innerHTML='<div class="card"><p>Fill in your profile first.</p></div>';return;}
  var ta=E.trendAdvice(state);
  var tgt=E.mealTargets(mac,p),sh=E.SHAKES.morning.P+E.SHAKES.post.P+E.SHAKES.bed.P;
- var h='<div class="card" style="margin-top:14px"><div class="row between"><h2>Protein a day</h2><span class="chip acc">'+esc(PHASE_WORDS[mac.phase]||'')+'</span></div>'+
+ var h='<div class="card" style="margin-top:14px"><h2>Protein a day</h2><p class="xs" style="margin-top:2px">Goal: '+esc((PHASE_WORDS[mac.phase]||'').toLowerCase())+'</p>'+
   '<div class="grid2" style="margin-top:10px"><div class="stat"><div class="v">'+mac.protein+' g</div><div class="l">protein a day</div></div><div class="stat"><div class="v">'+sh+' g</div><div class="l">from the 3 shakes</div></div></div>'+proteinSoFar(iso,mac)+
   '<p class="xs" style="margin-top:10px">'+(+p.goal2?'2.2 g per kg of your goal weight ('+p.goal2+' kg)':'About 2 g per kg of bodyweight')+' — the one number that matters for muscle, and it keeps muscle while fat comes off. The shakes cover '+sh+' g; lunch and dinner bring the rest, about '+tgt.P+' g each. Nothing else to count.</p></div>';
  h+='<div class="card"><h2>Your plate</h2><p class="xs" style="margin:4px 0 10px">Eat what you like — just build lunch and dinner like this. Your hand is the measure, so there is nothing to weigh.</p>'+plateHTML(tgt.P)+'<p class="xs" style="margin-top:10px">Still hungry? More vegetables first. Protein is the part not to skip.</p></div>';
