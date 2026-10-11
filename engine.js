@@ -659,6 +659,12 @@
     return slots;
   }
 
+  /* Protein from the ticked rows of a day's timeline (meals: {key: 1}). */
+  function proteinDone(slots, meals) {
+    meals = meals || {};
+    return slots.reduce(function (a, s) { return a + (meals[s.key] ? s.protein || 0 : 0); }, 0);
+  }
+
   /* ---------- calendar reminders ----------
      Repeating weekly events for the phone's calendar, so reminders work with the app closed.
      Same time on several weekdays = one event with BYDAY. Floating local times. */
@@ -834,7 +840,7 @@
     schedOf: schedOf, mondayOf: mondayOf, freshSets: freshSets,
     exercisesFor: exercisesFor, idFor: idFor, findCfg: findCfg, completedSessions: completedSessions, history: history,
     suggest: suggest, suggestIn: suggestIn, feelOf: feelOf, recentStalls: recentStalls, plan: plan, movedFrom: movedFrom, shiftWeek: shiftWeek, sundayShift: sundayShift, unshiftWeek: unshiftWeek, buildSession: buildSession, rampSets: rampSets,
-    macros: macros, timeline: timeline, weightSeries: weightSeries, weightTrend: weightTrend,
+    macros: macros, timeline: timeline, proteinDone: proteinDone, weightSeries: weightSeries, weightTrend: weightTrend,
     trendAdvice: trendAdvice, trendWeight: trendWeight, weightRate: weightRate, macrosFor: macrosFor, weeklyVolume: weeklyVolume, bestSets: bestSets
   };
 });

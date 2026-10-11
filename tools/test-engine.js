@@ -33,6 +33,11 @@ eq('protein 2 g/kg', m.protein, 224);
 eq('protein from goal weight: 2.2 × 93 ≈ 200 g, rounded to 10', [E.macros(Object.assign({}, prof, { goal2: 93 })).protein, E.proteinFor({ weight: 112, goal2: 85 }), E.proteinFor({ weight: 112, goal2: 'x' })], [200, 190, 224]);
 eq('meals with 200 g: about 40 g each', E.mealTargets(E.macros(Object.assign({}, prof, { goal2: 93 })), {}).P, 40);
 console.log('macros', m);
+var tl200 = E.timeline(Object.assign({}, prof, { goal2: 93 }), { date: '2026-10-12', training: true, time: '16:00', day: 'A' }, E.macros(Object.assign({}, prof, { goal2: 93 })));
+eq('protein so far: nothing ticked', E.proteinDone(tl200, {}), 0);
+eq('protein so far: morning shake + lunch', E.proteinDone(tl200, { sh2: 1, m1: 1, train: 1 }), 35 + 40);
+eq('protein so far: all ticked ≈ the day target', E.proteinDone(tl200, { sh2: 1, m1: 1, sh1: 1, m2: 1, sh3: 1 }), 200);
+eq('protein so far: unticked (0) rows do not count', E.proteinDone(tl200, { sh2: 0, m1: 1 }), 40);
 
 var st = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: {} };
 var p = E.plan('2026-09-21', st); // Monday

@@ -164,8 +164,13 @@ hr{border:0;border-top:1px solid var(--line);margin:12px 0}
 .tl li:first-child{border-top:0}
 .tl .t{font-family:var(--mono);font-size:14px;color:var(--ink2);padding-top:2px}
 .tl li.next .t{color:var(--acc)}
-.tl li.past{opacity:.5}
-.tl li.done{opacity:.6}
+/* ticked = clearly finished (grey, struck through, green tick); unticked past = still readable, can be ticked late */
+.tl li.past .t{color:var(--ink3)}
+.tl li.done .t,.tl li.done .l{color:var(--ink3)}.tl li.done .l{text-decoration:line-through;text-decoration-thickness:1px;font-weight:500}
+.tl li.done .macro,.tl li.done .why,.tl li.done .foods{opacity:.6}
+.psofar{margin:8px 0 6px}.psofar b{color:var(--ink);font-size:15px}
+.pbar{display:block;height:6px;border-radius:3px;background:var(--line);margin-top:6px;overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--food);transition:width .3s}
 .tl .l{font-weight:600}
 .tl .why{font-size:12.5px;color:var(--ink3);margin-top:2px}
 .tl .foods{font-size:12.5px;color:var(--ink2);margin-top:4px}

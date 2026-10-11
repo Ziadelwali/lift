@@ -395,7 +395,12 @@ function foodCard(iso,p,mac){
  var sl=E.timeline(state.profile,p,mac).filter(function(s){return s.key!=='train';}),ml=(state.daily[iso]||{}).meals||{},nd=sl.filter(function(s){return ml[s.key];}).length;
  var tail='';if(nd===sl.length||!sl.some(function(s){return !ml[s.key]&&s.t+45>=nowMin();})){var ti=addDays(iso,1),first=E.timeline(state.profile,planFor(ti),mac).filter(function(s){return s.key!=='train';})[0];
   if(first)tail='<p class="xs" style="margin-top:8px">Tomorrow first: <b>'+first.time+' · '+esc(first.what||first.label)+'</b></p>';}
- return '<div class="card eatnext t-food"><div class="row between"><h2>Eating today</h2><span class="chip'+(nd===sl.length?' acc':'')+'">'+nd+' of '+sl.length+' done</span></div><p class="xs" style="margin:2px 0 4px">'+(mac?'Protein today: <b>'+mac.protein+' g</b>. Tap a row when you have had it.':'set up your profile')+'</p>'+timelineHTML(iso,p,mac,true,true)+tail+yesterdayHTML(iso,mac)+'</div>';
+ return '<div class="card eatnext t-food"><div class="row between"><h2>Eating today</h2><span class="chip'+(nd===sl.length?' acc':'')+'">'+nd+' of '+sl.length+' done</span></div>'+proteinSoFar(iso,mac)+'<p class="xs" style="margin:2px 0 4px">Tap a row when you have had it.</p>'+timelineHTML(iso,p,mac,true,true)+tail+yesterdayHTML(iso,mac)+'</div>';
+}
+/* "Protein so far: 120 of 200 g" from the rows ticked today, with a small bar. */
+function proteinSoFar(iso,mac){
+ if(!mac)return '';var got=E.proteinDone(E.timeline(state.profile,planFor(iso),mac),((state.daily[iso]||{}).meals));
+ return '<div class="psofar"><p class="sm">Protein so far: <b class="mono">'+got+'</b> of '+mac.protein+' g</p><span class="pbar"><i style="width:'+Math.min(100,Math.round(got/mac.protein*100))+'%"></i></span></div>';
 }
 /* Forgot to tick something? Yesterday's list stays open for ticking all of today. */
 var keepY=false;
@@ -740,7 +745,7 @@ function renderEat(){
  var ta=E.trendAdvice(state);
  var tgt=E.mealTargets(mac,p),sh=E.SHAKES.morning.P+E.SHAKES.post.P+E.SHAKES.bed.P;
  var h='<div class="card" style="margin-top:14px"><div class="row between"><h2>Protein a day</h2><span class="chip acc">'+esc(PHASE_WORDS[mac.phase]||'')+'</span></div>'+
-  '<div class="grid2" style="margin-top:10px"><div class="stat"><div class="v">'+mac.protein+' g</div><div class="l">protein a day</div></div><div class="stat"><div class="v">'+sh+' g</div><div class="l">from the 3 shakes</div></div></div>'+
+  '<div class="grid2" style="margin-top:10px"><div class="stat"><div class="v">'+mac.protein+' g</div><div class="l">protein a day</div></div><div class="stat"><div class="v">'+sh+' g</div><div class="l">from the 3 shakes</div></div></div>'+proteinSoFar(iso,mac)+
   '<p class="xs" style="margin-top:10px">'+(+p.goal2?'2.2 g per kg of your goal weight ('+p.goal2+' kg)':'About 2 g per kg of bodyweight')+' — the one number that matters for muscle, and it keeps muscle while fat comes off. The shakes cover '+sh+' g; lunch and dinner bring the rest, about '+tgt.P+' g each. Nothing else to count.</p></div>';
  h+='<div class="card"><h2>Your plate</h2><p class="xs" style="margin:4px 0 10px">Eat what you like — just build lunch and dinner like this. Your hand is the measure, so there is nothing to weigh.</p>'+plateHTML(tgt.P)+'<p class="xs" style="margin-top:10px">Still hungry? More vegetables first. Protein is the part not to skip.</p></div>';
  h+='<div class="card"><h2>Eating vs your weight</h2><p class="sm" style="margin-top:6px">'+esc(ta.text)+(ta.rate!=null?' <span class="xs">(trend on the Progress tab)</span>':'')+'</p></div>';
