@@ -36,9 +36,12 @@ var st = { profile: prof, sessions: {}, weight: {}, daily: {}, settings: {} };
 var p = E.plan('2026-09-21', st); // Monday
 eq('plan monday A', [p.training, p.day, p.calibration, p.week], [true, 'A', true, 1]);
 eq('plan tuesday rest', E.plan('2026-09-22', st).training, false);
-eq('exercises A count', p.exercises.length, 9);
-eq('exercises A no prio', E.exercisesFor('A', { priority: [] }).length, 8);
-eq('exercises A default prio', E.exercisesFor('A', {}).length, 9);
+eq('exercises A count', p.exercises.length, 10);
+eq('exercises A no prio', E.exercisesFor('A', { priority: [] }).length, 9);
+eq('exercises A default prio', E.exercisesFor('A', {}).length, 10);
+eq('leg extension 2×10–15 right after the leg curl in A', (function () { var a = E.PROGRAM.A.map(function (c) { return c.id; }), i = a.indexOf('Leg_Extensions'); return [a[i - 1], E.PROGRAM.A[i].sets, E.PROGRAM.A[i].reps]; })(), ['Seated_Leg_Curl', 2, [10, 15]]);
+var quads = function (d) { return E.exercisesFor(d, prof).filter(function (c) { return ['Leg_Press', 'Smith_Machine_Squat', 'Leg_Extensions'].indexOf(c.id) >= 0; }).reduce(function (a, c) { return a + c.sets; }, 0); };
+eq('front of thigh: 11–13 hard sets a week (A-B-A / B-A-B)', [2 * quads('A') + quads('B'), quads('A') + 2 * quads('B')], [13, 11]);
 var ses = E.buildSession(p, st);
 eq('session sets calib', ses.ex[0].sets.length, 2);
 // complete 3 sessions → week 2, day B next

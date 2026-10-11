@@ -36,7 +36,7 @@
       { id: 'Leg_Press', sets: 3, reps: [6, 10], inc: 5, rest: 120, ramp: true,
         where: 'Nautilus leg press.',
         tip: 'Feet mid-plate. Knees to 90°, lower back stays on the pad.',
-        alts: ['Smith_Machine_Squat', 'Leg_Extensions'] },
+        alts: ['Smith_Machine_Squat'] },
       { id: 'Dumbbell_Bench_Press', sets: 3, reps: [6, 10], inc: 2, rest: 120, ramp: true,
         where: 'Flat bench, two dumbbells.',
         tip: 'Shoulder blades back. Lower to the chest, press up.',
@@ -49,6 +49,12 @@
         where: 'Nautilus leg curl.',
         tip: 'Curl all the way, let it back up slowly.',
         alts: ['Smith_Machine_Stiff-Legged_Deadlift'] },
+      // Leg press and squats barely grow the front-of-thigh muscle that crosses the hip (rectus
+      // femoris); leg extensions do (Maeo 2018, Zabaleta-Korta 2021). Quads: 9 → 11–13 sets a week.
+      { id: 'Leg_Extensions', sets: 2, reps: [10, 15], inc: 5, rest: 60,
+        where: 'Nautilus leg extension.',
+        tip: 'Straighten fully, squeeze 1 s, lower slowly.',
+        alts: ['Goblet_Squat'] },
       { id: 'Dumbbell_Shoulder_Press', sets: 3, reps: [8, 12], inc: 2, rest: 100,
         where: 'Upright bench, two dumbbells.',
         tip: 'From the ears up to almost straight arms. No arching.',
@@ -148,8 +154,6 @@
 
   /* Where / form text for exercises that are only swap options (main lifts carry theirs in PROGRAM). */
   var ALT_INFO = {
-    Leg_Extensions: { where: 'Nautilus leg extension.',
-      tip: 'Straighten fully, squeeze 1 s, lower slowly.' },
     Machine_Bench_Press: { where: 'Nautilus chest press.',
       tip: 'Handles at mid-chest. Press, return slowly.' },
     Smith_Machine_Bench_Press: { where: 'Smith machine, flat bench.',
