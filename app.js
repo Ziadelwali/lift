@@ -272,40 +272,57 @@ function beep(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)(
 function buzz(p){try{navigator.vibrate&&navigator.vibrate(p||[150,80,150]);}catch(e){}}
 
 /* ---------------- rest timer ---------------- */
-var rest={end:0,total:0,t:null,ask:null};
-function startRest(sec){
- rest.total=sec;rest.end=Date.now()+sec*1000;clearInterval(rest.t);
- var el=$('#rest');el.classList.add('on');el.classList.remove('over');
- rest.t=setInterval(tickRest,250);tickRest();
+/* {end,total} live in sessionStorage, so a reload mid-rest keeps the timer. */
+var rest={end:0,total:0,t:null,ask:null},RK='lift.rest';
+function keepRest(){try{if(rest.end>0)sessionStorage.setItem(RK,JSON.stringify({end:rest.end,total:rest.total}));else sessionStorage.removeItem(RK);}catch(e){}}
+function runRest(){
+ clearInterval(rest.t);
+ var el=$('#rest');el.classList.add('on');el.classList.toggle('over',rest.end<=Date.now());
+ rest.t=setInterval(tickRest,250);tickRest();restPad();
+}
+function startRest(sec){rest.total=sec;rest.end=Date.now()+sec*1000;keepRest();runRest();}
+function restoreRest(){
+ var r=null;try{r=JSON.parse(sessionStorage.getItem(RK)||'null');}catch(e){}
+ if(r&&r.end>Date.now()-600e3&&r.total>0&&activeSession()){rest.end=r.end;rest.total=r.total;runRest();}else{rest.end=0;keepRest();}
 }
 function tickRest(){
  var left=(rest.end-Date.now())/1000,el=$('#rest');
- $('.t',el).textContent=(left<0?'+':'')+fmtSec(Math.abs(left));
+ $('.t',el).textContent=left<0?'Go +'+fmtSec(-left):fmtSec(left);
  $('.bar i',el).style.width=Math.max(0,Math.min(100,left/rest.total*100))+'%';
- if(left<=0&&!el.classList.contains('over')){el.classList.add('over');beep();buzz();}
- if(left<-120)stopRest();
+ // beep only when it runs out with the app on screen, not late when coming back to it
+ if(left<=0&&!el.classList.contains('over')){el.classList.add('over');if(!document.hidden&&left>-2){beep();buzz();}}
+ if(left<-600)stopRest();
 }
-function stopRest(){clearInterval(rest.t);rest.end=0;$('#rest').classList.remove('on');restRir();}
+function stopRest(){clearInterval(rest.t);rest.end=0;keepRest();$('#rest').classList.remove('on');restRir();}
+/* room under the content for the rest bar, so it never covers the last set row */
+function restPad(){var el=$('#rest');document.documentElement.style.setProperty('--rh',(el.classList.contains('on')?el.offsetHeight+8:0)+'px');}
 /* "How was it?" once per exercise, after its last set. It stays on the bar (also after the
    rest timer ends) until answered, because it is easy to forget. */
 function restRir(){
  var el=$('#restrir'),bar=$('#rest'),ses=activeSession();
  if(ses&&(rest.ask==null||!ses.ex[rest.ask]||ses.ex[rest.ask].feel))for(var i=ses.ex.length-1;i>=0;i--){if(exDone(ses.ex[i])&&!ses.ex[i].feel){rest.ask=i;break;}}
  var e=ses&&rest.ask!=null&&ses.ex[rest.ask];
- if(!e||e.feel||!exDone(e)){rest.ask=null;el.hidden=true;bar.classList.remove('askonly');if(!(rest.end>0))bar.classList.remove('on');return;}
+ if(!e||e.feel||!exDone(e)){rest.ask=null;el.hidden=true;bar.classList.remove('askonly');if(!(rest.end>0))bar.classList.remove('on');restPad();return;}
  el.hidden=false;el.innerHTML='<span><b>'+esc(nm(e.id))+'</b> done ✓ — how was it?</span>'+feelButtons(rest.ask,e);
- bar.classList.add('on');bar.classList.toggle('askonly',!(rest.end>0));
+ bar.classList.add('on');bar.classList.toggle('askonly',!(rest.end>0));restPad();
 }
 $('#restskip').addEventListener('click',stopRest);
 
 /* ---------------- wake lock ---------------- */
-var lock=null;
+/* Screen stays on for the whole session, on every tab. The browser drops the lock when the app is
+   hidden, so it is asked for again on return. lockPending stops a second request while one is out,
+   and a lock that arrives after the session ended is given straight back. */
+var lock=null,lockPending=false,lockWanted=false;
 function keepAwake(on){
- if(!('wakeLock' in navigator))return;
- if(on&&!lock)navigator.wakeLock.request('screen').then(function(l){lock=l;l.addEventListener('release',function(){lock=null;});}).catch(function(){});
- if(!on&&lock){lock.release().catch(function(){});lock=null;}
+ lockWanted=on;if(!('wakeLock' in navigator))return;
+ if(on&&!lock&&!lockPending&&document.visibilityState==='visible'){lockPending=true;
+  navigator.wakeLock.request('screen').then(function(l){lockPending=false;
+   if(!lockWanted){l.release().catch(function(){});return;}
+   lock=l;l.addEventListener('release',function(){if(lock===l)lock=null;});
+  }).catch(function(){lockPending=false;});}
+ if(!on&&lock){var l=lock;lock=null;l.release().catch(function(){});}
 }
-document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&view==='train'&&activeSession())keepAwake(true);});
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')keepAwake(!!activeSession());});
 
 /* ---------------- sessions ---------------- */
 /* The session being trained: today's, or one started under 6 h ago (training past midnight).
@@ -330,7 +347,7 @@ function show(v){
  view=v;$$('nav.tabs button').forEach(function(b){b.classList.toggle('on',b.dataset.v===v);});
  $$('.view').forEach(function(s){s.classList.toggle('on',s.id==='v-'+v);});
  $('#title').textContent={today:'Today',train:'Train',eat:'Eat',progress:'Progress',profile:'Profile'}[v];
- keepAwake(v==='train'&&!!activeSession());
+ keepAwake(!!activeSession());
  window.scrollTo(0,0);render();measureBars();
 }
 $$('nav.tabs button').forEach(function(b){b.addEventListener('click',function(){show(b.dataset.v);});});
@@ -368,7 +385,7 @@ function fixSunday(){
  var r=E.shiftWeek(state,sh.from,sh.to);st.moves=r.moves;st.autoMoves=r.auto;save();
 }
 function render(){
- fixSunday();
+ fixSunday();keepAwake(!!activeSession());
  if(!profileReady()&&view!=='profile'){show('profile');return;}
  ({today:renderToday,train:renderTrain,eat:renderEat,progress:renderProgress,profile:renderProfile})[view]();
 }
@@ -851,7 +868,7 @@ document.addEventListener('click',function(ev){
  if(b.dataset.mealdone){var di=todayISO();state.daily[di]=state.daily[di]||{};state.daily[di].meals=state.daily[di].meals||{};state.daily[di].meals[b.dataset.mealdone]=1;save();renderToday();toast('Nice — ticked off');return;}
  if(b.dataset.wuopen){var wk=b.dataset.wuopen;openWarm[wk]=!openWarm[wk];var wses=activeSession();if(!wses)return;var ww=wk==='gen'?E.WARMUP.general:E.WARMUP[wses.day].filter(function(x){return x.id===wk;})[0];var wel=$('#wu-'+wk);if(ww&&wel)wel.outerHTML=warmItem(wk,ww,wk==='gen'?ww.amount:ww.reps,wses.warm||{});return;}
  if(b.dataset.mealrow){if(ev.target.tagName==='INPUT')return;var mi=b.querySelector('input');if(mi&&!mi.disabled){mi.checked=!mi.checked;mi.dispatchEvent(new Event('change',{bubbles:true}));}return;}
- if(b.dataset.rest){rest.end+=(+b.dataset.rest)*1000;rest.total=Math.max(1,rest.total+(+b.dataset.rest));if(rest.end>Date.now())$('#rest').classList.remove('over');tickRest();return;}
+ if(b.dataset.rest){rest.end+=(+b.dataset.rest)*1000;rest.total=Math.max(1,rest.total+(+b.dataset.rest));keepRest();if(rest.end>Date.now())$('#rest').classList.remove('over');tickRest();return;}
  if(b.dataset.jump){var jses=activeSession();if(jses&&!jses.warmShut){jses.warmShut=true;save();}trainFocus=+b.dataset.jump;renderTrain();scrollTo(0,0);return;}
  if(b.dataset.pickother){var ob=$('#others');if(ob){ob.hidden=!ob.hidden;if(!ob.hidden)ob.scrollIntoView({behavior:SMOOTH,block:'start'});}return;}
  if(b.dataset.toggle){var tg=+b.dataset.toggle;openCards[tg]=!openCards[tg];refreshCard(tg);return;}
@@ -877,7 +894,7 @@ document.addEventListener('click',function(ev){
    var beat=ex.sets.some(function(x){return x!==st&&x.pr;});
    if(prev&&mine>prev+0.05&&!beat){st.pr=true;setTimeout(function(){toast('New best! '+st.kg+' kg × '+st.reps+' on '+nm(ex.id));buzz([60,40,60,40,160]);},50);}ex.sets.forEach(function(x){if(!x.done&&x.kg==null)x.kg=st.kg;});
    var cfg=cfgOf(ex);var lastSet=exDone(ex);// last set: no timer over the next exercise (walking to the next machine is the rest), only the question
-   if(lastSet){clearInterval(rest.t);rest.end=0;if(!ex.feel)rest.ask=+t[0];}else startRest(cfg.rest);restRir();
+   if(lastSet){clearInterval(rest.t);rest.end=0;keepRest();if(!ex.feel)rest.ask=+t[0];}else startRest(cfg.rest);restRir();
    var ei=+t[0];if(lastSet)delete openCards[ei];save();refreshCard(ei);
    if(lastSet){var nx=nextUndone(ses,ei+1);if(nx>=0)setTimeout(function(){ses.warmShut=true;trainFocus=nx;renderTrain();scrollTo(0,0);toast('Next: '+nm(ses.ex[nx].id));},700);}
    return;}
@@ -947,6 +964,7 @@ function boot(){
  startSync();
  var ses=activeSession();
  show(ses?'train':(profileReady()?'today':'profile'));
+ restoreRest();
 }
 $('#gateform').addEventListener('submit',function(e){e.preventDefault();var v=norm($('#gatep').value);if(!v){toast('Type your password');return;}
  var btn=$('#gateform button'),msg=$('#gatemsg');btn.disabled=true;btn.textContent='Checking…';msg.textContent='';
